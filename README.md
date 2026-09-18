@@ -681,7 +681,7 @@ texte avec la palette Wallust du fond d'écran courant via
 ## Crédits
 
 - Projet et dotfiles originaux : [@JaKooLit](https://github.com/JaKooLit)
-- Personnalisation Debian : [@kebemouhamet08-gif](https://github.com/kebemouhamet08-gif)
+- Personnalisation Debian : [@kolemm14](https://github.com/kolemm14/Debian-Hyprland-Custom)
 - Galerie et principes de collection : [ydots](https://github.com/hugthebox/ydots)
 - Architecture Quickshell, panneaux configurables et services locaux étudiés dans
   [end4-pC](https://github.com/pctrade/end4-pC), dérivé d'illogical-impulse.

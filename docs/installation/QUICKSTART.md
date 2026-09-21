@@ -3,7 +3,7 @@
 Sur Debian 13 avec GNOME, ouvrez un terminal :
 
 ```bash
-git clone --depth 1 https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git
+git clone --depth 1 https://github.com/kolemm14/Debian-Hyprland-Custom.git
 cd Debian-Hyprland-Custom
 ./install.sh
 ```

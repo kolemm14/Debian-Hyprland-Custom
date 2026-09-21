@@ -33,7 +33,7 @@ GNOME and the existing display manager installed. It shows the complete plan
 before asking for confirmation.
 
 ```bash
-git clone --depth 1 https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git
+git clone --depth 1 https://github.com/kolemm14/Debian-Hyprland-Custom.git
 cd Debian-Hyprland-Custom
 ./install.sh --lang en
 ```

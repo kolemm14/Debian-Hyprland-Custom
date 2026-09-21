@@ -43,7 +43,7 @@ que le gestionnaire de connexion existant. Il affiche le plan complet avant une
 unique confirmation :
 
 ```bash
-git clone --depth 1 https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git
+git clone --depth 1 https://github.com/kolemm14/Debian-Hyprland-Custom.git
 cd Debian-Hyprland-Custom
 ./install.sh
 ```
@@ -90,7 +90,7 @@ les sources.
 ### Deblestia Shell
 
 ```bash
-./install-deblestia-shell.sh check
+a./install-deblestia-shell.sh check
 ./install-deblestia-shell.sh install
 ```
 
@@ -101,7 +101,7 @@ Nova 2 est la barre Waybar horizontale multi-écran. Elle affecte les bureaux
 position des sorties.
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git deblestia-nova2
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git deblestia-nova2
 cd deblestia-nova2
 git sparse-checkout set config/waybar config/hypr docs
 ./install-deblestia-nova2.sh check
@@ -117,7 +117,7 @@ Immersive et le mémorise pour la prochaine connexion.
 ### Nova Shell Custom Debian
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git deblestia-nova-shell
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git deblestia-nova-shell
 cd deblestia-nova-shell
 git sparse-checkout set config/nova-shell config/hypr
 ./install-deblestia-nova-shell.sh check
@@ -128,7 +128,7 @@ git sparse-checkout set config/nova-shell config/hypr
 ### Custom Debian V2 Immersive
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git custom-debian-v2
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git custom-debian-v2
 cd custom-debian-v2
 git sparse-checkout set config/caelestia config/hypr config/v2
 ./install-custom-debian-v2.sh check
@@ -148,7 +148,7 @@ Le HUD dispose d’un affichage de bureau indépendant du fond d’écran et d�
 </p>
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git mpvpaper-engine
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mpvpaper-engine
 cd mpvpaper-engine
 git sparse-checkout set config/mpvpaper-engine
 ./install-mpvpaper-engine.sh check
@@ -158,7 +158,7 @@ git sparse-checkout set config/mpvpaper-engine
 ### PeriphX
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git periphx
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git periphx
 cd periphx
 git sparse-checkout set config/v3
 ./install-periphx.sh check
@@ -169,7 +169,7 @@ git sparse-checkout set config/v3
 ### MirrorBridge
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git mirrorbridge
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mirrorbridge
 cd mirrorbridge
 git sparse-checkout set config/mirrorbridge
 ./install-mirrorbridge.sh check
@@ -456,17 +456,17 @@ ne la fournit pas, suivez la procédure de compilation du
    s'ouvre pour l'installer dans SDDM. **Arrêter le fond vidéo** coupe les fonds
    animés en cours sans supprimer les fichiers de la bibliothèque.
 10. Dans **Thèmes**, choisissez le mode clair ou sombre, le thème GTK, les icônes
-   et le curseur parmi ceux installés sur la machine. Cliquez sur **Appliquer le
-   thème** : le réglage est conservé dans la session et utilisé par les
-   applications compatibles. MPVpaper Engine synchronise `gsettings` et les
-   configurations GTK 3/4 afin d'éviter qu'un ancien réglage remplace le choix.
-   Le bouton **󰸉 Adapter tout au fond choisi** analyse plusieurs scènes rendues
-   de la vidéo sélectionnée et envoie leur palette équilibrée à Deblestia Nova/Matugen ainsi qu'à
-   toutes les Waybar. Il adapte donc le shell et les applications compatibles
-   sans remplacer, interrompre ni masquer le fond animé.
-   Les nouvelles collections peuvent être installées
-   dans `~/.themes` pour GTK et `~/.icons` pour les icônes ou curseurs ; elles
-   apparaîtront dans les listes au prochain lancement de MPVpaper Engine.
+    et le curseur parmi ceux installés sur la machine. Cliquez sur **Appliquer le
+    thème** : le réglage est conservé dans la session et utilisé par les
+    applications compatibles. MPVpaper Engine synchronise `gsettings` et les
+    configurations GTK 3/4 afin d'éviter qu'un ancien réglage remplace le choix.
+    Le bouton **󰸉 Adapter tout au fond choisi** analyse plusieurs scènes rendues
+    de la vidéo sélectionnée et envoie leur palette équilibrée à Deblestia Nova/Matugen ainsi qu'à
+    toutes les Waybar. Il adapte donc le shell et les applications compatibles
+    sans remplacer, interrompre ni masquer le fond animé.
+    Les nouvelles collections peuvent être installées
+    dans `~/.themes` pour GTK et `~/.icons` pour les icônes ou curseurs ; elles
+    apparaîtront dans les listes au prochain lancement de MPVpaper Engine.
 
 Les miniatures peuvent prendre quelques secondes à apparaître lors de la première
 ouverture. Un téléchargement qui échoue peut provenir d'un site ayant changé son
@@ -540,7 +540,7 @@ droit choisit une vidéo aléatoire et le clic milieu ouvre les réglages de cou
 Le raccourci `Super+W` reste réservé au sélecteur standard de fonds d'écran fixes.
 Le bouton **Utiliser pour l'écran de connexion** extrait une image de la vidéo
 sélectionnée, ouvre un terminal d'autorisation et l'installe dans le thème SDDM
-après saisie du mot de passe administrateur.
+after saisie du mot de passe administrateur.
 SDDM ne prenant pas en charge `mpvpaper`, l'écran de connexion reste une image fixe.
 
 ## PeriphX — centre de contrôle matériel
@@ -637,7 +637,7 @@ sudo apt install git python3 jq curl fish cava brightnessctl ddcutil \
   swappy slurp wf-recorder tesseract-ocr playerctl upower qalc \
   pavucontrol kitty btop libnotify-bin
 
-git clone --depth 1 https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git
+git clone --depth 1 https://github.com/kolemm14/Debian-Hyprland-Custom.git
 cd Debian-Hyprland-Custom
 ./install-deblestia-nova-shell.sh check
 ./install-deblestia-nova-shell.sh install
@@ -681,7 +681,7 @@ texte avec la palette Wallust du fond d'écran courant via
 ## Crédits
 
 - Projet et dotfiles originaux : [@JaKooLit](https://github.com/JaKooLit)
-- Personnalisation Debian : [@kolemm14](https://github.com/kolemm14/Debian-Hyprland-Custom)
+- Personnalisation Debian : [@kolemm14](https://github.com/kolemm14)
 - Galerie et principes de collection : [ydots](https://github.com/hugthebox/ydots)
 - Architecture Quickshell, panneaux configurables et services locaux étudiés dans
   [end4-pC](https://github.com/pctrade/end4-pC), dérivé d'illogical-impulse.

@@ -256,3 +256,12 @@ case "$action" in
     help|-h|--help) usage ;;
     *) usage >&2; exit 2 ;;
 esac
+
+# Record exact ownership for subsequent incremental updates.
+source "$repo_dir/core/update/record.sh"
+if [ "$action" = install ] && ((dry_run == 0)); then
+    deblestia_update_record "periphx"
+fi
+if [ "$action" = restore ] && [ "${dry_run:-0}" = 0 ]; then
+    deblestia_update_record "periphx" forget
+fi

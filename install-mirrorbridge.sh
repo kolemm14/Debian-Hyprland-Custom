@@ -81,3 +81,12 @@ case "${1:-install}" in
     restore) restore ;;
     *) usage; exit 2 ;;
 esac
+
+# Record exact ownership for subsequent incremental updates.
+source "$repo_dir/core/update/record.sh"
+if [ "${1:-install}" = install ]; then
+    deblestia_update_record "mirrorbridge"
+fi
+if [ "${1:-install}" = restore ] && [ "${dry_run:-0}" = 0 ]; then
+    deblestia_update_record "mirrorbridge" forget
+fi

@@ -73,6 +73,16 @@ class GuiBackendTests(unittest.TestCase):
         )
         self.assertTrue(saved["outputs"]["DP-1"]["autostart"])
 
+    def test_individual_apply_removes_stale_wildcard(self):
+        self.backend.monitor_detector = lambda: [MonitorInfo("DP-1"), MonitorInfo("DP-2")]
+        self.client.play.return_value = {}
+        self.backend.apply(self.wallpaper.id, "*")
+        self.backend.apply(self.wallpaper.id, "DP-1")
+        saved = json.loads(self.paths.config_file.read_text())
+        self.assertEqual(saved["outputs"]["DP-2"]["wallpaper"], str(self.wallpaper.path))
+        self.assertNotIn("*", saved["outputs"])
+        self.assertEqual(saved["mode"], "independent")
+
     def test_live_controls_are_dispatched_to_single_backend(self):
         self.backend.playback("volume", "DP-1", 33)
         self.backend.playback("profile", "DP-1", "eco")

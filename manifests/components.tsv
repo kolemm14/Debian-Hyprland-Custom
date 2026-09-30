@@ -6,3 +6,4 @@ deblestia-shell	Deblestia Shell	install-deblestia-shell.sh	FULL	no
 mpvpaper-engine	MPVpaper Engine	install-mpvpaper-engine.sh	BALANCED,FULL	no
 periphx	PeriphX	install-periphx.sh	BALANCED,FULL	no
 mirrorbridge	MirrorBridge	install-mirrorbridge.sh	FULL	no
+aurora-core	Aurora Core	install-aurora.sh	LITE,BALANCED,FULL	no

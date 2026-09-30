@@ -22,6 +22,9 @@ class HardwareContext:
     media_height: int | None = None
     media_fps: float | None = None
     available_hwdec: tuple[str, ...] = ()
+    is_vm: bool = False
+    is_software_renderer: bool = False
+    system_profile: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +94,22 @@ def detect_hardware_context(
     mains = list(supplies.glob("AC*/online")) + list(supplies.glob("ADP*/online"))
     online = any(path.read_text().strip() == "1" for path in mains if path.is_file())
     on_battery = bool(batteries) and not online
+    is_vm = False
+    try:
+        virt = runner(["systemd-detect-virt"], capture_output=True, text=True, timeout=2, check=False)
+        if virt.returncode == 0 and virt.stdout.strip() not in {"none", ""}:
+            is_vm = True
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    is_software_renderer = os.environ.get("LIBGL_ALWAYS_SOFTWARE") == "1"
+    system_profile = ""
+    state_dir = Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local/state")) / "deblestia/setup"
+    profile_file = state_dir / "profile"
+    try:
+        if profile_file.is_file():
+            system_profile = profile_file.read_text().strip().upper()
+    except OSError:
+        pass
     return HardwareContext(
         cpu_count=os.cpu_count() or 1,
         ram_gib=ram_gib,
@@ -100,12 +119,19 @@ def detect_hardware_context(
         media_height=media_height,
         media_fps=media_fps,
         available_hwdec=detect_hwdec(runner),
+        is_vm=is_vm,
+        is_software_renderer=is_software_renderer,
+        system_profile=system_profile,
     )
 
 
 def select_auto(context: HardwareContext) -> tuple[PerformanceMode, str]:
     if context.power_saver or context.on_battery:
         return PerformanceMode.ECO, "battery or power-saver active"
+    if context.is_software_renderer:
+        return PerformanceMode.ECO, "software rendering active"
+    if context.is_vm or context.system_profile in {"LITE", "LEGACY"}:
+        return PerformanceMode.ECO, "virtual machine or LITE profile active"
     if context.cpu_count <= 2 or context.ram_gib < 4:
         return PerformanceMode.ECO, "limited CPU or RAM"
     if context.gpu_class == "integrated" and context.total_output_pixels > 4_000_000:

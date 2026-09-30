@@ -136,6 +136,36 @@ class ServiceTests(unittest.TestCase):
 
         self.service.playback.play.assert_called_once_with("eDP-1", wallpaper)
 
+    def test_restore_same_does_not_start_stale_individual_wallpapers(self):
+        from mpvpaper_engine.models import OutputMode
+        wallpaper = self.paths.config_home / "saved.mp4"
+        wallpaper.write_bytes(b"video")
+        self.service.config.mode = OutputMode.SAME
+        self.service.config.outputs = {
+            "DP-1": {"wallpaper": str(wallpaper)},
+            "DP-2": {"wallpaper": str(wallpaper)},
+            "*": {"wallpaper": str(wallpaper)},
+        }
+        self.service.playback.play = mock.Mock()
+        self.service._restore_configured_wallpapers()
+        self.service.playback.play.assert_called_once_with("*", wallpaper)
+
+    def test_restore_independent_ignores_stale_wildcard(self):
+        from mpvpaper_engine.models import OutputMode
+        wallpaper = self.paths.config_home / "saved.mp4"
+        wallpaper.write_bytes(b"video")
+        self.service.config.mode = OutputMode.INDEPENDENT
+        self.service.config.outputs = {
+            "DP-1": {"wallpaper": str(wallpaper)},
+            "DP-2": {"wallpaper": str(wallpaper)},
+            "*": {"wallpaper": str(wallpaper)},
+        }
+        self.service.playback.play = mock.Mock()
+        self.service._restore_configured_wallpapers()
+        self.assertEqual(self.service.playback.play.call_args_list, [
+            mock.call("DP-1", wallpaper), mock.call("DP-2", wallpaper),
+        ])
+
     def test_single_instance(self):
         self.service.start()
         second = EngineService(self.paths)

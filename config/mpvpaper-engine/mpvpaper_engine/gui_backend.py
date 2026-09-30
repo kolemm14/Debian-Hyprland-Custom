@@ -322,9 +322,14 @@ class GuiBackend:
             **profile,
         }
         if output == "*":
+            for monitor in self.outputs():
+                self.config.outputs[monitor.name] = {
+                    **self.config.outputs.get(monitor.name, {}), **profile,
+                }
             self.config.mode = OutputMode.SAME
         else:
             self.config.mode = OutputMode.INDEPENDENT
+            self.config.outputs.pop("*", None)
         save_config(self.config, self.paths)
 
     def set_favorite(self, wallpaper_id: int, favorite: bool) -> Wallpaper:

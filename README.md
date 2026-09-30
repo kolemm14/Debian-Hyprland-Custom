@@ -43,7 +43,7 @@ que le gestionnaire de connexion existant. Il affiche le plan complet avant une
 unique confirmation :
 
 ```bash
-git clone --depth 1 https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git
+git clone --depth 1 https://github.com/kolemm14/Debian-Hyprland-Custom.git
 cd Debian-Hyprland-Custom
 ./install.sh
 ```
@@ -57,6 +57,35 @@ et le [guide VirtualBox](docs/installation/VIRTUALBOX.md).
 La langue suit automatiquement la locale du système. Pour imposer l’anglais ou
 le français : `./install.sh --lang en` ou `./install.sh --lang fr`. La variable
 `DEBLESTIA_LANG=en` permet aussi de conserver ce choix dans les scripts.
+
+## Mettre à jour le dépôt
+
+Le dépôt officiel est désormais `kolemm14/Debian-Hyprland-Custom`.
+Depuis votre clone, lancez `./update.sh --check`, puis `./update.sh --dry-run`
+pour examiner le plan et `./update.sh` pour l’appliquer. L’updater suit les
+fichiers réellement installés, met à jour seulement les composants présents,
+protège les configurations personnalisées avec des propositions `.new` et garde
+cinq sauvegardes avec rollback. Les anciens origins officiels sont migrés en
+conservant HTTPS ou SSH ; les remotes personnalisés restent inchangés.
+
+Le checkout doit être propre. Les branches divergentes ne sont pas fusionnées.
+`--force` répare les programmes gérés sans écraser les configurations ;
+`--rollback` restaure la dernière transaction si ses fichiers n’ont pas été
+modifiés depuis. Pour migrer uniquement le remote : `--migrate-only`.
+Voir le [fonctionnement détaillé, le manifest et les limites](docs/UPDATER.md).
+
+Si votre ancien clone ne contient pas encore `update.sh`, vérifiez d’abord
+`git remote get-url origin`. **Uniquement pour l’ancien dépôt officiel en HTTPS** :
+
+```bash
+git remote set-url origin https://github.com/kolemm14/Debian-Hyprland-Custom.git
+git pull --ff-only
+```
+
+Pour un ancien origin officiel SSH, utilisez à la place
+`git@github.com:kolemm14/Debian-Hyprland-Custom.git`. Conservez l’URL de votre
+fork ou serveur personnalisé. La commande Nova `update` documentée plus bas
+continue de mettre à jour son propre projet amont.
 
 ## Télécharger et installer un seul composant
 
@@ -101,9 +130,9 @@ Nova 2 est la barre Waybar horizontale multi-écran. Elle affecte les bureaux
 position des sorties.
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git deblestia-nova2
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git deblestia-nova2
 cd deblestia-nova2
-git sparse-checkout set config/waybar config/hypr docs
+git sparse-checkout set config/waybar config/hypr docs core/update manifests
 ./install-deblestia-nova2.sh check
 ./install-deblestia-nova2.sh install
 ```
@@ -117,9 +146,9 @@ Immersive et le mémorise pour la prochaine connexion.
 ### Nova Shell Custom Debian
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git deblestia-nova-shell
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git deblestia-nova-shell
 cd deblestia-nova-shell
-git sparse-checkout set config/nova-shell config/hypr
+git sparse-checkout set config/nova-shell config/hypr core/update manifests
 ./install-deblestia-nova-shell.sh check
 ./install-deblestia-nova-shell.sh install
 ./install-deblestia-nova-shell.sh launch
@@ -128,9 +157,9 @@ git sparse-checkout set config/nova-shell config/hypr
 ### Custom Debian V2 Immersive
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git custom-debian-v2
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git custom-debian-v2
 cd custom-debian-v2
-git sparse-checkout set config/caelestia config/hypr config/v2
+git sparse-checkout set config/caelestia config/hypr config/v2 core/update manifests
 ./install-custom-debian-v2.sh check
 ./install-custom-debian-v2.sh install
 ```
@@ -148,9 +177,9 @@ Le HUD dispose d’un affichage de bureau indépendant du fond d’écran et d�
 </p>
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git mpvpaper-engine
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mpvpaper-engine
 cd mpvpaper-engine
-git sparse-checkout set config/mpvpaper-engine
+git sparse-checkout set config/mpvpaper-engine core/update manifests
 ./install-mpvpaper-engine.sh check
 ./install-mpvpaper-engine.sh install
 ```
@@ -158,9 +187,9 @@ git sparse-checkout set config/mpvpaper-engine
 ### PeriphX
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git periphx
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git periphx
 cd periphx
-git sparse-checkout set config/v3
+git sparse-checkout set config/v3 core/update manifests
 ./install-periphx.sh check
 ./install-periphx.sh install
 ./install-periphx.sh launch
@@ -169,9 +198,9 @@ git sparse-checkout set config/v3
 ### MirrorBridge
 
 ```bash
-git clone --depth 1 --filter=blob:none --sparse https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git mirrorbridge
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mirrorbridge
 cd mirrorbridge
-git sparse-checkout set config/mirrorbridge
+git sparse-checkout set config/mirrorbridge core/update manifests
 ./install-mirrorbridge.sh check
 ./install-mirrorbridge.sh install
 ./install-mirrorbridge.sh launch
@@ -637,7 +666,7 @@ sudo apt install git python3 jq curl fish cava brightnessctl ddcutil \
   swappy slurp wf-recorder tesseract-ocr playerctl upower qalc \
   pavucontrol kitty btop libnotify-bin
 
-git clone --depth 1 https://github.com/kebemouhamet08-gif/Debian-Hyprland-Custom.git
+git clone --depth 1 https://github.com/kolemm14/Debian-Hyprland-Custom.git
 cd Debian-Hyprland-Custom
 ./install-deblestia-nova-shell.sh check
 ./install-deblestia-nova-shell.sh install
@@ -681,7 +710,7 @@ texte avec la palette Wallust du fond d'écran courant via
 ## Crédits
 
 - Projet et dotfiles originaux : [@JaKooLit](https://github.com/JaKooLit)
-- Personnalisation Debian : [@kebemouhamet08-gif](https://github.com/kebemouhamet08-gif)
+- Personnalisation Debian : [@kolemm14](https://github.com/kolemm14)
 - Galerie et principes de collection : [ydots](https://github.com/hugthebox/ydots)
 - Architecture Quickshell, panneaux configurables et services locaux étudiés dans
   [end4-pC](https://github.com/pctrade/end4-pC), dérivé d'illogical-impulse.

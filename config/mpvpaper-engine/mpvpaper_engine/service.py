@@ -282,7 +282,16 @@ class EngineService:
 
     def _restore_configured_wallpapers(self) -> None:
         """Start saved wallpapers once the graphical session is available."""
-        for output, profile in self.config.outputs.items():
+        wildcard = self.config.outputs.get("*", {})
+        wildcard_path = wildcard.get("wallpaper")
+        restore_wildcard = (
+            self.config.mode.value == "same"
+            and wildcard.get("autostart", True)
+            and isinstance(wildcard_path, str)
+            and Path(wildcard_path).is_file()
+        )
+        profiles = {} if restore_wildcard else self.config.outputs
+        for output, profile in profiles.items():
             if output == "*" or not profile.get("autostart", True):
                 continue
             wallpaper = profile.get("wallpaper")
@@ -293,16 +302,9 @@ class EngineService:
             except (PlaybackError, SystemdError, OSError, ValueError) as error:
                 LOGGER.warning("Unable to restore %s wallpaper: %s", output, error)
 
-        wildcard = self.config.outputs.get("*")
-        wallpaper = wildcard.get("wallpaper") if isinstance(wildcard, dict) else None
-        if (
-            isinstance(wildcard, dict)
-            and wildcard.get("autostart", True)
-            and isinstance(wallpaper, str)
-            and Path(wallpaper).is_file()
-        ):
+        if restore_wildcard:
             try:
-                self.playback.play("*", Path(wallpaper))
+                self.playback.play("*", Path(wildcard_path))
             except (PlaybackError, SystemdError, OSError, ValueError) as error:
                 LOGGER.warning("Unable to restore wildcard wallpaper: %s", error)
 

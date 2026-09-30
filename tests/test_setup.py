@@ -44,6 +44,29 @@ class SetupTests(unittest.TestCase):
         result = COMPATIBILITY.evaluate(machine(virtualization="oracle", ram_bytes=16 * 1024 ** 3))
         self.assertEqual(result["compatibility"], "LIMITED")
         self.assertEqual(result["profile"], "LITE")
+        self.assertIn("machine virtuelle détectée (profil LITE recommandé)", result["reasons"])
+
+    def test_older_hardware_low_resources_prefers_lite(self):
+        # Dual-core machine with 3 GiB RAM without Hyprland installed yet -> COMPATIBLE + LITE
+        result_without_hyprland = COMPATIBILITY.evaluate(machine(ram_bytes=3 * 1024 ** 3, threads=2, hyprland=False))
+        self.assertEqual(result_without_hyprland["compatibility"], "COMPATIBLE")
+        self.assertEqual(result_without_hyprland["profile"], "LITE")
+        self.assertIn("ressources matérielles limitées (profil LITE recommandé)", result_without_hyprland["reasons"])
+
+        # Dual-core machine with 3 GiB RAM with Hyprland installed -> RECOMMENDED + LITE
+        result_with_hyprland = COMPATIBILITY.evaluate(machine(ram_bytes=3 * 1024 ** 3, threads=2, hyprland=True))
+        self.assertEqual(result_with_hyprland["compatibility"], "RECOMMENDED")
+        self.assertEqual(result_with_hyprland["profile"], "LITE")
+        self.assertIn("ressources matérielles limitées (profil LITE recommandé)", result_with_hyprland["reasons"])
+
+    def test_debian_13_hardware_detection(self):
+        fake_os_release = "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nVERSION_ID=\"13\"\nVERSION_CODENAME=trixie\nID=debian\n"
+        with mock.patch.object(HARDWARE, "command", return_value=""), \
+                mock.patch.object(Path, "read_text", return_value=fake_os_release):
+            detected = HARDWARE.detect()
+            self.assertEqual(detected["distribution"], "debian")
+            self.assertEqual(detected["version"], "13")
+            self.assertEqual(detected["codename"], "trixie")
 
     def test_physical_machine_profiles(self):
         self.assertEqual(COMPATIBILITY.evaluate(machine(ram_bytes=6 * 1024 ** 3, threads=4))["profile"], "BALANCED")

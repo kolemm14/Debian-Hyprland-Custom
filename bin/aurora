@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -e
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+    echo "Aurora CLI"
+    echo "Usage: aurora <command>"
+    echo "Commands:"
+    echo "  status                  Show current status"
+    echo "  profile <lite|balanced|ultra> Set profile"
+    echo "  eco <on|off>            Toggle Eco mode"
+    echo "  doctor                  Run diagnostic"
+}
+
+case "${1:-}" in
+    status)
+        profile=$(python3 "$repo_dir/core/aurora/profile.py" get)
+        echo "Aurora Status"
+        echo "Current Profile: $profile"
+        ;;
+    profile)
+        if [ -z "${2:-}" ]; then echo "Missing profile name"; exit 1; fi
+        python3 "$repo_dir/core/aurora/profile.py" set "$2"
+        echo "Profile set to $2"
+        # Trigger hyprland reload via IPC if available
+        hyprctl reload >/dev/null 2>&1 || true
+        ;;
+    eco)
+        if [ -z "${2:-}" ]; then echo "Missing eco state (on/off)"; exit 1; fi
+        python3 "$repo_dir/core/aurora/profile.py" eco "$2"
+        echo "Eco mode set to $2"
+        hyprctl reload >/dev/null 2>&1 || true
+        ;;
+    doctor)
+        echo "[OK] CLI Functional"
+        if [ -d "$HOME/.config/aurora" ]; then
+            echo "[OK] Config directory exists"
+        else
+            echo "[WARN] Config directory missing"
+        fi
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac

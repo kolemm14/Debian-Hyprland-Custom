@@ -53,6 +53,21 @@ class ProfileTests(unittest.TestCase):
         selected, _ = select_auto(self.context(cpu_count=2, ram_gib=3))
         self.assertEqual(selected, PerformanceMode.ECO)
 
+    def test_auto_uses_eco_for_vm(self):
+        selected, reason = select_auto(self.context(is_vm=True))
+        self.assertEqual(selected, PerformanceMode.ECO)
+        self.assertIn("virtual machine", reason)
+
+    def test_auto_uses_eco_for_software_renderer(self):
+        selected, reason = select_auto(self.context(is_software_renderer=True))
+        self.assertEqual(selected, PerformanceMode.ECO)
+        self.assertIn("software rendering", reason)
+
+    def test_auto_uses_eco_for_lite_system_profile(self):
+        selected, reason = select_auto(self.context(system_profile="LITE"))
+        self.assertEqual(selected, PerformanceMode.ECO)
+        self.assertIn("LITE profile", reason)
+
     def test_auto_uses_eco_for_integrated_multi_4k(self):
         selected, _ = select_auto(self.context(total_output_pixels=16_000_000))
         self.assertEqual(selected, PerformanceMode.ECO)

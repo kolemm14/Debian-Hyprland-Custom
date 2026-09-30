@@ -121,9 +121,10 @@ deblestia_t() {
             restored) text='Restauré : %s' ;;
             restore_unavailable) text='Restauration non disponible : %s' ;;
             state_removed) text='État Deblestia retiré. GNOME, GDM et les paquets existants sont conservés.' ;;
-            contribution_help) text='Mode contribution Deblestia\n  ./contribute.sh report  Rapport matériel anonymisé, affiché localement\n  ./contribute.sh test    Validation du socle installateur\n\nAucune donnée n’est envoyée automatiquement.' ;;
+            contribution_help) text="Mode contribution Deblestia\n  ./contribute.sh report  Rapport matériel anonymisé, affiché localement\n  ./contribute.sh test    Validation du socle installateur\n\nAucune donnée n'est envoyée automatiquement." ;;
             *) text="$key" ;;
         esac
     fi
+    # shellcheck disable=SC2059
     printf "$text" "$@"
 }

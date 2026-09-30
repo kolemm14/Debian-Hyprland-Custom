@@ -267,3 +267,12 @@ case "$action" in
     help|-h|--help) usage ;;
     *) printf 'Action inconnue : %s\n\n' "$action" >&2; usage >&2; exit 2 ;;
 esac
+
+# Record exact ownership for subsequent incremental updates.
+source "$repo_dir/core/update/record.sh"
+if [ "$action" = install ] || [ "$action" = update ]; then
+    deblestia_update_record "deblestia-nova"
+fi
+if [ "$action" = restore ] && [ "${dry_run:-0}" = 0 ]; then
+    deblestia_update_record "deblestia-nova" forget
+fi

@@ -91,6 +91,9 @@ automatic() {
     fi
     mkdir -p "$deblestia_state_dir"
     printf '%s\n' "$profile" >"$deblestia_state_dir/profile"
+    if [ -f "$repo_dir/profiles/$profile.conf" ]; then
+        cp "$repo_dir/profiles/$profile.conf" "$deblestia_state_dir/profile.conf"
+    fi
     for component_name in "${components[@]}"; do
         deblestia_install_component "$component_name"
     done

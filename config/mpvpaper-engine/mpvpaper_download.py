@@ -189,6 +189,9 @@ def downloader_diagnostics():
 
 
 def steam_workshop_id(uri):
+    uri = uri.strip()
+    if re.fullmatch(r"[1-9][0-9]*", uri):
+        return uri
     try:
         parsed = urlparse(uri)
     except ValueError:
@@ -249,19 +252,10 @@ def _safe_title(value, fallback):
 
 
 def _project_media(item_dir):
-    try:
-        project = json.loads((item_dir / "project.json").read_text(encoding="utf-8"))
-        relative = project.get("file", "")
-        candidate = (item_dir / relative).resolve()
-        if candidate.is_relative_to(item_dir.resolve()) and candidate.is_file():
-            return candidate
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        pass
-    candidates = [
-        path for path in item_dir.rglob("*")
-        if path.is_file() and path.suffix.casefold() in MEDIA_EXTENSIONS
-    ]
-    return max(candidates, key=lambda path: path.stat().st_size) if candidates else None
+    # Use the same type and preview policy as the structured resolver.
+    from mpvpaper_engine.steam_workshop import SteamWorkshopResolver
+    result = SteamWorkshopResolver()._resolve_local("", Path(item_dir))
+    return result.media if result.renderer == "mpvpaper" else None
 
 
 def import_workshop_item(item_dir, library_dir, item_id, title=""):
@@ -271,7 +265,7 @@ def import_workshop_item(item_dir, library_dir, item_id, title=""):
     library_dir.mkdir(parents=True, exist_ok=True)
     stem = _safe_title(title, f"Steam Workshop {item_id}")
     destination = library_dir / f"{stem} [Steam-{item_id}]{media.suffix.casefold()}"
-    if not destination.exists() or destination.stat().st_size != media.stat().st_size:
+    if destination.resolve() != media.resolve():
         shutil.copy2(media, destination)
     return destination
 
@@ -378,11 +372,14 @@ def force_steam_workshop_download(uri, library_dir, target_height, runner=subpro
         pass
     title = str(details.get("title") or "")
     file_url = str(details.get("file_url") or "")
-    if file_url and urlparse(file_url).scheme == "https":
+    if file_url and file_url != details.get("preview_url") and urlparse(file_url).scheme == "https":
         destination = _direct_destination(details, item_id, library_dir, file_url)
         try:
             _download(file_url, destination, 8 * 1024 * 1024 * 1024)
             if destination.suffix.casefold() in MEDIA_EXTENSIONS:
+                width, height = media_dimensions(destination, runner=runner)
+                if not width or not height:
+                    raise ValueError("Workshop file is not decodable media")
                 destination = adapt_image_to_height(destination, target_height)
                 return DownloadOutcome(destination, "Fichier Workshop téléchargé directement", "steam-api")
             imported = _import_downloaded_archive(destination, library_dir, item_id, title)
@@ -412,29 +409,12 @@ def force_steam_workshop_download(uri, library_dir, target_height, runner=subpro
                 imported = adapt_image_to_height(imported, target_height)
                 return DownloadOutcome(imported, "Téléchargement forcé par steamcmd", "steamcmd")
 
-    preview_url = str(details.get("preview_url") or "")
-    if preview_url and urlparse(preview_url).scheme == "https":
-        destination = _direct_destination(details, item_id, library_dir, preview_url, preview=True)
-        try:
-            _download(preview_url, destination, 128 * 1024 * 1024)
-            width, height = media_dimensions(destination)
-            minimum = min(1080, max(720, target_height // 2))
-            if max(width, height) < minimum:
-                destination.unlink(missing_ok=True)
-                return DownloadOutcome(
-                    None,
-                    f"Steam ne fournit qu’une miniature {width}×{height}; "
-                    "le projet complet exige Steam/Wallpaper Engine ou steamcmd authentifié.",
-                    "preview",
-                )
-            destination = adapt_image_to_height(destination, target_height)
-            return DownloadOutcome(
-                destination,
-                "Projet Scene/Web non exportable : aperçu Steam importé comme image",
-                "preview",
-            )
-        except (OSError, ValueError):
-            destination.unlink(missing_ok=True)
+    if details.get("preview_url"):
+        return DownloadOutcome(
+            None,
+            "Seul un aperçu Steam est disponible ; le média original exige Steam ou steamcmd authentifié.",
+            "preview",
+        )
     return DownloadOutcome(
         None,
         "Steam n’expose aucun média importable. Installez steamcmd ou abonnez-vous à l’élément dans Steam.",

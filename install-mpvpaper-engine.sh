@@ -74,7 +74,7 @@ for path in "$install_dir" "$bin_dir/mpvpaper-engine" "$bin_dir/mpvpaper-enginec
 done
 
 if [ "${MPVPAPER_ENGINE_SKIP_DOWNLOADER_SETUP:-0}" != 1 ]; then
-    printf 'Configuration de l’environnement yt-dlp privé…\n'
+    printf "Configuration de l'environnement yt-dlp privé…\n"
     if python3 -m venv "$install_dir/.venv" \
         && "$install_dir/.venv/bin/python" -m pip install -U pip \
         && "$install_dir/.venv/bin/python" -m pip install -U --pre \
@@ -127,3 +127,7 @@ fi
 
 printf 'MPVpaper Engine installé. Sauvegarde : %s\n' "$backup_dir"
 printf 'Lancez-le avec : %s\n' "$bin_dir/mpvpaper-engine"
+
+# Record exact ownership for subsequent incremental updates.
+source "$repo_dir/core/update/record.sh"
+deblestia_update_record "mpvpaper-engine"

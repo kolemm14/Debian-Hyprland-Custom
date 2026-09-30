@@ -38,8 +38,12 @@ def evaluate(data):
         reasons.append("/dev/dri masqué par l’environnement de diagnostic ; session Hyprland utilisée comme preuve")
     if software:
         reasons.append("rendu logiciel llvmpipe")
+    if data["virtualization"] != "none" and not restricted_environment:
+        reasons.append("machine virtuelle détectée (profil LITE recommandé)")
     ram_gib = data["ram_bytes"] / 1024 ** 3
     threads = data["threads"]
+    if (ram_gib < 4 or threads < 4) and compatibility != "UNSUPPORTED":
+        reasons.append("ressources matérielles limitées (profil LITE recommandé)")
     if compatibility == "UNSUPPORTED":
         profile = "LEGACY"
     elif (data["virtualization"] != "none" and not restricted_environment) or software or ram_gib < 4 or threads < 4:
@@ -84,6 +88,10 @@ def main(argv=None):
                 "/dev/dri masqué par l’environnement de diagnostic ; session Hyprland utilisée comme preuve":
                     "/dev/dri hidden by the diagnostic environment; Hyprland session used as evidence",
                 "rendu logiciel llvmpipe": "llvmpipe software rendering",
+                "machine virtuelle détectée (profil LITE recommandé)":
+                    "virtual machine detected (LITE profile recommended)",
+                "ressources matérielles limitées (profil LITE recommandé)":
+                    "limited hardware resources (LITE profile recommended)",
             }
             label = "WARNING" if english else "ATTENTION"
             message = translations.get(reason, reason) if english else reason

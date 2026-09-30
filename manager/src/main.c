@@ -5,6 +5,7 @@
 #include "component.h"
 #include "paths.h"
 #include "ui.h"
+#include "cli.h"
 
 #define DCM_VERSION "0.1.0"
 
@@ -43,6 +44,13 @@ static int diagnose(void) {
 }
 
 int main(int argc, char **argv) {
+    gboolean animate = TRUE;
+    int cli = dcm_cli_options(argc, argv, &animate);
+    if (cli < 0) {
+        fputs("Usage: debian-custom-manager [--cli|--interactive] [--no-animation]\n", stderr);
+        return 2;
+    }
+    if (cli) return dcm_cli_run(animate);
     if (argc == 2 && strcmp(argv[1], "--version") == 0) {
         printf("debian-custom-manager %s\n", DCM_VERSION);
         return 0;
@@ -53,7 +61,7 @@ int main(int argc, char **argv) {
 
     GtkApplication *app = gtk_application_new(
         "io.github.debianhyprland.CustomManager",
-        G_APPLICATION_FLAGS_NONE);
+        G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(dcm_activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);

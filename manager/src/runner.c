@@ -10,52 +10,64 @@ static gchar *repo_program(const DcmContext *ctx, const gchar *relative_program)
 }
 
 DcmCommandResult *dcm_run_capture(const DcmContext *ctx, const gchar *relative_program,
-                                  const gchar *const *args, GError **error) {
-    gchar *program = repo_program(ctx, relative_program);
-    if (!program || !g_file_test(program, G_FILE_TEST_EXISTS)) {
-        g_set_error(error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
-                    "Programme introuvable : %s", program ? program : "(null)");
-        g_free(program);
-        return NULL;
-    }
-
-    GPtrArray *argv = g_ptr_array_new_with_free_func(g_free);
-    g_ptr_array_add(argv, g_strdup(program));
-    if (args) {
-        for (guint i = 0; args[i]; ++i) g_ptr_array_add(argv, g_strdup(args[i]));
-    }
-    g_ptr_array_add(argv, NULL);
-
-    GSubprocessLauncher *launcher = g_subprocess_launcher_new(
-        G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_MERGE);
-    g_subprocess_launcher_set_cwd(launcher, ctx->repo_root);
-
-    GSubprocess *process = g_subprocess_launcher_spawnv(
-        launcher, (const gchar *const *)argv->pdata, error);
-    g_object_unref(launcher);
-    g_ptr_array_free(argv, TRUE);
-    g_free(program);
-    if (!process) return NULL;
-
-    gchar *stdout_text = NULL;
-    if (!g_subprocess_communicate_utf8(process, NULL, NULL, &stdout_text, NULL, error)) {
-        g_object_unref(process);
-        g_free(stdout_text);
-        return NULL;
-    }
-
-    DcmCommandResult *result = g_new0(DcmCommandResult, 1);
-    result->exit_code = g_subprocess_get_if_exited(process)
-        ? g_subprocess_get_exit_status(process) : 1;
-    result->output = stdout_text ? stdout_text : g_strdup("");
-    g_object_unref(process);
-    return result;
+    const gchar *const *args, GError **error) {
+    return dcm_run_capture_bounded(ctx, relative_program, args, NULL, error);
 }
 
 void dcm_command_result_free(DcmCommandResult *result) {
     if (!result) return;
     g_free(result->output);
     g_free(result);
+}
+
+DcmCommandResult *dcm_run_capture_bounded(const DcmContext *ctx, const gchar *relative_program,
+    const gchar *const *args, GCancellable *cancel, GError **error) {
+    gchar *program = repo_program(ctx, relative_program);
+    if (!program || !g_file_test(program, G_FILE_TEST_EXISTS)) {
+        g_set_error(error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+            "Programme introuvable : %s", program ? program : "(null)");
+        g_free(program);
+        return NULL;
+    }
+    GPtrArray *argv = g_ptr_array_new();
+    g_ptr_array_add(argv, program);
+    for (guint i = 0; args && args[i]; i++) g_ptr_array_add(argv, (gpointer)args[i]);
+    g_ptr_array_add(argv, NULL);
+    GSubprocessLauncher *launcher = g_subprocess_launcher_new(
+        G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_MERGE);
+    g_subprocess_launcher_set_cwd(launcher, ctx->repo_root);
+    GSubprocess *process = g_subprocess_launcher_spawnv(launcher,
+        (const gchar *const *)argv->pdata, error);
+    g_object_unref(launcher);
+    g_ptr_array_unref(argv);
+    g_free(program);
+    if (!process) return NULL;
+    GString *output = g_string_new(NULL);
+    gchar buffer[4096];
+    gssize count;
+    gboolean truncated = FALSE;
+    while ((count = g_input_stream_read(g_subprocess_get_stdout_pipe(process),
+            buffer, sizeof(buffer), cancel, error)) > 0) {
+        g_string_append_len(output, buffer, count);
+        if (output->len > 262144) {
+            g_string_erase(output, 0, output->len - 262144);
+            truncated = TRUE;
+        }
+    }
+    if (count < 0 || !g_subprocess_wait(process, cancel, error)) {
+        g_subprocess_force_exit(process);
+        g_subprocess_wait(process, NULL, NULL);
+        g_object_unref(process);
+        g_string_free(output, TRUE);
+        return NULL;
+    }
+    if (truncated) g_string_prepend(output, "[Earlier output truncated]\n");
+    DcmCommandResult *result = g_new0(DcmCommandResult, 1);
+    result->exit_code = g_subprocess_get_if_exited(process) ? g_subprocess_get_exit_status(process) : 1;
+    result->output = g_utf8_make_valid(output->str, output->len);
+    g_string_free(output, TRUE);
+    g_object_unref(process);
+    return result;
 }
 
 static gchar *build_shell_command(const DcmContext *ctx, const gchar *program,

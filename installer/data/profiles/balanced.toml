@@ -1,0 +1,36 @@
+[profile]
+id = "balanced"
+name = "Deblestia Balanced"
+display_name_en = "Deblestia Balanced"
+display_name_fr = "Deblestia Équilibré"
+description_en = "A balanced configuration with visual effects and productivity features. Suitable for most modern computers."
+description_fr = "Une configuration équilibrée avec des effets visuels et des fonctionnalités de productivité. Adaptée à la plupart des ordinateurs modernes."
+
+[components]
+hyprland = true
+deblestia_bar = true
+nova_lite = true
+notifications = true
+launcher = true
+lockscreen = true
+mpvpaper_engine = true
+periphx = true
+mirrorbridge = false
+deblestia_nova = false
+deblestia_shell = false
+aurora_core = true
+
+[visual]
+animations = "normal"
+blur = "enabled"
+heavy_effects = false
+static_wallpaper = true
+video_wallpaper = true
+
+[performance]
+default_wallpaper_profile = "balanced"
+optional_background_services = true
+
+[requirements]
+min_ram_mb = 6144
+min_storage_mb = 10000

@@ -18,6 +18,7 @@ check_dependencies() {
     else
         printf 'OPTIONNEL HUD : installer gir1.2-gtklayershell-0.1 et python3-gi-cairo\n'
     fi
+    bash "$source_dir/install-hud-fonts.sh" check || true
     for command_name in mpvpaper ffmpeg ffmpegthumbnailer ffprobe python3 systemctl systemd-run hyprctl; do
         if command -v "$command_name" >/dev/null 2>&1; then
             printf 'OK       %s\n' "$command_name"
@@ -59,6 +60,8 @@ fi
 
 check_dependencies
 
+bash "$source_dir/install-hud-fonts.sh"
+
 mkdir -p "$backup_dir" "$install_dir" "$bin_dir" "$desktop_dir" "$systemd_dir"
 for path in "$install_dir" "$bin_dir/mpvpaper-engine" "$bin_dir/mpvpaper-enginectl" \
     "$bin_dir/mpvpaper-engine-toggle" \
@@ -94,9 +97,15 @@ install -m 0755 "$source_dir/mpvpaper-enginectl.py" "$install_dir/mpvpaper-engin
 install -m 0755 "$source_dir/mpvpaper-engine-toggle" "$install_dir/mpvpaper-engine-toggle"
 install -m 0755 "$source_dir/mpvpaper-engine-waybar.py" "$install_dir/mpvpaper-engine-waybar.py"
 install -m 0755 "$source_dir/mpvpaper-engine-quick-menu" "$install_dir/mpvpaper-engine-quick-menu"
+install -m 0755 "$source_dir/install-hud-fonts.sh" "$install_dir/install-hud-fonts.sh"
 mkdir -p "$install_dir/mpvpaper_engine"
 for module in "$source_dir"/mpvpaper_engine/*.py; do
     install -m 0644 "$module" "$install_dir/mpvpaper_engine/$(basename "$module")"
+done
+# Runtime adapters are a nested Python package.
+mkdir -p "$install_dir/mpvpaper_engine/runtimes"
+for module in "$source_dir"/mpvpaper_engine/runtimes/*.py; do
+    install -m 0644 "$module" "$install_dir/mpvpaper_engine/runtimes/$(basename "$module")"
 done
 install -m 0755 "$source_dir/install-sddm-background.sh" "$install_dir/install-sddm-background.sh"
 install -m 0644 "$source_dir/sddm-background.patch" "$install_dir/sddm-background.patch"

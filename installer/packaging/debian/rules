@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release --manifest-path Cargo.toml
+	cargo build --release --manifest-path helper/Cargo.toml
+
+override_dh_auto_install:
+	install -Dm755 target/release/deblestia-installer $(DESTDIR)/usr/bin/deblestia-installer
+	install -Dm755 helper/target/release/deblestia-installer-helper $(DESTDIR)/usr/lib/deblestia/deblestia-installer-helper
+	install -Dm644 polkit/org.deblestia.installer.policy $(DESTDIR)/usr/share/polkit-1/actions/org.deblestia.installer.policy
+	install -Dm644 data/org.deblestia.installer.desktop $(DESTDIR)/usr/share/applications/org.deblestia.installer.desktop
+	install -d $(DESTDIR)/usr/share/deblestia-installer/profiles
+	install -Dm644 data/profiles/*.toml $(DESTDIR)/usr/share/deblestia-installer/profiles/
+
+override_dh_auto_test:
+	cargo test --release --manifest-path Cargo.toml

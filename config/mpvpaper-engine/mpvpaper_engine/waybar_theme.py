@@ -51,10 +51,10 @@ def write_panel_colors(
     wallust_file = waybar_dir / "wallust" / "colors-waybar.css"
     current = _colors(wallust_file)
     palette = palette or {}
-    accent = current.get("color13") or palette.get("accent", "#d4cdd8")
-    text = current.get("foreground") or palette.get("foreground", "#f3edf2")
-    background = current.get("background") or palette.get("background", "#0e0f16")
-    muted = current.get("color8") or palette.get("muted", "#b8aeb8")
+    accent = palette.get("accent") or current.get("color13", "#d4cdd8")
+    text = palette.get("foreground") or current.get("foreground", "#f3edf2")
+    background = palette.get("background") or current.get("background", "#0e0f16")
+    muted = palette.get("muted") or current.get("color8", "#b8aeb8")
     content = (
         "/* Generated from the current wallpaper by MPVpaper Engine. */\n"
         f"@define-color glass rgba({_mix(background, accent)}, {opacity});\n"

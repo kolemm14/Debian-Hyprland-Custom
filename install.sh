@@ -157,11 +157,78 @@ elif [ "${1:-}" = --lang ]; then
     deblestia_set_language "$2" || { deblestia_t bad_language "$2" >&2; printf '\n' >&2; exit 2; }
     shift 2
 fi
+
+json_mode=0
+new_args=()
+for arg in "$@"; do
+    case "$arg" in
+        --json) json_mode=1 ;;
+        *) new_args+=("$arg") ;;
+    esac
+done
+if [ ${#new_args[@]} -gt 0 ]; then
+    set -- "${new_args[@]}"
+else
+    set --
+fi
+
+diagnostic_json() {
+    local hw compat
+    hw="$(python3 "$repo_dir/core/hardware.py" --json)"
+    compat="$(python3 "$repo_dir/core/compatibility.py" --json)"
+    jq -n --argjson hw "$hw" --argjson compat "$compat" \
+        '{schema_version: 1, status: "ok", system: $hw.system, hardware: $hw, compatibility: $compat, recommendation: {profile: $compat.profile, reason: $compat.reasons}}'
+}
+
+plan_json() {
+    local profile components packages comp_json pkg_json
+    profile="${DEBLESTIA_PROFILE:-$(deblestia_profile)}"
+    mapfile -t components < <(deblestia_components_for_profile "$profile")
+    mapfile -t packages < <(deblestia_missing_packages)
+    
+    if [ ${#components[@]} -eq 0 ]; then comp_json="[]"; else comp_json="$(printf '%s\n' "${components[@]}" | jq -R . | jq -s .)"; fi
+    if [ ${#packages[@]} -eq 0 ]; then pkg_json="[]"; else pkg_json="$(printf '%s\n' "${packages[@]}" | jq -R . | jq -s .)"; fi
+    
+    jq -n --arg profile "$profile" --argjson comps "$comp_json" --argjson pkgs "$pkg_json" \
+        '{schema_version: 1, status: "ok", profile: $profile, components: $comps, packages_needed: $pkgs, gnome_preserved: true, dry_run: true}'
+}
+
+verify() {
+    local results='[]' installer
+    # Check hyprland
+    if command -v Hyprland >/dev/null 2>&1 || command -v hyprland >/dev/null 2>&1; then
+        results=$(printf '%s\n' "$results" | jq '. + [{"component":"hyprland","status":"ok"}]')
+    else
+        results=$(printf '%s\n' "$results" | jq '. + [{"component":"hyprland","status":"missing"}]')
+    fi
+    # Check other installed components from state
+    if [ -f "$deblestia_state_dir/components" ]; then
+        while IFS= read -r comp; do
+            installer="$(deblestia_component_field "$comp" 3)"
+            if [ -x "$repo_dir/$installer" ] && "$repo_dir/$installer" check 2>/dev/null; then
+                results=$(printf '%s\n' "$results" | jq --arg c "$comp" '. + [{"component":$c,"status":"ok"}]')
+            else
+                results=$(printf '%s\n' "$results" | jq --arg c "$comp" '. + [{"component":$c,"status":"degraded"}]')
+            fi
+        done < "$deblestia_state_dir/components"
+    fi
+    if [ "$json_mode" = 1 ]; then
+        jq -n --argjson results "$results" '{schema_version:1,status:"ok",verification:$results}'
+    else
+        # Human readable output
+        printf '%s\n' "$results" | jq -r '.[] | "\(.component)\t\(.status)"'
+    fi
+}
+
 action="${1:-menu}"
 shift || true
 case "$action" in
     menu) [ -t 0 ] || { usage; exit 2; }; menu ;;
-    diagnostic|check) diagnostic;; plan|--dry-run) DEBLESTIA_PLAN_ONLY=1 automatic;;
+    diagnostic|check)
+        if [ "$json_mode" = 1 ]; then diagnostic_json; else diagnostic; fi;;
+    plan|--dry-run)
+        if [ "$json_mode" = 1 ]; then plan_json; else DEBLESTIA_PLAN_ONLY=1 automatic; fi;;
+    verify) verify;;
     automatic|auto) automatic;; manual) manual ;;
     component) component "${1:-}";; contribute) exec "$repo_dir/contribute.sh" "$@" ;;
     uninstall|restore) exec "$repo_dir/uninstall.sh" "$action" "$@" ;;

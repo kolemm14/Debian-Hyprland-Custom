@@ -1,0 +1,5 @@
+{
+  "status": "PASS réel",
+  "scope": "GTK window construction, project registration and IPC diagnostic; no Scene rendering",
+  "diagnostic": "Type : scene\nMoteur : linux-wallpaperengine\nRuntime : indisponible\nPrêt : non\nCompatibilité : inconnue\nlinux-wallpaperengine is not installed"
+}

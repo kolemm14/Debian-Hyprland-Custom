@@ -84,6 +84,17 @@ class PlaybackTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
+    def test_still_images_do_not_use_temporal_fps_filter(self):
+        profile = self.controller._profile("DP-1")
+        for mode in ("auto", "eco", "balanced", "quality"):
+            profile["performance_profile"] = mode
+            for suffix in (".png", ".jpg", ".jpeg", ".webp", ".avif", ".bmp", ".PNG"):
+                options = self.controller._mpv_options("DP-1", profile, Path("wall" + suffix))
+                self.assertNotIn("vf-add=fps=", options)
+                self.assertIn("image-display-duration=inf", options)
+        profile["performance_profile"] = "eco"
+        self.assertIn("vf-add=fps=", self.controller._mpv_options("DP-1", profile, self.wallpaper))
+
     def test_mpv_client_json_protocol(self):
         self.paths.runtime_home.mkdir(parents=True)
         path = self.paths.runtime_home / "fake.sock"

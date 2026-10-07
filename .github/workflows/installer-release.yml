@@ -1,0 +1,66 @@
+name: Installer Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y cargo rustc libgtk-4-dev libadwaita-1-dev pkg-config debhelper jq python3 dpkg-dev cmake curl git
+
+      - name: Run Cargo Fmt Check
+        run: |
+          cd installer
+          cargo fmt --check
+          cd helper
+          cargo fmt --check
+
+      - name: Run Cargo Clippy
+        run: |
+          cd installer
+          cargo clippy --all-targets --all-features -- -D warnings
+          cd helper
+          cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Cargo Test
+        run: |
+          cd installer
+          cargo test
+          cd helper
+          cargo test
+
+      - name: Build Release Binary
+        run: |
+          cd installer
+          cargo build --release
+          cd helper
+          cargo build --release
+
+      - name: Create Debian Package
+        run: |
+          cd installer
+          dpkg-buildpackage -us -uc -b
+
+      - name: Compute SHA256
+        run: |
+          sha256sum deblestia-installer*.deb > sha256sums.txt
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deblestia-installer-packages
+          path: |
+            deblestia-installer*.deb
+            sha256sums.txt

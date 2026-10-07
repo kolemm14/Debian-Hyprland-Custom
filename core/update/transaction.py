@@ -109,14 +109,9 @@ def rollback(locations, backup, *, manual=False):
         atomic_write(locations.path(operation['key']), operation['before'])
     atomic_write(locations.manifest, journal['manifest_before'])
     atomic_write(locations.data / 'version', journal['version_before'])
-    # Only move a checkout that is still exactly the transaction's clean commit.
-    repo = locations.roots['repo']
-    head = run(['git', 'rev-parse', 'HEAD'], cwd=repo).stdout.strip()
-    if head == journal['new_head'] and head != journal['old_head']:
-        if run(['git', 'status', '--porcelain'], cwd=repo).stdout.strip():
-            raise UpdateError('Fichiers restaurés ; checkout modifié, retour Git manuel nécessaire')
-        run(['git', 'reset', '--keep', journal['old_head']], cwd=repo)
     services.restore()
+    if 'install_state_before' in journal:
+        atomic_write(locations.data / 'install-state.ini', journal['install_state_before'])
     for directory in reversed(journal.get('created_dirs', [])):
         try:
             locations.path(directory).rmdir()
@@ -140,7 +135,7 @@ def recover(locations):
             rollback(locations, backup)
 
 
-def apply(locations, operations, manifest, services, unit_changed, old_head, new_head, advance):
+def apply(locations, operations, manifest, services, unit_changed, old_head, new_head, advance, install_state=None):
     backup = locations.data / 'backups' / (time.strftime('%Y%m%d-%H%M%S') + f'-{time.time_ns()}')
     backup.mkdir(parents=True, mode=0o700)
     created = []
@@ -156,6 +151,7 @@ def apply(locations, operations, manifest, services, unit_changed, old_head, new
                'service_bus': services.available, 'renames': services.renames, 'removed': services.removed,
                'manifest_before': snapshot(locations.manifest),
                'version_before': snapshot(locations.data / 'version'),
+               'install_state_before': snapshot(locations.data / 'install-state.ini'),
                'old_head': old_head, 'new_head': new_head, 'created_dirs': created}
     json_write(backup / 'journal.json', journal)
     json_write(locations.state / 'pending.json', {'backup': backup.name})
@@ -177,10 +173,11 @@ def apply(locations, operations, manifest, services, unit_changed, old_head, new
             for command in ('monitors', 'clients'):
                 if run(['hyprctl', command], check=False).returncode:
                     print(f'Avertissement : hyprctl {command} indisponible.')
-        if advance:
-            run(['git', 'merge', '--ff-only', new_head], cwd=locations.roots['repo'])
         json_write(locations.manifest, manifest)
         json_write(locations.data / 'version', {'commit': manifest['commit'], 'branch': manifest['branch']})
+        if install_state is not None:
+            from install_state import write
+            write(locations, install_state)
         journal['status'] = 'committed'
         json_write(backup / 'journal.json', journal)
         (locations.state / 'pending.json').unlink(missing_ok=True)

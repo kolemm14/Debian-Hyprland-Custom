@@ -92,10 +92,13 @@ class Locations:
         self.roots = {'home': home, 'repo': Path(repo).resolve(),
                       'config': Path(env.get('XDG_CONFIG_HOME', home / '.config')).resolve(),
                       'data': Path(env.get('XDG_DATA_HOME', home / '.local/share')).resolve(),
-                      'state': Path(env.get('XDG_STATE_HOME', home / '.local/state')).resolve()}
+                      'state': Path(env.get('XDG_STATE_HOME', home / '.local/state')).resolve(),
+                      'cache': Path(env.get('XDG_CACHE_HOME', home / '.cache')).resolve()}
         self.data = self.roots['data'] / 'debian-hyprland-custom'
         self.state = self.roots['state'] / 'debian-hyprland-custom'
         self.manifest = self.data / 'installed-files.json'
+        self.cache = self.roots['cache'] / 'debian-hyprland-custom'
+        self.runtime = self.data / 'runtime'
 
     def path(self, key):
         root, relative = key.split(':', 1)
@@ -125,7 +128,14 @@ def inventory(tree, locations, components):
     for rule in recipe(tree)['rules']:
         if rule['component'] not in components:
             continue
+        if Path(rule['source']).is_absolute() or '..' in Path(rule['source']).parts:
+            raise UpdateError('Source hors dépôt')
+        for field in ('strip', 'build'):
+            if field in rule and (Path(rule[field]).is_absolute() or '..' in Path(rule[field]).parts):
+                raise UpdateError('Chemin de manifest hors dépôt')
         for source in sorted(tree.glob(rule['source'])):
+            if not source.parent.resolve().is_relative_to(tree.resolve()):
+                raise UpdateError('Parent source hors dépôt')
             if source.is_dir() or any(x in source.parts for x in ('__pycache__', '.venv', 'target', '.git')):
                 continue
             relative = str(source.relative_to(tree))

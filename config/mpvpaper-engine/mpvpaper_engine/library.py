@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+import logging
 import subprocess
 from typing import Callable, Iterable
 
@@ -21,7 +22,7 @@ from .models import MediaType, Wallpaper
 from .paths import EnginePaths
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 SCHEMA = """
@@ -29,7 +30,7 @@ CREATE TABLE IF NOT EXISTS wallpapers (
     id INTEGER PRIMARY KEY,
     path TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('image', 'video')),
+    type TEXT NOT NULL CHECK(type IN ('image', 'video', 'scene', 'web')),
     duration REAL,
     width INTEGER,
     height INTEGER,
@@ -129,6 +130,18 @@ class Library:
         self.paths.data_home.mkdir(mode=0o700, parents=True, exist_ok=True)
         with self._connection() as connection:
             connection.execute("PRAGMA journal_mode = WAL")
+            existing = connection.execute("SELECT sql FROM sqlite_master WHERE name='wallpapers'").fetchone()
+            if existing and "'scene'" not in existing[0]:
+                # Keep primary keys and all referencing history/playlist/favorite rows.
+                connection.execute("PRAGMA foreign_keys = OFF")
+                create = SCHEMA.split(";", 1)[0].replace("IF NOT EXISTS wallpapers", "wallpapers_new")
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    connection.execute(create)
+                    connection.execute("INSERT INTO wallpapers_new SELECT * FROM wallpapers")
+                    connection.execute("DROP TABLE wallpapers")
+                    connection.execute("ALTER TABLE wallpapers_new RENAME TO wallpapers")
+                connection.execute("PRAGMA foreign_keys = ON")
             connection.executescript(SCHEMA)
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
@@ -214,6 +227,24 @@ class Library:
             ).fetchone()
         return self._wallpaper(row)
 
+    def import_project(self, path: Path) -> Wallpaper:
+        """Register the complete local directory in place; never reduce it to preview."""
+        from .runtimes.project_detector import detect_project
+        project = detect_project(path)
+        if project.kind in {"video", "image"}:
+            return self.import_file(project.media)
+        self.initialize()
+        manifest = project.path / "project.json"
+        info = manifest.stat()
+        with self._connection() as connection:
+            connection.execute("""
+                INSERT INTO wallpapers(path,title,type,file_size,mtime_ns,fingerprint,source,date_added)
+                VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET
+                type=excluded.type,mtime_ns=excluded.mtime_ns,missing=0
+            """, (str(project.path), project.path.name, project.kind, info.st_size,
+                  info.st_mtime_ns, scan_fingerprint(manifest), "local-project", _utc_text()))
+        return self.get_by_path(project.path)
+
     def scan(self, roots: Iterable[Path]) -> dict[str, int]:
         self.initialize()
         canonical_roots = [Path(root).expanduser().resolve() for root in roots]
@@ -223,7 +254,22 @@ class Library:
         for root in canonical_roots:
             if not root.is_dir():
                 continue
+            projects = sorted({manifest.parent for manifest in root.rglob("project.json")}, key=lambda p: len(p.parts))
+            project_roots = []
+            for project in projects:
+                if any(parent in project.parents for parent in project_roots):
+                    continue
+                project_roots.append(project)
+                try:
+                    item = self.import_project(project)
+                except (ValueError, OSError) as error:
+                    logging.getLogger(__name__).warning("Invalid project %s: %s", project, error)
+                    continue
+                found.add(str(item.path))
+                imported += 1
             for path in root.rglob("*"):
+                if any(parent == path or parent in path.parents for parent in project_roots):
+                    continue
                 if path.is_file() and path.suffix.casefold() in MEDIA_EXTENSIONS:
                     resolved = path.resolve()
                     found.add(str(resolved))
@@ -240,6 +286,8 @@ class Library:
                 path = Path(row["path"])
                 managed = any(path == root or root in path.parents for root in canonical_roots)
                 should_be_missing = managed and str(path) not in found
+                if path.is_dir() and (path / "project.json").is_file():
+                    should_be_missing = False
                 if should_be_missing and not row["missing"]:
                     connection.execute(
                         "UPDATE wallpapers SET missing = 1 WHERE id = ?", (row["id"],)
@@ -292,7 +340,7 @@ class Library:
         parameters: list = [f"%{escaped}%", f"%{escaped}%"]
         if media_type is not None:
             value = media_type.value if isinstance(media_type, MediaType) else str(media_type)
-            if value not in {"image", "video"}:
+            if value not in {"image", "video", "scene", "web"}:
                 raise ValueError("invalid media type")
             clauses.append("type = ?")
             parameters.append(value)
@@ -347,6 +395,8 @@ class Library:
         wallpaper = self.get(wallpaper_id)
         if wallpaper is None:
             raise KeyError(wallpaper_id)
+        if wallpaper.media_type in {MediaType.SCENE, MediaType.WEB}:
+            raise LibraryError("Project thumbnails are not rendered automatically")
         if not wallpaper.path.is_file():
             self.mark_missing(wallpaper_id)
             raise LibraryError("wallpaper file is missing")
@@ -370,11 +420,12 @@ class Library:
             raise KeyError(wallpaper_id)
         candidate = wallpaper.path.resolve(strict=True)
         roots = [Path(root).expanduser().resolve() for root in library_roots]
-        if not any(candidate == root or root in candidate.parents for root in roots):
+        if candidate in roots or not any(root in candidate.parents for root in roots):
             raise LibraryError("wallpaper is outside managed Library roots")
         protected = {Path(path).expanduser().resolve() for path in protected_paths}
-        if candidate in protected:
-            raise LibraryError("wallpaper is currently assigned")
+        if any(candidate == path or candidate in path.parents or path in candidate.parents
+               for path in protected):
+            raise LibraryError("Ce fond est actuellement affecté à un écran. Choisissez un autre fond avant de le supprimer.")
         result = self.trash_runner(
             ["gio", "trash", str(candidate)], capture_output=True,
             text=True, timeout=10, check=False,

@@ -43,6 +43,14 @@
     },
     {
       "component": "mpvpaper-engine",
+      "source": "config/mpvpaper-engine/install-hud-fonts.sh",
+      "destination": "home:.local/lib/mpvpaper-engine/{relative}",
+      "policy": "managed",
+      "strip": "config/mpvpaper-engine/",
+      "mode": "0755"
+    },
+    {
+      "component": "mpvpaper-engine",
       "source": "config/mpvpaper-engine/sddm-background.patch",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",

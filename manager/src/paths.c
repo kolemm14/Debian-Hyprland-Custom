@@ -110,7 +110,13 @@ static gchar *resolve_components_file(const gchar *repo_root) {
 DcmContext *dcm_context_new(GError **error) {
     DcmContext *ctx = g_new0(DcmContext, 1);
     ctx->config_file = config_path();
-    ctx->repo_root = resolve_repo_root(ctx->config_file);
+    ctx->development_root = resolve_repo_root(ctx->config_file);
+    ctx->data_dir = g_build_filename(g_get_user_data_dir(), "debian-hyprland-custom", NULL);
+    ctx->state_dir = g_build_filename(g_get_user_state_dir(), "debian-hyprland-custom", NULL);
+    ctx->cache_dir = g_build_filename(g_get_user_cache_dir(), "debian-hyprland-custom", NULL);
+    gchar *runtime = g_build_filename(ctx->data_dir, "runtime", NULL);
+    ctx->repo_root = dcm_repo_is_valid(runtime) ? g_strdup(runtime) : g_strdup(ctx->development_root);
+    g_free(runtime);
 
     if (!ctx->repo_root) {
         g_set_error(error, DCM_ERROR, 1,
@@ -135,6 +141,9 @@ void dcm_context_free(DcmContext *ctx) {
     g_free(ctx->repo_root);
     g_free(ctx->components_file);
     g_free(ctx->config_file);
+    g_free(ctx->development_root);
+    g_free(ctx->data_dir); g_free(ctx->state_dir); g_free(ctx->cache_dir);
+    if (ctx->ownership_report) g_key_file_unref(ctx->ownership_report);
     g_free(ctx);
 }
 
@@ -160,4 +169,12 @@ gchar *dcm_expand_path(const DcmContext *ctx, const gchar *value) {
         out = tmp;
     }
     return out;
+}
+
+gboolean dcm_relative_path_valid(const gchar *path) {
+    if (!path || !*path || g_path_is_absolute(path) || path[0]=='-' || strpbrk(path,"\n\r")) return FALSE;
+    gchar **parts=g_strsplit(path,"/",-1);
+    gboolean valid=TRUE;
+    for (guint i=0;parts[i];i++) if (!strcmp(parts[i],"..") || !*parts[i]) valid=FALSE;
+    g_strfreev(parts); return valid;
 }

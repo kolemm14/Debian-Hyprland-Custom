@@ -48,7 +48,8 @@ window#waybar {
 #tools { background: alpha(@nova_warning, 0.08); }
 #session { background: alpha(@nova_danger, 0.08); }
 
-#custom-debian-menu, #custom-terminal, #custom-files, #custom-browser,
+#custom-debian-menu, #custom-terminal,
+ #custom-manager-cli, #custom-files, #custom-browser,
 #custom-workspace1, #custom-workspace2, #custom-workspace3,
 #custom-workspace4, #custom-workspace5, #custom-media-previous,
 #custom-media-play-pause, #custom-media-next, #custom-overview,
@@ -125,7 +126,8 @@ window#waybar {
 #custom-updates.pending { color: @nova_warning; }
 #custom-power { color: @nova_danger; font-size: 15px; }
 
-#custom-debian-menu:hover, #custom-terminal:hover, #custom-files:hover,
+#custom-debian-menu:hover, #custom-terminal:hover,
+ #custom-manager-cli:hover, #custom-files:hover,
 #custom-browser:hover, #custom-workspace1:hover, #custom-workspace2:hover,
 #custom-workspace3:hover, #custom-workspace4:hover, #custom-workspace5:hover,
 #custom-media-previous:hover, #custom-media-play-pause:hover,
@@ -206,3 +208,14 @@ tooltip {
   border-radius: 12px;
 }
 tooltip label { color: @nova_text; padding: 7px; }
+
+/* CLI logo: keep the image visible with every wallpaper palette and on hover. */
+#custom-manager-cli, #custom-manager-cli:hover {
+  background-image: url("icons/hyprdebian-cli.svg");
+  background-size: 26px 26px;
+  background-repeat: no-repeat;
+  background-position: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+}

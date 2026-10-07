@@ -42,6 +42,9 @@ CANONICAL_DEFAULTS = {
 }
 HUD_DEFAULTS = {
     "enabled": True,
+    "model": "classic",
+    "use_24h": False,
+    "date_format": "text",
     "position": {"x": 0.18, "y": 0.30},
     "scale": 1.0,
     "opacity": 1.0,
@@ -121,6 +124,17 @@ def _canonical_profile(source, base=None):
         profile["color_profile"] = source["color_profile"]
     if source.get("theme_sync") in {"off", "on_apply", "always"}:
         profile["theme_sync"] = source["theme_sync"]
+    if source.get("project_type") in {"video", "image", "scene", "web"}:
+        profile["project_type"] = source["project_type"]
+    if source.get("runtime") in {"mpvpaper", "linux-wallpaperengine"}:
+        profile["runtime"] = source["runtime"]
+    if "enabled" in source:
+        profile["enabled"] = source["enabled"] is True
+    options = source.get("runtime_options")
+    if isinstance(options, dict):
+        profile["runtime_options"] = {"fps": bounded_number(options.get("fps"), 30, 1, 240)}
+        if isinstance(options.get("assets_dir"), str):
+            profile["runtime_options"]["assets_dir"] = options["assets_dir"]
     for key in COLOR_KEYS:
         low, high = ((1000, 40000) if key == "temperature" else (-100, 100))
         profile[key] = bounded_number(source.get(key), profile[key], low, high)

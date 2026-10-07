@@ -1,0 +1,6 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/kolemm14/Debian-Hyprland-Custom
+
+Files: *
+Copyright: 2026 Deblestia Project
+License: MIT

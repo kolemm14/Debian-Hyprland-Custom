@@ -221,7 +221,9 @@ def steam_file_details(item_id, opener=urlopen):
 
 def steam_library_roots(home=None):
     home = Path(home or Path.home())
-    roots = [home / ".local/share/Steam", home / ".steam/steam", home / ".steam/root"]
+    roots = [home / ".local/share/Steam", home / ".steam/steam", home / ".steam/root",
+             home / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
+             home / "snap/steam/common/.local/share/Steam"]
     discovered = []
     for root in roots:
         if root.exists():

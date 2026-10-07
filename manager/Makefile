@@ -6,7 +6,7 @@ CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
 LDLIBS += $(shell pkg-config --libs $(PKGS)) -lm
 
 CLI_SRC := src/cli.c src/cli_input.c src/cli_render.c src/cli_logo.c src/assistant_router.c
-SRC := src/main.c src/ui.c src/paths.c src/component.c src/runner.c $(CLI_SRC)
+SRC := src/main.c src/ui.c src/paths.c src/component.c src/install_state.c src/runner.c $(CLI_SRC)
 OBJ := $(patsubst src/%.c,build/%.o,$(SRC))
 BIN := build/debian-custom-manager
 

@@ -42,7 +42,7 @@
   },
   "group/app-strip": {
     "orientation": "inherit",
-    "modules": ["custom/terminal", "custom/files", "custom/browser"]
+    "modules": ["custom/terminal", "custom/manager-cli", "custom/files", "custom/browser"]
   },
   "group/media-player": {
     "orientation": "inherit",
@@ -90,6 +90,7 @@
   "custom/workspace3": {"exec": "$HOME/.config/waybar/workspace-label.sh 3", "return-type": "json", "interval": 1, "on-click": "hyprctl dispatch workspace 3"},
   "custom/workspace4": {"exec": "$HOME/.config/waybar/workspace-label.sh 4", "return-type": "json", "interval": 1, "on-click": "hyprctl dispatch workspace 4"},
   "custom/workspace5": {"exec": "$HOME/.config/waybar/workspace-label.sh 5", "return-type": "json", "interval": 1, "on-click": "hyprctl dispatch workspace 5"},
+  "custom/manager-cli": {"format": " ", "tooltip-format": "HyprDebian — gestionnaire en ligne de commande", "on-click": "kitty --title \"HyprDebian CLI\" -e \"$HOME/.local/bin/debian-custom-manager\" --cli"},
   "custom/terminal": {
     "format": "",
     "tooltip-format": "Clic gauche : terminal simple\nClic droit : dashboard plein écran",

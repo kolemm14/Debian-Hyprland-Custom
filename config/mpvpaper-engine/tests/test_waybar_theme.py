@@ -34,7 +34,7 @@ class WaybarThemeTests(unittest.TestCase):
                 },
             ))
 
-    def test_wallust_colors_win_over_fallback_palette(self):
+    def test_current_palette_wins_over_stale_wallust(self):
         with tempfile.TemporaryDirectory() as root:
             waybar = Path(root) / "waybar"
             wallust = waybar / "wallust"
@@ -47,4 +47,4 @@ class WaybarThemeTests(unittest.TestCase):
                 encoding="utf-8",
             )
             write_panel_colors(waybar, palette={"accent": "#000000"})
-            self.assertIn("@define-color accent #abcdef;", (waybar / "panel-colors.css").read_text())
+            self.assertIn("@define-color accent #000000;", (waybar / "panel-colors.css").read_text())

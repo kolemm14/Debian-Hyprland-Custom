@@ -108,6 +108,8 @@ def main():
             def start():
                 current = EngineService(paths)
                 current.playback.systemd = systemd
+                current.runtimes.systemd = systemd
+                current.runtimes.lwe.systemd = systemd
                 current.playback.provider_manager = PreserveDesktopProviders()
                 current.start()
                 return current
@@ -156,6 +158,11 @@ def main():
                 verify(m.name, wallpapers[1] if m.name == first else wallpapers[0])
                 for m in monitors
             ]})
+            before = {m.name: systemd.details(m.name)["process"] for m in monitors}
+            restored = backend.client.request("runtime_restore", {})
+            after = {m.name: systemd.details(m.name)["process"] for m in monitors}
+            assert before == after and all(before.values()), (before, after)
+            report["checks"].append({"idempotent_restore": restored, "same_live_processes": True})
             report["status"] = "passed available checks"
     except Exception as error:
         report["status"] = "failed"

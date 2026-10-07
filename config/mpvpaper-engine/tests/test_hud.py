@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 import sys
 import tempfile
 import unittest
@@ -27,6 +28,35 @@ class HudTests(unittest.TestCase):
         self.assertNotIn(",Anurati,,", content)
         self.assertNotIn("こんばんは", content)
         self.assertIn(",Greeting,,", content)
+
+    def test_madara_model_matches_reference_clock_format(self):
+        content = make_ass(
+            1920, 1080, HudSettings(model="madara"),
+            {"text": "#FFFFFF", "muted": "#CCCCCC", "accent": "#FF3344"},
+            datetime(2026, 10, 3, 17, 21),
+        )
+        self.assertIn("GOOD AFTERNOON", content)
+        self.assertIn("SAT", content)
+        self.assertIn("03 OCTOBER", content)
+        self.assertIn("05:21 PM", content)
+        self.assertNotIn("ムハメト・ケベ", content)
+
+    def test_rain_clock_models_are_available_in_ass_fallback(self):
+        now = datetime(2026, 10, 3, 17, 21)
+        expected = {
+            "mond": ("MondDay,Anurati", "SATURDAY"),
+            "summit": ("SummitDay,Electroharmonix", "AFTERNOON"),
+            "meenimal": ("MeenimalNumber,Google Sans", "17"),
+        }
+        for model, (style, label) in expected.items():
+            with self.subTest(model=model):
+                content = make_ass(
+                    1920, 1080, HudSettings(model=model),
+                    {"text": "#FFFFFF", "muted": "#CCCCCC", "accent": "#FF3344"},
+                    now,
+                )
+                self.assertIn(style, content)
+                self.assertIn(label, content)
 
     def test_manager_writes_palette_aware_file(self):
         with tempfile.TemporaryDirectory() as root:

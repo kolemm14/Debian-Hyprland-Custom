@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict, dataclass
+import colorsys
 import hashlib
 import json
 import os
@@ -81,11 +82,36 @@ def palette_from_rgb(data: bytes, source: Path, frames: int) -> Palette:
         # Five bits per channel suppress codec noise while preserving useful accents.
         color = (red >> 3 << 3, green >> 3 << 3, blue >> 3 << 3)
         histogram[color] += 1
-    ranked = [f"#{r:02x}{g:02x}{b:02x}" for (r, g, b), _count in histogram.most_common(8)]
-    if not ranked:
-        raise ThemeSyncError("empty palette")
-    background = min(ranked, key=_luminance)
+    # Keep distinct hues, including less common accents, instead of eight near-black bins.
+    candidates = histogram.most_common(128)
+    def score(entry):
+        rgb, count = entry
+        _, saturation, value = colorsys.rgb_to_hsv(*(v / 255 for v in rgb))
+        return count ** 0.5 * (0.15 + saturation) * (0.2 + value)
+    chosen = []
+    for rgb, _count in sorted(candidates, key=score, reverse=True):
+        if all(sum((a - b) ** 2 for a, b in zip(rgb, other)) >= 48 ** 2 for other in chosen):
+            chosen.append(rgb)
+        if len(chosen) == 8:
+            break
+    def hex_color(rgb):
+        return "#" + "".join(f"{round(v):02x}" for v in rgb)
+    ranked = [hex_color(rgb) for rgb in chosen]
+    dominant = candidates[0][0]
+    # Tint a dark surface from the dominant color; retain wallpaper hue.
+    factor = min(1, 32 / max(1, max(dominant)))
+    background = hex_color(tuple(v * factor for v in dominant))
     foreground = max(ranked, key=_luminance)
+    if _luminance(foreground) - _luminance(background) < 160:
+        base = tuple(int(foreground[i:i + 2], 16) for i in (1, 3, 5))
+        foreground = hex_color(tuple(v * 0.2 + 255 * 0.8 for v in base))
+    accents = [(rgb, count) for rgb, count in candidates
+               if colorsys.rgb_to_hsv(*(v / 255 for v in rgb))[1] > .22
+               and max(rgb) > 56 and count >= max(2, usable / 3 * .003)]
+    accent = max(accents, key=score)[0] if accents else chosen[0]
+    hue, light, saturation = colorsys.rgb_to_hls(*(v / 255 for v in accent))
+    ranked[0] = hex_color(tuple(v * 255 for v in colorsys.hls_to_rgb(
+        hue, max(0.6, min(0.75, light)), saturation)))
     return Palette(tuple(ranked), foreground, background, str(source), frames)
 
 
@@ -154,7 +180,7 @@ class ThemeSync:
         self._active = False
         self._last_key = None
 
-    def apply(self, source: Path, *, mode="on_apply", profile="balanced") -> ThemeSyncResult:
+    def apply(self, source: Path, *, mode="on_apply", profile="balanced", force=False) -> ThemeSyncResult:
         if mode not in THEME_SYNC_MODES:
             raise ValueError("invalid theme sync mode")
         if mode == "off":
@@ -164,19 +190,20 @@ class ThemeSync:
         with self._lock:
             if self._active:
                 return ThemeSyncResult(False, None, {}, "theme sync already active")
-            if key == self._last_key or key == self._stored_key():
+            if not force and (key == self._last_key or key == self._stored_key()):
                 return ThemeSyncResult(False, None, {}, "wallpaper already synchronized")
             self._active = True
         try:
             frames = ECO_FRAMES if profile == "eco" else DEFAULT_FRAMES
             palette = self.extractor(source, frames=frames)
             _atomic_json(self.palette_file, asdict(palette))
-            wallust = self._run_wallust(source)
+            wallust = self._run_wallust(source, palette)
             waybar = self._update_waybar(palette)
             integrations = {
                 "waybar": waybar,
                 "nova": self._notify_nova(),
                 "wallust": wallust,
+                "desktop": self._update_desktop(),
             }
             _atomic_json(self.state_file, {
                 "key": key, "source": str(source), "updated_monotonic": self.clock(),
@@ -197,7 +224,7 @@ class ThemeSync:
         return "ok" if result.returncode == 0 else f"failed: {(result.stderr or '').strip()}"
 
     def _signal_waybar(self):
-        return self._run(["pkill", "-RTMIN+8", "-x", "waybar"])
+        return self._run(["pkill", "-SIGUSR2", "-x", "waybar"])
 
     def _update_waybar(self, palette: Palette) -> str:
         waybar_dir = self.paths.config_home.parent / "waybar"
@@ -207,23 +234,40 @@ class ThemeSync:
                 "accent": palette.colors[0] if palette.colors else palette.foreground,
                 "foreground": palette.foreground,
                 "background": palette.background,
-                "muted": palette.colors[-1] if palette.colors else palette.foreground,
+                "muted": "#" + "".join(f"{round(int(palette.foreground[i:i+2], 16) * .7 + int(palette.background[i:i+2], 16) * .3):02x}" for i in (1, 3, 5)),
             },
         )
         signal = self._signal_waybar() if changed else "unchanged"
         return f"updated; {signal}" if changed else signal
 
+    def _update_desktop(self):
+        script = self.paths.config_home.parent / "hypr/UserScripts/DeblestiaSystemThemeSync.sh"
+        if not script.is_file():
+            return "unavailable: desktop theme sync script is missing"
+        return self._run(["bash", str(script), "--no-waybar-reload"])
+
     def _notify_nova(self):
         return self._run(["qs", "ipc", "call", "wallpaper", "paletteChanged"])
 
-    def _run_wallust(self, source):
-        return self._run(["wallust", "run", "--quiet", str(source)])
+    def _run_wallust(self, source, palette=None):
+        if palette is None:
+            return self._run(["wallust", "run", "--quiet", str(source)])
+        # Wallust accepts images, not MP4. Feed the same sampled colors as Waybar.
+        colors = palette.colors or (palette.background, palette.foreground)
+        row = b"".join(bytes.fromhex(color.lstrip("#")) * 32 for color in colors)
+        self.paths.palette_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(suffix=".ppm", dir=self.paths.palette_dir) as sample:
+            sample.write(f"P6\n{len(colors) * 32} 32\n255\n".encode() + row * 32)
+            sample.flush()
+            return self._run(["wallust", "run", "--quiet", "--backend", "full",
+                              "--colorspace", "lchansi", "--fallback-generator",
+                              "interpolate", "--skip-sequences", sample.name])
 
     @staticmethod
     def _key(source):
         try:
             info = source.stat()
-            value = f"{source}:{info.st_size}:{info.st_mtime_ns}"
+            value = f"desktop-v3:{source}:{info.st_size}:{info.st_mtime_ns}"
         except OSError:
             value = str(source)
         return hashlib.sha256(value.encode()).hexdigest()

@@ -167,7 +167,11 @@ git sparse-checkout set config/caelestia config/hypr config/v2 core/update manif
 ### MPVpaper Engine
 
 Le HUD dispose d’un affichage de bureau indépendant du fond d’écran et d’un
-éditeur unique : [réglages, dépendances et dépannage](docs/MPVPAPER-HUD.md).
+éditeur unique. Il inclut **Cyber / Japonais**, **Madara compact**, ainsi que
+**Mond**, **Summit** et **Meenimal**, adaptés avec dédicace de
+[Rain Clock GNOME](https://github.com/hugo-sants/rain-clock-gnome) par
+Hugo Santos (@hugo-sants) :
+[réglages, dépendances et dépannage](docs/MPVPAPER-HUD.md).
 
 <p align="center">
   <a href="https://youtu.be/2UVaLgqGK7k?si=VjY4wZeRyzTsoTa_">
@@ -485,17 +489,17 @@ ne la fournit pas, suivez la procédure de compilation du
    s'ouvre pour l'installer dans SDDM. **Arrêter le fond vidéo** coupe les fonds
    animés en cours sans supprimer les fichiers de la bibliothèque.
 10. Dans **Thèmes**, choisissez le mode clair ou sombre, le thème GTK, les icônes
-   et le curseur parmi ceux installés sur la machine. Cliquez sur **Appliquer le
-   thème** : le réglage est conservé dans la session et utilisé par les
-   applications compatibles. MPVpaper Engine synchronise `gsettings` et les
-   configurations GTK 3/4 afin d'éviter qu'un ancien réglage remplace le choix.
-   Le bouton **󰸉 Adapter tout au fond choisi** analyse plusieurs scènes rendues
-   de la vidéo sélectionnée et envoie leur palette équilibrée à Deblestia Nova/Matugen ainsi qu'à
-   toutes les Waybar. Il adapte donc le shell et les applications compatibles
-   sans remplacer, interrompre ni masquer le fond animé.
-   Les nouvelles collections peuvent être installées
-   dans `~/.themes` pour GTK et `~/.icons` pour les icônes ou curseurs ; elles
-   apparaîtront dans les listes au prochain lancement de MPVpaper Engine.
+    et le curseur parmi ceux installés sur la machine. Cliquez sur **Appliquer le
+    thème** : le réglage est conservé dans la session et utilisé par les
+    applications compatibles. MPVpaper Engine synchronise `gsettings` et les
+    configurations GTK 3/4 afin d'éviter qu'un ancien réglage remplace le choix.
+    Le bouton **󰸉 Adapter tout au fond choisi** analyse plusieurs scènes rendues
+    de la vidéo sélectionnée et envoie leur palette équilibrée à Deblestia Nova/Matugen ainsi qu'à
+    toutes les Waybar. Il adapte donc le shell et les applications compatibles
+    sans remplacer, interrompre ni masquer le fond animé.
+    Les nouvelles collections peuvent être installées
+    dans `~/.themes` pour GTK et `~/.icons` pour les icônes ou curseurs ; elles
+    apparaîtront dans les listes au prochain lancement de MPVpaper Engine.
 
 Les miniatures peuvent prendre quelques secondes à apparaître lors de la première
 ouverture. Un téléchargement qui échoue peut provenir d'un site ayant changé son

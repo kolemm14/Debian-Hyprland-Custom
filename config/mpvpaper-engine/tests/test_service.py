@@ -49,6 +49,15 @@ class ServiceTests(unittest.TestCase):
             },
         }), encoding="utf-8")
         self.service = EngineService(self.paths)
+        systemd = mock.Mock()
+        systemd.unit_status.return_value = "inactive"
+        systemd.details.return_value = {"state": "inactive", "description": "", "process": 0}
+        self.service.runtimes.systemd = systemd
+        self.service.runtimes.lwe.systemd = systemd
+        self.service.playback.systemd = systemd
+        from mpvpaper_engine.monitors import MonitorInfo
+        self.service.runtimes.monitor_detector = lambda: [MonitorInfo("eDP-1")]
+        self.service._monitor_events = lambda: None
 
     def tearDown(self):
         self.service.shutdown()
@@ -148,9 +157,11 @@ class ServiceTests(unittest.TestCase):
         }
         self.service.playback.play = mock.Mock()
         self.service._restore_configured_wallpapers()
-        self.service.playback.play.assert_called_once_with("*", wallpaper)
+        self.service.playback.play.assert_called_once_with("eDP-1", wallpaper)
 
     def test_restore_independent_ignores_stale_wildcard(self):
+        from mpvpaper_engine.monitors import MonitorInfo
+        self.service.runtimes.monitor_detector = lambda: [MonitorInfo("DP-1"), MonitorInfo("DP-2")]
         from mpvpaper_engine.models import OutputMode
         wallpaper = self.paths.config_home / "saved.mp4"
         wallpaper.write_bytes(b"video")

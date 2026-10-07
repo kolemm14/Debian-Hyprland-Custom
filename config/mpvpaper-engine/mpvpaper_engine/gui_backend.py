@@ -248,6 +248,14 @@ class GuiBackend:
             self.library.scan(self.library_roots)
         return result
 
+    def import_steam_local(self, uri):
+        from .steam_local import installed_project
+        project = installed_project(uri)
+        if project is None:
+            return None
+        # Register in place: Steam owns this directory and continues to update it.
+        return self.library.import_project(project.path)
+
     def refresh_library(self, *, scan: bool = True) -> list[Wallpaper]:
         if scan:
             self.library.scan(self.library_roots)
@@ -273,9 +281,16 @@ class GuiBackend:
         except MonitorError:
             return []
 
+    def import_project(self, path):
+        return self.library.import_project(Path(path))
+
+    def runtime_diagnostic(self, wallpaper_id):
+        item = self._wallpaper(wallpaper_id)
+        return self.client.request("runtime_diagnose", {"wallpaper": str(item.path)})
+
     def apply(
         self, wallpaper_id: int, output: str, *,
-        theme_mode: str = "off", performance_profile: str = "balanced",
+        theme_mode: str = "on_apply", performance_profile: str = "balanced",
     ) -> dict:
         wallpaper = self._wallpaper(wallpaper_id)
         targets = [output]
@@ -283,6 +298,9 @@ class GuiBackend:
             targets = [item.name for item in self.outputs()]
             if not targets:
                 raise ValueError("aucun écran connecté")
+        candidate = load_config(self.paths)
+        candidate.theme_sync["mode"] = theme_mode
+        save_config(candidate, self.paths)
         try:
             result = self.client.play(output, str(wallpaper.path))
         except EngineUnavailableError:
@@ -291,18 +309,27 @@ class GuiBackend:
                 check=True,
             )
             result = self.client.play(output, str(wallpaper.path))
-        self._save_wallpaper_selection(output, wallpaper.path, performance_profile)
+        successful = result.get("outputs")
+        if isinstance(successful, dict):
+            targets = [target for target in targets if successful.get(target, {}).get("ok")]
+        if result.get("persisted") is True:
+            self.config = load_config(self.paths)
+            for target in targets:
+                self._save_wallpaper_selection(target, wallpaper.path, performance_profile)
+        else:
+            self._save_wallpaper_selection(output, wallpaper.path, performance_profile)
         for target in targets:
             self.history.start(wallpaper.id, target, "manual")
-        theme = self.theme_sync.apply(
-            wallpaper.path, mode=theme_mode, profile=performance_profile
-        )
+        theme_reason = "Theme sync unavailable for project wallpapers"
+        if wallpaper.media_type in {MediaType.IMAGE, MediaType.VIDEO} and targets and not result.get("theme_sync_managed"):
+            theme_reason = self.theme_sync.apply(
+                wallpaper.path, mode=theme_mode, profile=performance_profile).reason
         try:
             for target in targets:
                 self.client.refresh_hud(target)
         except (EngineIPCError, OSError, TimeoutError):
             pass
-        return {**result, "theme_sync": theme.reason}
+        return {**result, "theme_sync": theme_reason}
 
     def _save_wallpaper_selection(
         self, output: str, wallpaper: Path, performance_profile: str,
@@ -335,8 +362,38 @@ class GuiBackend:
     def set_favorite(self, wallpaper_id: int, favorite: bool) -> Wallpaper:
         return self.library.set_favorite(wallpaper_id, favorite)
 
+    def delete_wallpaper(self, wallpaper_id: int) -> None:
+        from .playback import MpvClient
+        from .state import read_state, state_to_dict
+
+        config = load_config(self.paths)
+        if config.load_error:
+            raise ValueError(config.load_error)
+        protected = [Path(value["wallpaper"]) for value in config.outputs.values()
+                     if value.get("wallpaper")]
+        try:
+            state = self.client.get_state()
+        except EngineUnavailableError:
+            state = state_to_dict(read_state(self.paths))
+        protected.extend(Path(value["path"]) for value in state.get("outputs", {}).values()
+                         if value.get("path"))
+        # Legacy playback can coexist with an idle service after an upgrade.
+        for socket_path in (*self.paths.runtime_home.glob("*.sock"),
+                            *self.paths.mpv_socket_dir.glob("*.sock")):
+            if socket_path.name == "engine.sock":
+                continue
+            try:
+                active = MpvClient(socket_path, timeout=1).get_property("path")
+            except (OSError, RuntimeError, TimeoutError):
+                continue
+            if isinstance(active, str) and active:
+                protected.append(Path(active))
+        self.library.delete_to_trash(wallpaper_id, library_roots=self.library_roots,
+                                     protected_paths=protected)
+
     def playback(self, action: str, output: str, value=None) -> dict:
         operations = {
+            "stop": lambda: self.client.stop(output),
             "pause": lambda: self.client.pause(output),
             "resume": lambda: self.client.resume(output),
             "restart": lambda: self.client.restart(output),

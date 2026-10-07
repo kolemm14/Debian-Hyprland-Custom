@@ -21,6 +21,8 @@ from files import (Locations, UpdateError, baseline, detect_components, fingerpr
                    inventory, json_write, plan_files, read_json, recipe, run, snapshot)
 from transaction import Lock, Services, apply, log, recover, rollback
 from patches import patch_inventory
+import install_state
+from manager_backend import report, repair, stage_runtime, runtime_operation
 
 OFFICIAL = 'https://github.com/kolemm14/Debian-Hyprland-Custom.git'
 LEGACY = 'kebemouhamet08-gif'  # Recognition only; never used as a fetch destination.
@@ -75,11 +77,14 @@ def changes(git_dir, old, new):
 def prepare(repo, url, branch, head, installed, root):
     git_dir = root / 'objects.git'
     run(['git', 'init', '--bare', str(git_dir)])
-    run(['git', '--git-dir', str(git_dir), 'fetch', '--no-tags', str(repo), head])
     run(['git', '--git-dir', str(git_dir), 'fetch', '--no-tags', url, 'refs/heads/' + branch])
     latest = run(['git', '--git-dir', str(git_dir), 'rev-parse', 'FETCH_HEAD']).stdout.strip()
     if run(['git', '--git-dir', str(git_dir), 'cat-file', '-e', installed + '^{commit}'], check=False).returncode:
-        run(['git', '--git-dir', str(git_dir), 'fetch', '--no-tags', url, installed])
+        # Historical local commits are consulted only for the installed reference,
+        # never as a condition on the current development HEAD.
+        fetched = run(['git', '--git-dir', str(git_dir), 'fetch', '--no-tags', url, installed], check=False)
+        if fetched.returncode:
+            run(['git', '--git-dir', str(git_dir), 'fetch', '--no-tags', str(repo), installed])
     old_tree, new_tree = root / 'old', root / 'new'
     export_tree(git_dir, installed, old_tree)
     export_tree(git_dir, latest, new_tree)
@@ -164,13 +169,14 @@ def record(repo, locations, component):
     current = read_json(locations.manifest, {'schema': 1, 'commit': commit, 'components': [], 'files': {}, 'proposals': {}})
     # A freshly reinstalled component may now contain local uncommitted files.
     # Its exact per-file reference is retained; other components are untouched.
-    own = baseline(repo, locations, {component}, commit)
-    patched = patch_inventory(repo, locations, {component})
+    source = locations.runtime.resolve() if locations.runtime.is_dir() else repo
+    own = baseline(source, locations, {component}, commit)
+    patched = patch_inventory(source, locations, {component})
     for key, entry in patched.items():
         actual = snapshot(locations.path(key))
         if actual == entry['reference']:
             own['files'][key] = {**entry, 'installed': actual, 'commit': commit}
-    for key, entry in inventory(repo, locations, {component}).items():
+    for key, entry in inventory(source, locations, {component}).items():
         if 'build' in entry:
             actual = snapshot(locations.path(key))
             if actual is not None:
@@ -182,6 +188,7 @@ def record(repo, locations, component):
     current.setdefault('branch', 'main')
     json_write(locations.manifest, current)
     json_write(locations.data / 'version', {'commit': current['commit'], 'branch': current['branch']})
+    install_state.migrate(repo, locations)
 
 
 def main(argv=None):
@@ -191,6 +198,10 @@ def main(argv=None):
         group.add_argument('--' + name, action='store_true')
     group.add_argument('--record-component', metavar='ID', help=argparse.SUPPRESS)
     group.add_argument('--forget-component', metavar='ID', help=argparse.SUPPRESS)
+    group.add_argument('--state', action='store_true', help='migrer/lire InstallState (INI)')
+    group.add_argument('--inspect', action='store_true', help='santé locale structurée (INI)')
+    group.add_argument('--repair', metavar='COMPONENT', help='réparer les fichiers possédés, sans réseau')
+    parser.add_argument('--cache-result', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--yes', action='store_true', help='autoriser les nouveaux paquets Debian affichés')
     parser.add_argument('action', nargs='?', choices=['update'])
     args = parser.parse_args(argv)
@@ -204,13 +215,23 @@ def main(argv=None):
         return 0
     if os.geteuid() == 0 and os.environ.get('SUDO_USER'):
         raise UpdateError('Lancez ./update.sh sans sudo ; seuls les paquets nécessitent une élévation.')
-    readonly = args.check or args.dry_run
+    readonly = args.check or args.dry_run or args.inspect
     context = nullcontext() if readonly else Lock(locations)
     with context:
         if readonly and (locations.state / 'pending.json').exists():
             raise UpdateError('Transaction interrompue : lancez ./update.sh pour restaurer avant vérification.')
         if not readonly:
             recover(locations)
+        if args.state:
+            print(install_state.encode(install_state.migrate(repo, locations)), end='')
+            return 0
+        if args.inspect:
+            print(report(repo, locations), end='')
+            return 0
+        if args.repair:
+            install_state.migrate(repo, locations)
+            repair(locations, args.repair)
+            return 0
         if args.record_component:
             record(repo, locations, args.record_component)
             return 0
@@ -229,26 +250,24 @@ def main(argv=None):
                 raise UpdateError('Aucune sauvegarde restaurable')
             rollback(locations, candidates[-1], manual=True)
             return 0
-        url = remote(repo, not readonly)
-        head = run(['git', 'rev-parse', 'HEAD'], cwd=repo).stdout.strip()
-        branch = run(['git', 'symbolic-ref', '--short', 'HEAD'], cwd=repo, check=False).stdout.strip()
-        if not branch:
-            raise UpdateError('Checkout détaché : sélectionnez une branche avant la mise à jour.')
-        upstream_remote = run(['git', 'config', f'branch.{branch}.remote'], cwd=repo, check=False).stdout.strip()
-        if upstream_remote and upstream_remote != 'origin':
-            raise UpdateError('La branche suit un remote autre que origin ; aucun remote personnalisé modifié.')
-        merge_ref = run(['git', 'config', f'branch.{branch}.merge'], cwd=repo, check=False).stdout.strip()
-        target_branch = merge_ref.removeprefix('refs/heads/') if merge_ref else "main"
+        identity = install_state.migrate(repo, locations, persist=not readonly)
+        url = identity['repository']
+        target_branch = identity['branch']
+        installed = identity['installed_commit']
+        head = installed  # informational transaction label; never development HEAD
         old = read_json(locations.manifest, None)
         if old and old.get('schema') != 1:
             raise UpdateError('Version inconnue du manifest installé')
-        installed = old['commit'] if old else head
-        if not readonly and run(['git', 'status', '--porcelain'], cwd=repo).stdout.strip():
-            raise UpdateError('Checkout modifié : sauvegardez/committez vos changements avant update. --check et --dry-run restent disponibles.')
+        if old and old['commit'] != installed:
+            raise UpdateError('InstallState et manifest installé incohérents ; diagnostic requis')
         with tempfile.TemporaryDirectory(prefix='deblestia-update-') as directory:
             git_dir, latest, old_tree, new_tree, diff, renames = prepare(repo, url, target_branch, head, installed, Path(directory))
-            version_label = installed[:12] if old else f'inconnue (référence Git {installed[:12]})'
+            version_label = identity['installed_version'] + ' / ' + installed[:12]
             print(f'Debian-Hyprland-Custom Updater\n\nVersion installée : {version_label}\nVersion distante   : {latest[:12]}')
+            if args.check and args.cache_result:
+                install_state.atomic_write(locations.cache / 'available.ini', {
+                    'kind': 'file', 'value': base64.b64encode(install_state.encode(
+                        install_state.next_state(identity, latest, new_tree)).encode()).decode(), 'mode': 0o600})
             if args.check:
                 if installed == latest:
                     print('Debian-Hyprland-Custom est déjà à jour.')
@@ -257,9 +276,6 @@ def main(argv=None):
                 else:
                     print('Version locale en avance ou divergente ; aucune mise à jour automatique possible.')
                 return 0
-            for version in (head, installed):
-                if run(['git', '--git-dir', str(git_dir), 'merge-base', '--is-ancestor', version, latest], check=False).returncode:
-                    raise UpdateError('Historique divergent ou avance locale ; aucune application automatique possible.')
             components = detect_components(locations, old.get('components', []) if old else [])
             components -= set(old.get('disabled_components', []) if old else [])
             if old is None:
@@ -269,6 +285,7 @@ def main(argv=None):
                 newly_detected = components - set(old.get('components', []))
                 old['files'].update(baseline(old_tree, locations, newly_detected, installed)['files'])
             old['components'] = sorted(components)
+            locations.roots['repo'] = locations.runtime
             desired = inventory(new_tree, locations, components)
             for key, entry in patch_inventory(old_tree, locations, components).items():
                 actual = snapshot(locations.path(key))
@@ -315,6 +332,12 @@ def main(argv=None):
                 if read_json(locations.manifest, None) != manifest:
                     json_write(locations.manifest, manifest)
                     json_write(locations.data / 'version', {'commit': latest, 'branch': target_branch})
+                target = stage_runtime(new_tree, locations, latest)
+                from files import atomic_write
+                atomic_write(locations.runtime, target)
+                current_identity = install_state.load(locations)
+                if current_identity['installed_version'] != install_state.version(new_tree):
+                    install_state.write(locations, install_state.next_state(identity, latest, new_tree))
                 print('Debian-Hyprland-Custom est déjà à jour.')
                 log(locations, f'NOOP {latest}')
                 return 0
@@ -329,10 +352,11 @@ def main(argv=None):
                 manifest['disabled_components'] = old.get('disabled_components', [])
                 manifest['branch'] = target_branch
                 names, removed, replacements, unit_changed = service_plan(operations, desired, old, recipe(new_tree), renames)
-            # Import objects only after all planning/staging checks succeed.
-            run(['git', 'fetch', '--no-tags', str(git_dir), latest], cwd=repo)
+            target = stage_runtime(new_tree, locations, latest)
+            operations.extend(runtime_operation(locations, target))
             services = Services(names, removed, replacements)
-            backup = apply(locations, operations, manifest, services, unit_changed, head, latest, head != latest)
+            backup = apply(locations, operations, manifest, services, unit_changed, installed, latest, False,
+                           install_state.next_state(identity, latest, new_tree))
             print(f'Mise à jour terminée. Sauvegarde : {backup}')
             if conflicts:
                 print('Personnalisations conservées : examinez les fichiers .new signalés.')

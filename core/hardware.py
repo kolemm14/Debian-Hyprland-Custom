@@ -68,6 +68,22 @@ def network_available(opener=urllib.request.urlopen):
 def detect(check_network=False):
     release = os_release()
     virtualization = command("systemd-detect-virt") or "none"
+    if virtualization == "none":
+        try:
+            product = Path("/sys/class/dmi/id/product_name").read_text().strip().lower()
+            vendor = Path("/sys/class/dmi/id/sys_vendor").read_text().strip().lower()
+            for marker, name in (
+                ("virtualbox", "oracle"),
+                ("vmware", "vmware"),
+                ("kvm", "kvm"),
+                ("qemu", "qemu"),
+                ("bochs", "bochs"),
+            ):
+                if marker in product or marker in vendor:
+                    virtualization = name
+                    break
+        except OSError:
+            pass
     pci = command("lspci", "-nnk")
     gpu_lines = [line.strip() for line in pci.splitlines()
                  if any(marker in line.casefold() for marker in
@@ -92,11 +108,36 @@ def detect(check_network=False):
             dm = display_link.resolve().name.removesuffix(".service")
         except OSError:
             dm = "unknown"
+    distribution = release.get("ID", "")
+    if not distribution:
+        try:
+            if Path("/etc/debian_version").is_file():
+                distribution = "debian"
+        except OSError:
+            pass
+    if not distribution:
+        distribution = "unknown"
+    version = release.get("VERSION_ID", "")
+    if not version and distribution == "debian":
+        try:
+            version = Path("/etc/debian_version").read_text().strip()
+        except OSError:
+            pass
+    if not version:
+        version = "unknown"
+    codename = release.get("VERSION_CODENAME", "")
+    if not codename and distribution == "debian":
+        if version.startswith("13"):
+            codename = "trixie"
+        elif version.startswith("12"):
+            codename = "bookworm"
+    if not codename:
+        codename = "unknown"
     return {
-        "distribution": release.get("ID", "unknown"),
+        "distribution": distribution,
         "distribution_name": release.get("PRETTY_NAME", "unknown"),
-        "version": release.get("VERSION_ID", "unknown"),
-        "codename": release.get("VERSION_CODENAME", "unknown"),
+        "version": version,
+        "codename": codename,
         "architecture": platform.machine(),
         "kernel": platform.release(),
         "virtualization": virtualization,
@@ -109,7 +150,7 @@ def detect(check_network=False):
         "session": session,
         "wayland": bool(os.environ.get("WAYLAND_DISPLAY")) or session == "wayland",
         "x11": bool(os.environ.get("DISPLAY")) or session == "x11",
-        "hyprland": shutil.which("Hyprland") is not None or shutil.which("hyprctl") is not None,
+        "hyprland": shutil.which("Hyprland") is not None or shutil.which("hyprland") is not None or shutil.which("hyprctl") is not None,
         "gnome": "gnome" in desktop.casefold() or Path("/usr/share/xsessions/gnome.desktop").exists()
                  or Path("/usr/share/wayland-sessions/gnome.desktop").exists(),
         "display_manager": dm,

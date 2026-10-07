@@ -32,6 +32,22 @@ deblestia_record_component() {
         printf '%s\n' "$1" >>"$deblestia_state_dir/components"
 }
 
+deblestia_progress_event() {
+    local event_type="$1" step="$2"
+    shift 2
+    local json
+    json=$(jq -n --arg event "$event_type" --arg step "$step" '{event: $event, step: $step}')
+    if [ -n "${1:-}" ]; then
+        json=$(printf '%s\n' "$json" | jq --arg msg "$1" '. + {message: $msg}')
+    fi
+    if [ -n "${2:-}" ] && [ -n "${3:-}" ]; then
+        json=$(printf '%s\n' "$json" | jq --argjson current "$2" --argjson total "$3" '. + {current: $current, total: $total}')
+    fi
+    if [ "${DEBLESTIA_PROGRESS:-0}" = 1 ]; then
+        printf '%s\n' "$json"
+    fi
+}
+
 deblestia_install_component() {
     local component="$1" installer label critical
     installer="$(deblestia_component_field "$component" 3)"
@@ -39,18 +55,23 @@ deblestia_install_component() {
     critical="$(deblestia_component_field "$component" 5)"
     if [ -z "$installer" ] || [ ! -x "$deblestia_repo_dir/$installer" ]; then
         deblestia_t installer_missing "$component" >&2; printf '\n' >&2
+        deblestia_progress_event "error" "$component" "Installer missing or not executable"
         return 1
     fi
     printf '\n'; deblestia_t installing "$label"; printf '\n'
+    deblestia_progress_event "start" "$component"
     if "$deblestia_repo_dir/$installer" check && "$deblestia_repo_dir/$installer" install; then
         deblestia_record_component "$component"
+        deblestia_progress_event "done" "$component"
         return 0
     fi
     if [ "$critical" = yes ]; then
         deblestia_t critical_failure "$label" >&2; printf '\n' >&2
+        deblestia_progress_event "error" "$component" "Critical failure"
         return 1
     fi
     deblestia_t optional_failure "$label" >&2; printf '\n' >&2
+    deblestia_progress_event "error" "$component" "Optional failure"
 }
 
 deblestia_packages() {

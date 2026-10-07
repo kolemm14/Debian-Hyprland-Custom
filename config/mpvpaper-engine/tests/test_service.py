@@ -49,6 +49,15 @@ class ServiceTests(unittest.TestCase):
             },
         }), encoding="utf-8")
         self.service = EngineService(self.paths)
+        systemd = mock.Mock()
+        systemd.unit_status.return_value = "inactive"
+        systemd.details.return_value = {"state": "inactive", "description": "", "process": 0}
+        self.service.runtimes.systemd = systemd
+        self.service.runtimes.lwe.systemd = systemd
+        self.service.playback.systemd = systemd
+        from mpvpaper_engine.monitors import MonitorInfo
+        self.service.runtimes.monitor_detector = lambda: [MonitorInfo("eDP-1")]
+        self.service._monitor_events = lambda: None
 
     def tearDown(self):
         self.service.shutdown()
@@ -135,6 +144,38 @@ class ServiceTests(unittest.TestCase):
         self.service.start()
 
         self.service.playback.play.assert_called_once_with("eDP-1", wallpaper)
+
+    def test_restore_same_does_not_start_stale_individual_wallpapers(self):
+        from mpvpaper_engine.models import OutputMode
+        wallpaper = self.paths.config_home / "saved.mp4"
+        wallpaper.write_bytes(b"video")
+        self.service.config.mode = OutputMode.SAME
+        self.service.config.outputs = {
+            "DP-1": {"wallpaper": str(wallpaper)},
+            "DP-2": {"wallpaper": str(wallpaper)},
+            "*": {"wallpaper": str(wallpaper)},
+        }
+        self.service.playback.play = mock.Mock()
+        self.service._restore_configured_wallpapers()
+        self.service.playback.play.assert_called_once_with("eDP-1", wallpaper)
+
+    def test_restore_independent_ignores_stale_wildcard(self):
+        from mpvpaper_engine.monitors import MonitorInfo
+        self.service.runtimes.monitor_detector = lambda: [MonitorInfo("DP-1"), MonitorInfo("DP-2")]
+        from mpvpaper_engine.models import OutputMode
+        wallpaper = self.paths.config_home / "saved.mp4"
+        wallpaper.write_bytes(b"video")
+        self.service.config.mode = OutputMode.INDEPENDENT
+        self.service.config.outputs = {
+            "DP-1": {"wallpaper": str(wallpaper)},
+            "DP-2": {"wallpaper": str(wallpaper)},
+            "*": {"wallpaper": str(wallpaper)},
+        }
+        self.service.playback.play = mock.Mock()
+        self.service._restore_configured_wallpapers()
+        self.assertEqual(self.service.playback.play.call_args_list, [
+            mock.call("DP-1", wallpaper), mock.call("DP-2", wallpaper),
+        ])
 
     def test_single_instance(self):
         self.service.start()

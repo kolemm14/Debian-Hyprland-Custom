@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import hashlib
 import shutil
 import subprocess
 from typing import Callable
@@ -24,6 +25,11 @@ def unit_for_output(output: str) -> str:
         raise ValueError("invalid output name")
     suffix = "all" if output == "*" else re.sub(r"[^A-Za-z0-9_.-]", "-", output)
     return f"{UNIT_PREFIX}-{suffix}.service"
+
+
+def runtime_description(runtime, wallpaper):
+    identity = str(Path(wallpaper).expanduser().resolve()).encode()
+    return f"mpvpaper-engine:{runtime}:{hashlib.sha256(identity).hexdigest()}"
 
 
 def _default_runner(command, **options):
@@ -67,8 +73,9 @@ class SystemdManager:
             # A previous wildcard unit must not retain ownership of the desktop.
             self.stop_output("*")
         command = [
-            "systemd-run", "--user", "--quiet", "--collect",
-            f"--unit={unit_for_output(output)}", executable,
+            "systemd-run", "--user", "--quiet",
+            f"--unit={unit_for_output(output)}", "--property=Type=exec",
+            f"--description={runtime_description("mpvpaper", wallpaper)}", executable,
         ]
         if auto_pause:
             command.extend(["--auto-pause", "--auto-mode", "full"])
@@ -89,3 +96,20 @@ class SystemdManager:
         if status in {"active", "activating", "deactivating", "failed", "inactive"}:
             return status
         return "unknown"
+
+    def details(self, output):
+        result = self._run(["systemctl", "--user", "show", unit_for_output(output),
+                            "--property=ActiveState,SubState,MainPID,ExecMainStatus,Description,LoadState"])
+        values = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+        return {"state": values.get("ActiveState", "unknown"),
+                "substate": values.get("SubState", "unknown"),
+                "process": int(values.get("MainPID", "0") or 0),
+                "exit_code": int(values.get("ExecMainStatus", "0") or 0),
+                "description": values.get("Description", ""),
+                "load_state": values.get("LoadState", "not-found")}
+
+    def stop_checked(self, output):
+        if self.details(output)["load_state"] == "not-found":
+            return
+        self._run(["systemctl", "--user", "stop", unit_for_output(output)], check=True)
+        self._run(["systemctl", "--user", "reset-failed", unit_for_output(output)])

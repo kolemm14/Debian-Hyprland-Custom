@@ -57,13 +57,45 @@ class GuiBackendTests(unittest.TestCase):
         self.backend.set_favorite(self.wallpaper.id, True)
         self.assertEqual(self.backend.search(favorites=True)[0].id, self.wallpaper.id)
 
+    def test_delete_trashes_unassigned_wallpaper_and_hides_it(self):
+        import subprocess
+        self.client.get_state.return_value = {"outputs": {}}
+        self.library.trash_runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        self.backend.delete_wallpaper(self.wallpaper.id)
+        self.library.trash_runner.assert_called_once()
+        self.assertEqual(self.backend.search(), [])
+
+    def test_delete_refuses_configured_or_current_wallpaper(self):
+        from mpvpaper_engine.library import LibraryError
+        from mpvpaper_engine.config import save_config
+        self.client.get_state.return_value = {"outputs": {"DP-1": {"path": str(self.wallpaper.path)}}}
+        self.library.trash_runner = mock.Mock()
+        with self.assertRaises(LibraryError):
+            self.backend.delete_wallpaper(self.wallpaper.id)
+        self.client.get_state.return_value = {"outputs": {}}
+        self.backend.config.outputs["*"] = {"wallpaper": str(self.wallpaper.path)}
+        save_config(self.backend.config, self.paths)
+        with self.assertRaises(LibraryError):
+            self.backend.delete_wallpaper(self.wallpaper.id)
+        self.library.trash_runner.assert_not_called()
+
+    def test_delete_protects_legacy_playback(self):
+        from mpvpaper_engine.library import LibraryError
+        self.client.get_state.return_value = {"outputs": {}}
+        self.paths.runtime_home.mkdir(parents=True)
+        (self.paths.runtime_home / "all.sock").touch()
+        with mock.patch("mpvpaper_engine.playback.MpvClient") as client:
+            client.return_value.get_property.return_value = str(self.wallpaper.path)
+            with self.assertRaises(LibraryError):
+                self.backend.delete_wallpaper(self.wallpaper.id)
+
     def test_apply_uses_engine_and_records_history(self):
         self.client.play.return_value = {"strategy": "loadfile"}
         result = self.backend.apply(self.wallpaper.id, "DP-1")
         self.assertEqual(result["strategy"], "loadfile")
         self.client.play.assert_called_once_with("DP-1", str(self.wallpaper.path))
         self.theme_sync.apply.assert_called_once_with(
-            self.wallpaper.path, mode="off", profile="balanced"
+            self.wallpaper.path, mode="on_apply", profile="balanced"
         )
         self.assertEqual(self.backend.history.list(output="DP-1")[0].wallpaper_id,
                          self.wallpaper.id)
@@ -72,6 +104,16 @@ class GuiBackendTests(unittest.TestCase):
             saved["outputs"]["DP-1"]["wallpaper"], str(self.wallpaper.path)
         )
         self.assertTrue(saved["outputs"]["DP-1"]["autostart"])
+
+    def test_individual_apply_removes_stale_wildcard(self):
+        self.backend.monitor_detector = lambda: [MonitorInfo("DP-1"), MonitorInfo("DP-2")]
+        self.client.play.return_value = {}
+        self.backend.apply(self.wallpaper.id, "*")
+        self.backend.apply(self.wallpaper.id, "DP-1")
+        saved = json.loads(self.paths.config_file.read_text())
+        self.assertEqual(saved["outputs"]["DP-2"]["wallpaper"], str(self.wallpaper.path))
+        self.assertNotIn("*", saved["outputs"])
+        self.assertEqual(saved["mode"], "independent")
 
     def test_live_controls_are_dispatched_to_single_backend(self):
         self.backend.playback("volume", "DP-1", 33)

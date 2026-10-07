@@ -18,6 +18,7 @@ from .cache import CacheManager
 from .gui_backend import GuiBackend
 from .gui_scrolling import allow_page_scroll, scrolled_window
 from .config import HUD_DEFAULTS
+from .hud import HUD_MODELS
 from .hud_scene import draw as draw_hud
 from .hud_positioning import Rect
 from .hud_editor_geometry import (
@@ -426,6 +427,14 @@ class EngineWindow(Adw.ApplicationWindow):
         )
         self.download_button.connect("clicked", self._download_current_page)
         actions.append(self.download_button)
+        self.steam_open_button = Gtk.Button(label="Ouvrir dans Steam", visible=False)
+        self.steam_open_button.connect("clicked", self._open_steam_local)
+        actions.append(self.steam_open_button)
+        self.steam_cancel_button = Gtk.Button(label="Annuler l’attente", visible=False)
+        self.steam_cancel_button.connect("clicked", lambda _button: self._cancel_steam_wait())
+        actions.append(self.steam_cancel_button)
+        self._steam_wait_token = None
+        self._steam_wait_timer = 0
         like = Gtk.Button(icon_name="emblem-favorite-symbolic",
                           tooltip_text="Aimer et améliorer les suggestions")
         like.connect("clicked", self._like_current_page)
@@ -469,7 +478,7 @@ class EngineWindow(Adw.ApplicationWindow):
         self.discover_web.connect("notify::uri", self._browser_uri_changed)
         self.discover_web.connect("load-changed", self._browser_load_changed)
         self.discover_web.connect("decide-policy", self._browser_decide_policy)
-        self.discover_web.load_uri(self.discover_sources[0][1])
+        # Start navigation after the asynchronous content filter is ready.
         box.append(self.discover_web)
         status_row = Gtk.Box(spacing=8)
         self.browser_status = Gtk.Label(
@@ -579,6 +588,11 @@ class EngineWindow(Adw.ApplicationWindow):
 
     def _browser_uri_changed(self, webview, _param):
         self.discover_address.set_text(webview.get_uri() or "")
+        from mpvpaper_download import steam_workshop_id
+        steam = bool(steam_workshop_id(webview.get_uri() or ""))
+        self.steam_open_button.set_visible(steam)
+        self.download_button.set_tooltip_text(
+            "Importer le projet téléchargé par Steam" if steam else "Télécharger dans la bibliothèque")
 
     def _browser_load_changed(self, webview, event):
         if event == WebKit.LoadEvent.FINISHED:
@@ -609,6 +623,7 @@ class EngineWindow(Adw.ApplicationWindow):
             )
         except (OSError, GLib.Error) as error:
             self.browser_status.set_text(f"Bloqueur réseau indisponible : {error}")
+            self._start_browser()
 
     def _adblock_filter_ready(self, store, result):
         try:
@@ -617,10 +632,16 @@ class EngineWindow(Adw.ApplicationWindow):
             self.browser_status.set_text(
                 f"Bloqueur réseau indisponible : {error.message}"
             )
+            self._start_browser()
             return
         if self.adblock_button.get_active():
             self.web_content.add_filter(self.adblock_filter)
-            self.discover_web.reload()
+        self._start_browser()
+
+    def _start_browser(self):
+        # Do not overwrite navigation the user started while compiling the filter.
+        if not self.discover_web.get_uri():
+            self.discover_web.load_uri(self.discover_sources[0][1])
 
     def _adblock_toggled(self, button):
         self.web_content.remove_all_filters()
@@ -677,6 +698,11 @@ class EngineWindow(Adw.ApplicationWindow):
         self._start_download(uri, title)
 
     def _start_download(self, uri, title):
+        from mpvpaper_download import steam_workshop_id
+        if steam_workshop_id(uri):
+            self._watch_steam_local(uri)
+            return
+        self._cancel_steam_wait(silent=True)
         height = DOWNLOAD_QUALITIES[self.download_quality.get_selected()][1]
         target = "automatique" if height == 0 else f"{height}p"
         self.pending_download = (uri, title, height, "browser")
@@ -687,6 +713,77 @@ class EngineWindow(Adw.ApplicationWindow):
             lambda: self.backend.download_discovery_page(uri, title, height),
             self._download_finished, self._download_failed,
         )
+
+    def _open_steam_local(self, _button):
+        from mpvpaper_download import steam_workshop_id
+        uri = self.discover_address.get_text().strip()
+        item_id = steam_workshop_id(uri)
+        if not item_id:
+            self.browser_status.set_text("Ouvrez la fiche d’un fond Steam Workshop.")
+            return
+        try:
+            if Gio.AppInfo.get_default_for_uri_scheme("steam") is None:
+                raise RuntimeError("Installez le client Steam graphique ; SteamCMD seul ne suffit pas.")
+            opened = Gio.AppInfo.launch_default_for_uri(
+                f"steam://url/CommunityFilePage/{item_id}", None)
+            if not opened:
+                raise RuntimeError("Aucun client Steam n’a accepté la demande.")
+        except (GLib.Error, RuntimeError) as error:
+            self.browser_status.set_text(f"Impossible d’ouvrir Steam : {error}")
+            return
+        self._watch_steam_local(uri)
+
+    def _cancel_steam_wait(self, *, silent=False):
+        self._steam_wait_token = None
+        if self._steam_wait_timer:
+            GLib.source_remove(self._steam_wait_timer)
+            self._steam_wait_timer = 0
+        self.steam_cancel_button.set_visible(False)
+        if not silent:
+            self.browser_status.set_text("Attente annulée. Le téléchargement dans Steam continue.")
+
+    def _watch_steam_local(self, uri):
+        from mpvpaper_download import steam_workshop_id
+        self._cancel_steam_wait(silent=True)
+        token = object()
+        self._steam_wait_token = token
+        deadline = GLib.get_monotonic_time() + 300 * 1_000_000
+        self.steam_cancel_button.set_visible(True)
+        self.browser_firefox_retry.set_visible(False)
+        self.browser_status.set_text(
+            f"Steam #{steam_workshop_id(uri)} : abonnez-vous et terminez le téléchargement dans Steam. Attente locale : 5 min.")
+
+        def failed(error):
+            if self._steam_wait_token is token:
+                self._cancel_steam_wait(silent=True)
+                self.browser_status.set_text(f"Import Steam impossible : {error}")
+            return False
+
+        def checked(item):
+            if self._steam_wait_token is not token:
+                return False
+            if item is not None:
+                self._cancel_steam_wait(silent=True)
+                note = " · rendu Web désactivé" if item.media_type.value == "web" else (
+                    " · nécessite linux-wallpaperengine" if item.media_type.value == "scene" else "")
+                self.browser_status.set_text(f"Importé depuis Steam : {item.title}{note}")
+                self.reload(scan=False)
+                self.select(item)
+            elif GLib.get_monotonic_time() >= deadline:
+                self._cancel_steam_wait(silent=True)
+                self.browser_status.set_text(
+                    "Steam n’a pas terminé ce projet. Vérifiez sa file de téléchargements, puis relancez l’import.")
+            else:
+                self._steam_wait_timer = GLib.timeout_add_seconds(3, check)
+            return False
+
+        def check():
+            self._steam_wait_timer = 0
+            if self._steam_wait_token is token:
+                self.tasks.run(lambda: self.backend.import_steam_local(uri), checked, failed)
+            return False
+
+        check()
 
     def _download_finished(self, outcome):
         if outcome.path is None:
@@ -999,6 +1096,14 @@ class EngineWindow(Adw.ApplicationWindow):
             "Widgets indépendants du fond d’écran. Aperçu temporaire ; Appliquer pour enregistrer.",
         )
         page.append(self._settings_row("Écran", self.hud_editor_output))
+        self.hud_editor_model = Gtk.DropDown.new_from_strings(list(HUD_MODELS.values()))
+        self.hud_editor_model.connect("notify::selected", self._hud_editor_model_changed)
+        page.append(self._settings_row("Modèle visuel", self.hud_editor_model))
+        page.append(Gtk.LinkButton(
+            uri="https://github.com/hugo-sants/rain-clock-gnome",
+            label="Dédicace : Rain Clock GNOME — Hugo Santos (@hugo-sants)",
+            halign=Gtk.Align.START,
+        ))
         page.append(self.hud_editor_info)
         page.append(self.hud_editor_canvas)
 
@@ -1048,6 +1153,14 @@ class EngineWindow(Adw.ApplicationWindow):
         page.append(self._settings_row("Marge (pixels logiques)", self.hud_editor_margin))
         page.append(self._settings_row("Échelle", self.hud_editor_scale))
         page.append(self._settings_row("Opacité", self.hud_editor_opacity))
+        self.hud_editor_24h = Gtk.Switch(halign=Gtk.Align.END)
+        self.hud_editor_24h.connect("notify::active", self._hud_editor_changed)
+        page.append(self._settings_row("Heure sur 24 h", self.hud_editor_24h))
+        self.hud_editor_date_format = Gtk.DropDown.new_from_strings(
+            ["Date textuelle", "Date numérique"]
+        )
+        self.hud_editor_date_format.connect("notify::selected", self._hud_editor_changed)
+        page.append(self._settings_row("Format de date", self.hud_editor_date_format))
 
         self.hud_editor_elements = {}
         for name, label in (
@@ -1148,6 +1261,13 @@ class EngineWindow(Adw.ApplicationWindow):
         self.hud_editor_y.set_value(float(position.get("y", .30)))
         self.hud_editor_scale.set_value(float(settings.get("scale", 1.0)))
         self.hud_editor_opacity.set_value(float(settings.get("opacity", 1.0)))
+        models = list(HUD_MODELS)
+        model = settings.get("model", "classic")
+        self.hud_editor_model.set_selected(models.index(model) if model in models else 0)
+        self.hud_editor_24h.set_active(settings.get("use_24h", False) is True)
+        self.hud_editor_date_format.set_selected(
+            1 if settings.get("date_format") == "numeric" else 0
+        )
         anchors = ["top-left", "top", "top-right", "left", "center", "right",
                    "bottom-left", "bottom", "bottom-right"]
         self.hud_editor_anchor.set_selected(
@@ -1176,6 +1296,26 @@ class EngineWindow(Adw.ApplicationWindow):
                 entry.set_rgba(rgba)
             else:
                 entry.set_text(str(value))
+        self._hud_editor_update_model_controls()
+
+    def _hud_editor_model_changed(self, *_args):
+        self._hud_editor_update_model_controls()
+        self._hud_editor_changed()
+
+    def _hud_editor_update_model_controls(self):
+        if not hasattr(self, "hud_editor_elements"):
+            return
+        model = list(HUD_MODELS)[self.hud_editor_model.get_selected()]
+        classic = model == "classic"
+        for name in ("japanese",):
+            self.hud_editor_elements[name].set_sensitive(classic)
+        self.hud_editor_elements["greeting"].set_sensitive(
+            model in {"classic", "summit", "madara"}
+        )
+        self.hud_editor_elements["decorative_lines"].set_sensitive(
+            model in {"classic", "summit"}
+        )
+        self.hud_editor_username.set_sensitive(classic)
 
     def _hud_editor_collect(self):
         anchors = ["top-left", "top", "top-right", "left", "center", "right",
@@ -1193,6 +1333,11 @@ class EngineWindow(Adw.ApplicationWindow):
                 custom[key] = entry.get_text()
         return {
             "enabled": self.hud_editor_enabled.get_active(),
+            "model": list(HUD_MODELS)[self.hud_editor_model.get_selected()],
+            "use_24h": self.hud_editor_24h.get_active(),
+            "date_format": (
+                "numeric" if self.hud_editor_date_format.get_selected() == 1 else "text"
+            ),
             "position": {"x": self.hud_editor_x.get_value(), "y": self.hud_editor_y.get_value()},
             "anchor": anchors[self.hud_editor_anchor.get_selected()],
             "safe_margin": int(self.hud_editor_margin.get_value()),
@@ -1363,8 +1508,20 @@ class EngineWindow(Adw.ApplicationWindow):
         elif positioning.get("snapped"):
             self.hud_editor_status.set_text("Position alignée par snap.")
         fonts = data.get("fonts", {})
-        if fonts and not fonts.get("Anurati", True):
-            self.hud_editor_status.set_text("Avertissement : Anurati est absente, fallback actif.")
+        render_settings = data.get("render_settings", data.get("settings", {}))
+        model = render_settings.get("model", "classic")
+        required_fonts = {
+            "classic": ("Anurati",),
+            "mond": ("Anurati", "Poppins"),
+            "summit": ("Electroharmonix", "Outfit"),
+            "meenimal": ("Google Sans", "Gilroy-Bold", "Gilroy-SemiBold"),
+            "madara": ("Anurati", "Poppins"),
+        }[model]
+        missing_fonts = [name for name in required_fonts if fonts and not fonts.get(name, True)]
+        if missing_fonts:
+            self.hud_editor_status.set_text(
+                f"Polices absentes ({', '.join(missing_fonts)}) : fallback actif. "
+                "Relancer l’installateur pour les ajouter.")
         self._hud_editor_update_dirty()
         self.hud_editor_canvas.queue_draw()
 
@@ -1455,6 +1612,11 @@ class EngineWindow(Adw.ApplicationWindow):
                                        css_classes=["dim-label"])
         box.append(self.selected_label)
         box.append(self.media_details)
+        self.runtime_details = Gtk.Label(label="", xalign=0, wrap=True, css_classes=["dim-label"])
+        box.append(self.runtime_details)
+        import_project = Gtk.Button(label="Ajouter un projet local…")
+        import_project.connect("clicked", self._choose_project)
+        box.append(import_project)
         self.output = Gtk.DropDown.new_from_strings(["Tous les écrans (*)"])
         box.append(self._section("Écran", self.output))
         apply_button = Gtk.Button(label="Appliquer le fond",
@@ -1463,7 +1625,7 @@ class EngineWindow(Adw.ApplicationWindow):
         box.append(apply_button)
         buttons = Gtk.Box(spacing=6, homogeneous=True)
         for label, action in (("Pause", "pause"), ("Reprendre", "resume"),
-                              ("Relancer", "restart")):
+                              ("Relancer", "restart"), ("Arrêter", "stop")):
             button = Gtk.Button(label=label)
             button.connect("clicked", self._action_clicked, action)
             buttons.append(button)
@@ -1471,6 +1633,10 @@ class EngineWindow(Adw.ApplicationWindow):
         self.favorite = Gtk.ToggleButton(label="☆ Favori")
         self.favorite.connect("toggled", self._favorite_changed)
         box.append(self.favorite)
+        self.delete_button = Gtk.Button(label="Mettre à la corbeille…",
+                                        css_classes=["destructive-action"], sensitive=False)
+        self.delete_button.connect("clicked", lambda _button: self._confirm_delete(self.selected))
+        box.append(self.delete_button)
         self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
         self.volume.set_value(0)
         self.volume.connect("change-value", self._scale_changed, "volume")
@@ -1489,6 +1655,8 @@ class EngineWindow(Adw.ApplicationWindow):
         self.profile.connect("notify::selected", self._profile_changed)
         box.append(self._section("Performance", self.profile))
         self.theme_mode = Gtk.DropDown.new_from_strings(["Désactivé", "À l’application", "Toujours"])
+        mode = self.backend.config.theme_sync.get("mode", "on_apply")
+        self.theme_mode.set_selected(("off", "on_apply", "always").index(mode) if mode in {"off", "on_apply", "always"} else 1)
         box.append(self._section("Synchronisation du thème", self.theme_mode))
         self.saturation = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, -100, 100, 1)
         self.saturation.connect("change-value", self._color_changed)
@@ -1563,8 +1731,12 @@ class EngineWindow(Adw.ApplicationWindow):
 
     def select(self, item):
         self.selected = item
+        self.delete_button.set_sensitive(True)
         self.selected_label.set_text(item.title)
         self.media_details.set_text(_details(item))
+        self.runtime_details.set_text("Diagnostic runtime…")
+        self.tasks.run(lambda: self.backend.runtime_diagnostic(item.id),
+                       lambda result: self._runtime_diagnostic_loaded(item.id, result), self._failed)
         self.favorite.handler_block_by_func(self._favorite_changed)
         self.favorite.set_active(item.favorite)
         self.favorite.set_label("★ Favori" if item.favorite else "☆ Favori")
@@ -1576,13 +1748,38 @@ class EngineWindow(Adw.ApplicationWindow):
             self.preview.set_filename(str(preview))
         else:
             self.preview.set_paintable(None)
-            if item.id not in self.thumbnail_requests:
+            if item.media_type.value in {"video", "image"} and item.id not in self.thumbnail_requests:
                 self.thumbnail_requests.add(item.id)
                 self.tasks.run(
                     lambda: self.backend.ensure_thumbnail(item.id),
                     lambda path, item_id=item.id: self._thumbnail_loaded(item_id, path),
                     self._failed,
                 )
+
+    def _choose_project(self, _button):
+        chooser = Gtk.FileChooserNative(title="Dossier du projet Wallpaper Engine", transient_for=self,
+                                       action=Gtk.FileChooserAction.SELECT_FOLDER,
+                                       accept_label="Ajouter", cancel_label="Annuler")
+        def selected(dialog, response):
+            if response == Gtk.ResponseType.ACCEPT:
+                path = dialog.get_file().get_path()
+                self.tasks.run(lambda: self.backend.import_project(path),
+                               lambda item: (self.reload(scan=False), self.select(item)), self._failed)
+            dialog.destroy()
+        chooser.connect("response", selected)
+        chooser.show()
+
+    def _runtime_diagnostic_loaded(self, wallpaper_id, result):
+        if self.selected is None or self.selected.id != wallpaper_id:
+            return False
+        self.runtime_details.set_text(
+            f"Type : {result.get('type', 'unknown')}\n"
+            f"Moteur : {result.get('runtime') or 'indéterminé'}\n"
+            f"Runtime : {'disponible' if result.get('runtime_available') else 'indisponible'}\n"
+            f"Prêt : {'oui' if result.get('runtime_ready') else 'non'}\n"
+            f"Compatibilité : { {'unknown': 'inconnue', 'incompatible': 'incompatible', 'compatible': 'compatible', 'partial': 'partielle'}.get(result.get('compatibility'), 'inconnue')}\n"
+            f"{result.get('reason') or ''}")
+        return False
 
     def _thumbnail_loaded(self, item_id, path):
         self.thumbnail_requests.discard(item_id)
@@ -1601,16 +1798,49 @@ class EngineWindow(Adw.ApplicationWindow):
                 theme_mode=theme_modes[self.theme_mode.get_selected()],
                 performance_profile=profiles[self.profile.get_selected()],
             ),
-            "Wallpaper appliqué",
+            "Demande traitée — consultez les résultats par écran",
         )
 
     def _context_menu(self, card, x, y):
         menu = Gtk.Popover()
         menu.set_parent(card)
+        actions = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         button = Gtk.Button(label="Ajouter à la première playlist")
         button.connect("clicked", lambda _button: self._add_first_playlist(card.item))
-        menu.set_child(button)
+        actions.append(button)
+        delete = Gtk.Button(label="Mettre à la corbeille…", css_classes=["destructive-action"])
+        delete.connect("clicked", lambda _button: (menu.popdown(), self._confirm_delete(card.item)))
+        actions.append(delete)
+        menu.set_child(actions)
         menu.popup()
+
+    def _confirm_delete(self, item):
+        if item is None:
+            return
+        dialog = Adw.MessageDialog(
+            transient_for=self, heading="Supprimer ce fond d’écran ?",
+            body=f"{item.title}\n\n{item.path}\n\nLe fichier (ou le dossier du projet) sera déplacé dans la corbeille. Les fonds affectés à un écran sont protégés.")
+        dialog.add_response("cancel", "Annuler")
+        dialog.add_response("delete", "Mettre à la corbeille")
+        dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        def response(_dialog, choice):
+            if choice == "delete":
+                self._dispatch(lambda: self.backend.delete_wallpaper(item.id),
+                               "Fond déplacé dans la corbeille", refresh=True,
+                               after=lambda: self._deleted(item.id))
+        dialog.connect("response", response)
+        dialog.present()
+
+    def _deleted(self, wallpaper_id):
+        if self.selected is not None and self.selected.id == wallpaper_id:
+            self.selected = None
+            self.delete_button.set_sensitive(False)
+            self.selected_label.set_text("Sélectionnez un wallpaper")
+            self.preview.set_paintable(None)
+            self.media_details.set_text("")
+            self.runtime_details.set_text("")
 
     def _action_clicked(self, _button, action):
         if action == "apply":
@@ -1771,7 +2001,11 @@ class EngineWindow(Adw.ApplicationWindow):
         self._busy("Application…")
 
         def done(_result):
-            self._busy(message)
+            text = message
+            if isinstance(_result, dict) and isinstance(_result.get("outputs"), dict):
+                text = " · ".join(f"{screen}: " + ("OK" if result.get("ok") else result.get("error", "échec"))
+                                  for screen, result in _result["outputs"].items() if isinstance(result, dict)) or message
+            self._busy(text)
             if refresh:
                 self.reload(scan=False)
             if after:
@@ -1788,6 +2022,7 @@ class EngineWindow(Adw.ApplicationWindow):
         return False
 
     def _close(self, _window):
+        self._cancel_steam_wait(silent=True)
         if hasattr(self, "_hud_editor_active_output"):
             if self._hud_editor_pending:
                 GLib.source_remove(self._hud_editor_pending)

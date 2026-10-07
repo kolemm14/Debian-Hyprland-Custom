@@ -227,6 +227,9 @@ required_packages=(
 optional_packages=(
     python3-gi-cairo
     gir1.2-gtklayershell-0.1
+    fontconfig
+    fonts-noto-core
+    fonts-noto-cjk
 )
 
 build_packages=(
@@ -242,11 +245,13 @@ build_packages=(
 )
 
 missing_required=()
+missing_optional=()
 
 check_packages() {
     step "3/8 — Dependencies"
 
     missing_required=()
+    missing_optional=()
 
     for package in "${required_packages[@]}"; do
         if dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null |
@@ -267,6 +272,7 @@ check_packages() {
             ok "$package"
         else
             warn "$package"
+            missing_optional+=("$package")
         fi
     done
 
@@ -283,22 +289,26 @@ check_packages() {
 }
 
 install_packages() {
-    ((${#missing_required[@]})) || return 0
+    local packages_to_install=("${missing_required[@]}" "${missing_optional[@]}")
+    ((${#packages_to_install[@]})) || return 0
 
     step "4/8 — Install missing Debian packages"
 
     say "Packages to install:"
-    printf '  • %s\n' "${missing_required[@]}"
+    printf '  • %s\n' "${packages_to_install[@]}"
 
     if ! confirm "Install these packages now?"; then
-        die "Installation cancelled."
+        if ((${#missing_required[@]})); then
+            die "Installation cancelled."
+        fi
+        warn "Optional HUD dependencies skipped."
+        return 0
     fi
 
     run_root apt-get update
 
     run_root apt-get install -y \
-        "${required_packages[@]}" \
-        "${optional_packages[@]}"
+        "${packages_to_install[@]}"
 }
 
 install_mpvpaper() {
@@ -391,7 +401,7 @@ download_project() {
             "$TARGET_DIR"
 
         git -C "$TARGET_DIR" sparse-checkout set \
-            config/mpvpaper-engine
+            config/mpvpaper-engine core/update manifests
     fi
 
     ok "Source downloaded"

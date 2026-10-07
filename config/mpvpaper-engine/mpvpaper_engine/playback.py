@@ -199,7 +199,7 @@ class PlaybackController:
         if self.state is not None:
             self.state.update_output(output, **changes)
 
-    def _mpv_options(self, output: str, profile: dict[str, Any]) -> str:
+    def _mpv_options(self, output: str, profile: dict[str, Any], wallpaper: Path | None = None) -> str:
         self.paths.mpv_socket_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         socket_path = self.paths.mpv_socket(output)
         options = [
@@ -217,9 +217,12 @@ class PlaybackController:
         if profile.get("loop", True):
             options.append("loop-file=inf")
         performance = effective_settings(profile.get("performance_profile", "auto"))
+        is_image = wallpaper is not None and wallpaper.suffix.casefold() in {
+            ".jpg", ".jpeg", ".png", ".webp", ".avif", ".bmp"
+        }
         options.extend(
             option for option in mpv_option_fragments(performance)
-            if not (
+            if not (is_image and option.startswith("vf-add=fps=")) and not (
                 profile.get("hardware_decode", "auto") == "disabled"
                 and option.startswith("hwdec=")
             )
@@ -272,6 +275,10 @@ class PlaybackController:
             raise PlaybackError(str(error)) from error
         client = self._client(output)
         try:
+            if wallpaper.suffix.casefold() in {".jpg", ".jpeg", ".png", ".webp", ".avif", ".bmp"}:
+                filters = client.get_property("vf")
+                if isinstance(filters, list):
+                    client.set_property("vf", [value for value in filters if value.get("name") != "fps"])
             client.loadfile(wallpaper)
             _wait_for_media_path(client, wallpaper)
             self._apply_live_profile(client, profile)
@@ -280,7 +287,7 @@ class PlaybackController:
         except PlaybackError:
             self.systemd.stop_output(output)
             self.systemd.start_output(
-                output, wallpaper, self._mpv_options(output, profile),
+                output, wallpaper, self._mpv_options(output, profile, wallpaper),
                 auto_pause=bool(profile.get("auto_pause", True)),
             )
             strategy = "systemd"
@@ -401,7 +408,7 @@ class PlaybackController:
             effective = self._profile(output)
             self.systemd.stop_output(output)
             self.systemd.start_output(
-                output, path, self._mpv_options(output, effective),
+                output, path, self._mpv_options(output, effective, path),
                 auto_pause=bool(effective.get("auto_pause", True)),
             )
         self._state_update(output, performance_profile=selected)

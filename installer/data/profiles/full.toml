@@ -1,0 +1,36 @@
+[profile]
+id = "full"
+name = "Deblestia Full"
+display_name_en = "Deblestia Full"
+display_name_fr = "Deblestia Complet"
+description_en = "The complete Deblestia experience with all components and full visual effects. Recommended for modern hardware with 16 GB RAM or more."
+description_fr = "L'expérience Deblestia complète avec tous les composants et effets visuels. Recommandé pour le matériel moderne avec 16 Go de RAM ou plus."
+
+[components]
+hyprland = true
+deblestia_bar = true
+nova_lite = true
+notifications = true
+launcher = true
+lockscreen = true
+mpvpaper_engine = true
+periphx = true
+mirrorbridge = true
+deblestia_nova = true
+deblestia_shell = true
+aurora_core = true
+
+[visual]
+animations = "full"
+blur = "enabled"
+heavy_effects = true
+static_wallpaper = false
+video_wallpaper = true
+
+[performance]
+default_wallpaper_profile = "quality"
+optional_background_services = true
+
+[requirements]
+min_ram_mb = 12288
+min_storage_mb = 20000

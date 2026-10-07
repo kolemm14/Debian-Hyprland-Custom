@@ -112,7 +112,19 @@ class DownloadPolicyTests(unittest.TestCase):
             details.assert_not_called()
             self.assertEqual(result.source, "local")
 
-    def test_preview_is_fallback_when_workshop_media_is_not_exportable(self):
+    def test_reimport_refreshes_changed_media_with_same_size(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            item = root / "item"
+            item.mkdir()
+            media = item / "movie.mp4"
+            media.write_bytes(b"old video")
+            imported = DOWNLOADS.import_workshop_item(item, root / "library", "42")
+            media.write_bytes(b"new video")
+            DOWNLOADS.import_workshop_item(item, root / "library", "42")
+            self.assertEqual(imported.read_bytes(), b"new video")
+
+    def test_preview_is_never_imported_when_workshop_media_is_not_exportable(self):
         details = {
             "publishedfileid": "42", "title": "Scene", "file_url": "",
             "preview_url": "https://cdn.example/preview.jpg",
@@ -122,11 +134,13 @@ class DownloadPolicyTests(unittest.TestCase):
                 mock.patch.object(DOWNLOADS, "steam_file_details", return_value=details), \
                 mock.patch.object(DOWNLOADS.shutil, "which", return_value=None), \
                 mock.patch.object(DOWNLOADS, "media_dimensions", return_value=(1920, 1080)), \
-                mock.patch.object(DOWNLOADS, "_download", side_effect=lambda _u, p, _m: p.write_bytes(b"jpg") or p):
+                mock.patch.object(DOWNLOADS, "_download") as download:
             result = DOWNLOADS.force_steam_workshop_download(
                 "https://steamcommunity.com/sharedfiles/filedetails/?id=42",
                 Path(directory), 2160,
             )
+        self.assertIsNone(result.path)
+        download.assert_not_called()
         self.assertEqual(result.source, "preview")
         self.assertIn("aperçu", result.message)
 
@@ -140,13 +154,14 @@ class DownloadPolicyTests(unittest.TestCase):
                 mock.patch.object(DOWNLOADS, "steam_file_details", return_value=details), \
                 mock.patch.object(DOWNLOADS.shutil, "which", return_value=None), \
                 mock.patch.object(DOWNLOADS, "media_dimensions", return_value=(224, 224)), \
-                mock.patch.object(DOWNLOADS, "_download", side_effect=lambda _u, p, _m: p.write_bytes(b"gif") or p):
+                mock.patch.object(DOWNLOADS, "_download") as download:
             result = DOWNLOADS.force_steam_workshop_download(
                 "https://steamcommunity.com/sharedfiles/filedetails/?id=42",
                 Path(directory), 1080,
             )
+        download.assert_not_called()
         self.assertIsNone(result.path)
-        self.assertIn("224×224", result.message)
+        self.assertIn("aperçu", result.message)
 
 
 if __name__ == "__main__":

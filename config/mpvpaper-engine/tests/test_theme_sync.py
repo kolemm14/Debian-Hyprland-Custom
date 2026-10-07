@@ -38,6 +38,20 @@ class ThemeSyncTests(unittest.TestCase):
         self.assertEqual(palette.background, "#000000")
         self.assertEqual(palette.foreground, "#f8f8f8")
 
+    def test_palette_keeps_colored_accent_among_dark_pixels(self):
+        data = bytes([8, 8, 8] * 800 + [16, 16, 16] * 100 + [32, 160, 224] * 100)
+        palette = palette_from_rgb(data, self.media, 1)
+        red, green, blue = (int(palette.colors[0][i:i+2], 16) for i in (1, 3, 5))
+        self.assertGreater(blue, red + 60)
+        self.assertGreater(green, red)
+        self.assertGreater(min(int(palette.foreground[i:i+2], 16) for i in (1, 3, 5)), 160)
+
+    def test_monochrome_wallpaper_gets_readable_text(self):
+        palette = palette_from_rgb(bytes([96, 96, 96] * 100), self.media, 1)
+        self.assertNotEqual(palette.foreground, palette.background)
+        self.assertGreater(int(palette.foreground[1:3], 16), 200)
+        self.assertLessEqual(int(palette.background[1:3], 16), 32)
+
     def test_extract_uses_one_frame_for_image_and_bounds_video_to_four(self):
         image = Path(self.temp.name) / "still.png"
         image.write_bytes(b"image")
@@ -106,6 +120,33 @@ class ThemeSyncTests(unittest.TestCase):
     def test_invalid_mode_is_rejected(self):
         with self.assertRaises(ValueError):
             ThemeSync(self.paths).apply(self.media, mode="sometimes")
+
+    def test_desktop_sync_and_real_waybar_reload(self):
+        script = self.paths.config_home.parent / "hypr/UserScripts/DeblestiaSystemThemeSync.sh"
+        script.parent.mkdir(parents=True)
+        script.write_text("#!/bin/sh\n")
+        runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        palette = Palette(("#204060",), "#eeeeee", "#101010", str(self.media), 4)
+        sync = ThemeSync(self.paths, extractor=lambda *a, **kw: palette, runner=runner)
+        result = sync.apply(self.media)
+        commands = [call.args[0] for call in runner.call_args_list]
+        self.assertIn(["pkill", "-SIGUSR2", "-x", "waybar"], commands)
+        self.assertIn(["bash", str(script), "--no-waybar-reload"], commands)
+        self.assertEqual(result.integrations["desktop"], "ok")
+        self.assertTrue(sync.apply(self.media, force=True).applied)
+
+    def test_wallust_receives_sampled_image_instead_of_video(self):
+        palette = Palette(("#204060", "#8090a0"), "#eeeeee", "#101010", str(self.media), 4)
+        files = []
+        def runner(command, **kwargs):
+            if command[0] == "wallust":
+                sample = Path(command[-1]); files.append(sample)
+                self.assertEqual(sample.suffix, ".ppm")
+                self.assertTrue(sample.read_bytes().startswith(b"P6\n64 32\n255\n"))
+            return subprocess.CompletedProcess(command, 0, "", "")
+        ThemeSync(self.paths, extractor=lambda *a, **kw: palette, runner=runner).apply(self.media)
+        self.assertEqual(len(files), 1)
+        self.assertFalse(files[0].exists())
 
 
 if __name__ == "__main__":

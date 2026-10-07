@@ -47,7 +47,7 @@
       "children-class": "nova-drawer"
     },
     "modules": [
-      "custom/apps", "custom/terminal", "custom/files", "custom/browser",
+      "custom/apps", "custom/terminal", "custom/manager-cli", "custom/files", "custom/browser",
       "custom/wallpaper", "wlr/taskbar", "custom/restore-minimized"
     ]
   },
@@ -120,6 +120,7 @@
     "on-click": "$HOME/.config/hypr/scripts/OverviewToggle.sh"
   },
   "custom/apps": {"format": "󰀻", "tooltip-format": "Survol : applications"},
+  "custom/manager-cli": {"format": " ", "tooltip-format": "HyprDebian — gestionnaire en ligne de commande", "on-click": "kitty --title \"HyprDebian CLI\" -e \"$HOME/.local/bin/debian-custom-manager\" --cli"},
   "custom/terminal": {"format": "", "tooltip-format": "Terminal", "on-click": "kitty"},
   "custom/files": {"format": "", "tooltip-format": "Fichiers", "on-click": "thunar"},
   "custom/browser": {"format": "", "tooltip-format": "Navigateur", "on-click": "firefox"},

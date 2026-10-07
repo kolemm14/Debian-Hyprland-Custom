@@ -1,0 +1,36 @@
+[profile]
+id = "lite"
+name = "Deblestia Lite"
+display_name_en = "Deblestia Lite"
+display_name_fr = "Deblestia Lite"
+description_en = "Lightweight configuration optimized for older hardware. Keeps your computer responsive while providing a modern desktop experience."
+description_fr = "Configuration légère optimisée pour le matériel ancien. Garde votre ordinateur réactif tout en offrant une expérience de bureau moderne."
+
+[components]
+hyprland = true
+deblestia_bar = true
+nova_lite = true
+notifications = true
+launcher = true
+lockscreen = true
+mpvpaper_engine = false
+periphx = false
+mirrorbridge = false
+deblestia_nova = false
+deblestia_shell = false
+aurora_core = true
+
+[visual]
+animations = "low"
+blur = "disabled"
+heavy_effects = false
+static_wallpaper = true
+video_wallpaper = false
+
+[performance]
+default_wallpaper_profile = "eco"
+optional_background_services = false
+
+[requirements]
+min_ram_mb = 2048
+min_storage_mb = 5000

@@ -186,3 +186,12 @@ if command -v hyprctl >/dev/null 2>&1; then
 fi
 
 printf '%s installé. Sauvegarde : %s\n' "$product_name" "$backup_dir"
+
+# Record exact ownership for subsequent incremental updates.
+source "$repo_dir/core/update/record.sh"
+case "$variant" in
+    bar) update_component=deblestia-bar ;;
+    nova|nova-lite) update_component=deblestia-nova-lite ;;
+    *) update_component=nova2 ;;
+esac
+deblestia_update_record "${update_component}"

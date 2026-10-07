@@ -1,0 +1,239 @@
+{
+  "hyprland_outputs": [
+    {
+      "name": "eDP-1",
+      "description": "LG Display 0x05F1",
+      "width": 1920,
+      "height": 1080
+    }
+  ],
+  "source": "generated fixtures",
+  "monitors": [
+    {
+      "name": "eDP-1",
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 60.02,
+      "x": 0,
+      "y": 0,
+      "scale": 1.0,
+      "focused": true,
+      "transform": 0
+    }
+  ],
+  "checks": [
+    {
+      "resolve": {
+        "id": "900000001",
+        "provider": "steam-workshop",
+        "type": "video",
+        "compatibility": "full",
+        "title": "Validation video",
+        "media": "/tmp/mpv-we-0ajn5zbf/steamapps/workshop/content/431960/900000001/original.mp4",
+        "preview": "preview.png",
+        "source_dir": "/tmp/mpv-we-0ajn5zbf/steamapps/workshop/content/431960/900000001",
+        "package": null,
+        "renderer": "mpvpaper",
+        "message": ""
+      },
+      "import": "original bytes match"
+    },
+    {
+      "resolve": {
+        "id": "900000002",
+        "provider": "steam-workshop",
+        "type": "image",
+        "compatibility": "full",
+        "title": "Validation image",
+        "media": "/tmp/mpv-we-0ajn5zbf/steamapps/workshop/content/431960/900000002/original.png",
+        "preview": "preview.png",
+        "source_dir": "/tmp/mpv-we-0ajn5zbf/steamapps/workshop/content/431960/900000002",
+        "package": null,
+        "renderer": "mpvpaper",
+        "message": ""
+      },
+      "import": "original bytes match"
+    },
+    {
+      "apply": {
+        "output": "eDP-1",
+        "path": "/tmp/mpv-we-0ajn5zbf/library/Steam Workshop 900000001 [Steam-900000001].mp4",
+        "decoded": {
+          "pixelformat": "vaapi",
+          "hw-pixelformat": "nv12",
+          "average-bpp": 12,
+          "w": 640,
+          "h": 360,
+          "dw": 640,
+          "dh": 360,
+          "crop-x": 0,
+          "crop-y": 0,
+          "crop-w": 640,
+          "crop-h": 360,
+          "aspect": 1.777778,
+          "aspect-name": "16:9",
+          "par": 1.0,
+          "sar": 1.777778,
+          "sar-name": "16:9",
+          "colormatrix": "bt.601",
+          "colorlevels": "limited",
+          "primaries": "bt.709",
+          "gamma": "bt.1886",
+          "sig-peak": 0.0,
+          "light": "display",
+          "chroma-location": "mpeg2/4/h264",
+          "stereo-in": "mono",
+          "rotate": 0
+        }
+      }
+    },
+    {
+      "apply": {
+        "output": "eDP-1",
+        "path": "/tmp/mpv-we-0ajn5zbf/library/Steam Workshop 900000002 [Steam-900000002].png",
+        "decoded": {
+          "pixelformat": "rgb24",
+          "average-bpp": 24,
+          "w": 640,
+          "h": 360,
+          "dw": 640,
+          "dh": 360,
+          "crop-x": 0,
+          "crop-y": 0,
+          "crop-w": 640,
+          "crop-h": 360,
+          "aspect": 1.777778,
+          "aspect-name": "16:9",
+          "par": 1.0,
+          "sar": 1.777778,
+          "sar-name": "16:9",
+          "colormatrix": "rgb",
+          "colorlevels": "full",
+          "primaries": "bt.709",
+          "gamma": "srgb",
+          "sig-peak": 0.0,
+          "light": "display",
+          "chroma-location": "mpeg1/jpeg",
+          "stereo-in": "mono",
+          "rotate": 0
+        }
+      }
+    },
+    {
+      "apply_star": [
+        {
+          "output": "eDP-1",
+          "path": "/tmp/mpv-we-0ajn5zbf/library/Steam Workshop 900000001 [Steam-900000001].mp4",
+          "decoded": {
+            "pixelformat": "vaapi",
+            "hw-pixelformat": "nv12",
+            "average-bpp": 12,
+            "w": 640,
+            "h": 360,
+            "dw": 640,
+            "dh": 360,
+            "crop-x": 0,
+            "crop-y": 0,
+            "crop-w": 640,
+            "crop-h": 360,
+            "aspect": 1.777778,
+            "aspect-name": "16:9",
+            "par": 1.0,
+            "sar": 1.777778,
+            "sar-name": "16:9",
+            "colormatrix": "bt.601",
+            "colorlevels": "limited",
+            "primaries": "bt.709",
+            "gamma": "bt.1886",
+            "sig-peak": 0.0,
+            "light": "display",
+            "chroma-location": "mpeg2/4/h264",
+            "stereo-in": "mono",
+            "rotate": 0
+          }
+        }
+      ]
+    },
+    {
+      "engine_restart": [
+        {
+          "output": "eDP-1",
+          "path": "/tmp/mpv-we-0ajn5zbf/library/Steam Workshop 900000001 [Steam-900000001].mp4",
+          "decoded": {
+            "pixelformat": "vaapi",
+            "hw-pixelformat": "nv12",
+            "average-bpp": 12,
+            "w": 640,
+            "h": 360,
+            "dw": 640,
+            "dh": 360,
+            "crop-x": 0,
+            "crop-y": 0,
+            "crop-w": 640,
+            "crop-h": 360,
+            "aspect": 1.777778,
+            "aspect-name": "16:9",
+            "par": 1.0,
+            "sar": 1.777778,
+            "sar-name": "16:9",
+            "colormatrix": "bt.601",
+            "colorlevels": "limited",
+            "primaries": "bt.709",
+            "gamma": "bt.1886",
+            "sig-peak": 0.0,
+            "light": "display",
+            "chroma-location": "mpeg2/4/h264",
+            "stereo-in": "mono",
+            "rotate": 0
+          }
+        }
+      ]
+    },
+    {
+      "independent_restart_after_star": [
+        {
+          "output": "eDP-1",
+          "path": "/tmp/mpv-we-0ajn5zbf/library/Steam Workshop 900000002 [Steam-900000002].png",
+          "decoded": {
+            "pixelformat": "rgb24",
+            "average-bpp": 24,
+            "w": 640,
+            "h": 360,
+            "dw": 640,
+            "dh": 360,
+            "crop-x": 0,
+            "crop-y": 0,
+            "crop-w": 640,
+            "crop-h": 360,
+            "aspect": 1.777778,
+            "aspect-name": "16:9",
+            "par": 1.0,
+            "sar": 1.777778,
+            "sar-name": "16:9",
+            "colormatrix": "rgb",
+            "colorlevels": "full",
+            "primaries": "bt.709",
+            "gamma": "srgb",
+            "sig-peak": 0.0,
+            "light": "display",
+            "chroma-location": "mpeg1/jpeg",
+            "stereo-in": "mono",
+            "rotate": 0
+          }
+        }
+      ]
+    },
+    {
+      "idempotent_restore": {
+        "eDP-1": {
+          "ok": true,
+          "strategy": "unchanged"
+        }
+      },
+      "same_live_processes": true
+    }
+  ],
+  "two_physical_outputs": "not verified",
+  "session_restart": "not performed",
+  "status": "passed available checks"
+}

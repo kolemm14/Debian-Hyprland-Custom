@@ -48,6 +48,33 @@ DEBLESTIA_LANG=en ./install.sh
 ./install.sh --lang en --dry-run
 ```
 
+## Updating the checkout
+
+The official repository is now `kolemm14/Debian-Hyprland-Custom`.
+Run `./update.sh --check`, then `./update.sh --dry-run` to review the plan,
+and `./update.sh` to apply it. The updater tracks installed files, updates only
+selected components, preserves custom configurations using `.new` proposals,
+and retains five transactional backups. Recognized legacy origins migrate while
+preserving HTTPS/SSH; custom remotes stay unchanged.
+
+The checkout must be clean. Diverged branches are never merged automatically.
+Use `--force` to repair managed programs, `--rollback` to restore the last
+transaction when its files have not been edited since, or `--migrate-only` to
+change only the remote. See the [updater guide](docs/UPDATER.md).
+
+If an older clone does not have this script yet, inspect
+`git remote get-url origin`. Only for the former official HTTPS origin, run:
+
+```bash
+git remote set-url origin https://github.com/kolemm14/Debian-Hyprland-Custom.git
+git pull --ff-only
+```
+
+For the former official SSH origin, use
+`git@github.com:kolemm14/Debian-Hyprland-Custom.git` instead. Keep fork and custom
+server URLs unchanged. Nova's separate `update` command still updates its
+upstream project.
+
 ## Installation modes
 
 - `./install.sh --lang en automatic` scans the system and installs the suggested profile.

@@ -27,7 +27,7 @@ class SetupShellTests(unittest.TestCase):
 
     def test_english_is_detected_from_locale(self):
         result = self.execute(["./install.sh", "--help"], LANG="en_US.UTF-8",
-                              LC_ALL="", LC_MESSAGES="")
+                              LC_ALL="", LC_MESSAGES="", DEBLESTIA_LANG="")
         self.assertEqual(result.returncode, 0)
         self.assertIn("Usage:", result.stdout)
 
@@ -53,16 +53,25 @@ class SetupShellTests(unittest.TestCase):
 
     def test_uninstall_without_state_changes_nothing(self):
         with tempfile.TemporaryDirectory() as directory:
-            result = self.execute(["./uninstall.sh"], XDG_STATE_HOME=directory)
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("Aucune installation", result.stdout)
+            result_en = self.execute(["./uninstall.sh"], XDG_STATE_HOME=directory, DEBLESTIA_LANG="en")
+            self.assertEqual(result_en.returncode, 0)
+            self.assertIn("No unified installation is recorded", result_en.stdout)
+
+            result_fr = self.execute(["./uninstall.sh"], XDG_STATE_HOME=directory, DEBLESTIA_LANG="fr")
+            self.assertEqual(result_fr.returncode, 0)
+            self.assertIn("Aucune installation unifiée enregistrée", result_fr.stdout)
 
     def test_plan_never_requires_confirmation_or_writes_state(self):
         with tempfile.TemporaryDirectory() as directory:
-            result = self.execute(["./install.sh", "plan"], XDG_STATE_HOME=directory)
+            result_fr = self.execute(["./install.sh", "plan"], XDG_STATE_HOME=directory, DEBLESTIA_LANG="fr")
             self.assertFalse((Path(directory) / "deblestia/setup").exists())
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("aucune modification", result.stdout)
+            self.assertEqual(result_fr.returncode, 0)
+            self.assertIn("aucune modification", result_fr.stdout)
+
+            result_en = self.execute(["./install.sh", "plan"], XDG_STATE_HOME=directory, DEBLESTIA_LANG="en")
+            self.assertFalse((Path(directory) / "deblestia/setup").exists())
+            self.assertEqual(result_en.returncode, 0)
+            self.assertIn("no changes were made", result_en.stdout)
 
 
 if __name__ == "__main__":

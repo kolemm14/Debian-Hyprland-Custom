@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-05",
+  "baseline": {
+    "passed": 367,
+    "failed": 0,
+    "skipped": 0
+  },
+  "automated": {
+    "passed": 383,
+    "failed": 0,
+    "skipped": 0,
+    "scope": "unit and mock integration; not proof of real LWE rendering"
+  },
+  "runtime_real": {
+    "mpv_video_image": "PASS",
+    "apply_star_one_screen": "PASS",
+    "restore_service_cycle": "PASS",
+    "restore_same_pid": "PASS",
+    "gtk_ipc_diagnostic": "PASS",
+    "lwe_scene": "BLOCKED",
+    "mixed_two_physical_screens": "BLOCKED",
+    "physical_hotplug": "SKIPPED",
+    "graphical_logout_reboot": "SKIPPED",
+    "web": "BLOCKED by policy"
+  },
+  "mock_integration": [
+    "mixed MPV/LWE",
+    "inverse assignment",
+    "crash and dead process",
+    "per-screen failure isolation",
+    "mixed Apply(*)",
+    "Scene persistence and restore",
+    "hotplug removal/return",
+    "no persisted PIDs",
+    "no duplicate restore",
+    "SQLite migration preserving history and favorites"
+  ],
+  "deployment": {
+    "service": "active",
+    "ipc": "pong",
+    "screen": "eDP-1",
+    "mpv_path_verified": true,
+    "restore_no_duplicate": true,
+    "personal_config_unchanged": true,
+    "library_counts_preserved": {
+      "wallpapers": 28,
+      "history": 132,
+      "playlists": 0,
+      "wallpaper_tags": 0
+    },
+    "lwe_processes": 0,
+    "backup": "/home/mouhamet/.local/state/mpvpaper-engine/runtime-upgrade-20261005-231648",
+    "runtime_state": "active",
+    "mpv_zombies": 0,
+    "smoke_units_left": 0
+  },
+  "performance": {
+    "mpv_wallpaper_processes": 1,
+    "lwe_processes": 0,
+    "additional_permanent_services": 0,
+    "service_idle_sample_seconds": 2,
+    "service_cpu_seconds_during_sample": 0.0,
+    "monitor_handling": "Hyprland socket events; no periodic scan"
+  },
+  "lwe_audit": {
+    "revision": "b016d7d1fdcf4e5fd2f9c9fa420a8aaa07fee02d",
+    "build": "stopped during CEF download due to insufficient writable disk space",
+    "binary_installed": false,
+    "help_validated": false,
+    "sudo_noninteractive": false,
+    "assets_found": false,
+    "local_scenes_found": false
+  },
+  "blockers": [
+    "large writable build filesystem",
+    "official Wallpaper Engine assets and local Scene",
+    "second physical monitor"
+  ],
+  "limitations": [
+    "LWE rendering not validated",
+    "CEF build/sandbox not verified, Web unconditionally blocked",
+    "no automatic rollback of failed runtime launch; saved previous intention retained",
+    "full logout/reboot not performed"
+  ]
+}

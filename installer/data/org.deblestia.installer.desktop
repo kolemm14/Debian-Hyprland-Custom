@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Deblestia Installer
+Name[fr]=Installateur Deblestia
+Comment=Install the Deblestia desktop environment
+Comment[fr]=Installer l'environnement de bureau Deblestia
+Exec=deblestia-installer
+Icon=org.deblestia.installer
+Terminal=false
+Type=Application
+Categories=System;Settings;
+Keywords=deblestia;hyprland;desktop;install;
+Keywords[fr]=deblestia;hyprland;bureau;installer;

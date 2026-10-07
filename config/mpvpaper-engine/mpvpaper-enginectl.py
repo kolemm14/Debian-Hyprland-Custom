@@ -498,6 +498,17 @@ def play(config):
     ], check=True)
 
 
+    # The legacy session restore bypasses EngineService's theme worker.
+    # Read the global preference rather than the per-output legacy profile.
+    from mpvpaper_engine.config import load_config as load_engine_config
+    from mpvpaper_engine.theme_sync import ThemeSync
+    try:
+        mode = load_engine_config().theme_sync.get("mode", "off")
+        ThemeSync().apply(wallpaper, mode=mode, profile="eco", force=True)
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"Synchronisation du thème : {error}", file=sys.stderr)
+
+
 def random_wallpapers():
     wallpapers = []
     seen = set()

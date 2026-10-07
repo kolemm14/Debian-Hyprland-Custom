@@ -19,6 +19,8 @@ class StringEnum(str, Enum):
 class MediaType(StringEnum):
     IMAGE = "image"
     VIDEO = "video"
+    SCENE = "scene"
+    WEB = "web"
 
 
 class PlaybackStatus(StringEnum):

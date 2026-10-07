@@ -78,6 +78,44 @@ class HudSceneTests(unittest.TestCase):
         self.assertNotIn("10:12", text)
         self.assertIn("GOOD MORNING", text)
 
+    def test_madara_model_has_compact_geometry_and_reference_rows(self):
+        data = {"enabled": True, "model": "madara"}
+        rect = geometry(data, Rect(0, 0, 1920, 1080))["rect"]
+        self.assertEqual((rect.width, rect.height), (440, 320))
+        text = [row[0] for row in entries(data, datetime(2026, 10, 3, 17, 21))]
+        self.assertEqual(text, ["GOOD AFTERNOON", "SAT", "03 OCTOBER", "05:21 PM"])
+
+    def test_rain_clock_models_match_upstream_layout_content(self):
+        now = datetime(2026, 10, 3, 17, 21)
+        expected = {
+            "mond": ["SATURDAY", "03 OCT 2026", "- 05:21 PM -"],
+            "summit": ["│", "GOOD", "AFTERNOON", "SAT", "03 OCTOBER", "05:21 PM", "│"],
+            "meenimal": ["17", "21", "SATURDAY", "OCTOBER 3"],
+        }
+        sizes = {"mond": (620, 300), "summit": (440, 520), "meenimal": (440, 460)}
+        for model, labels in expected.items():
+            with self.subTest(model=model):
+                data = {"enabled": True, "model": model}
+                self.assertEqual([row[0] for row in entries(data, now)], labels)
+                rect = geometry(data, Rect(0, 0, 1920, 1080))["rect"]
+                self.assertEqual((rect.width, rect.height), sizes[model])
+
+    def test_rain_clock_time_and_date_formats_are_configurable(self):
+        data = {
+            "enabled": True, "model": "summit",
+            "use_24h": True, "date_format": "numeric",
+        }
+        labels = [row[0] for row in entries(data, datetime(2026, 10, 3, 17, 21))]
+        self.assertIn("17:21", labels)
+        self.assertIn("03.10.2026", labels)
+        normalized = normalized_hud(data)
+        self.assertIs(normalized["use_24h"], True)
+        self.assertEqual(normalized["date_format"], "numeric")
+
+    def test_unknown_model_falls_back_to_classic(self):
+        self.assertEqual(settings_from_config({"model": "unknown"}).model, "classic")
+        self.assertEqual(normalized_hud({"model": "unknown"})["model"], "classic")
+
     def test_transparent_and_disabled_render_really_draw_no_pixels(self):
         import cairo
         for data in ({"enabled": True, "opacity": 0}, {"enabled": False}):

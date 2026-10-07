@@ -53,6 +53,7 @@ window#waybar > box {
 #workspace-strip #custom-workspace4,
 #workspace-strip #custom-workspace5,
 #app-strip #custom-terminal,
+#app-strip #custom-manager-cli,
 #app-strip #custom-files,
 #app-strip #custom-browser,
 #session-strip #tray,
@@ -140,7 +141,8 @@ window#waybar > box {
 }
 #workspaces button.urgent { color: white; background: @accent; }
 
-#custom-terminal, #custom-files, #custom-browser,
+#custom-terminal,
+#custom-manager-cli, #custom-files, #custom-browser,
 #custom-notifications, #custom-overview, #custom-power { padding: 8px 5px; }
 #custom-power, #custom-notifications { color: #ff708f; }
 #custom-restore-minimized {
@@ -157,6 +159,7 @@ window#waybar > box {
 #battery.charging { color: #8bd49c; }
 
 #custom-debian-menu:hover, #custom-menu:hover, #workspaces button:hover, #custom-terminal:hover,
+ #custom-manager-cli:hover,
 #custom-files:hover, #custom-browser:hover, #clock:hover, #custom-weather:hover,
 #cpu:hover, #memory:hover, #temperature:hover, #disk:hover, #network:hover,
 #bluetooth:hover, #battery:hover, #custom-notifications:hover,
@@ -185,4 +188,15 @@ tooltip label { color: @text; padding: 6px; }
 
 #tray {
   padding: 6px 3px;
+}
+
+/* CLI logo: keep the image visible with every wallpaper palette and on hover. */
+#custom-manager-cli, #custom-manager-cli:hover {
+  background-image: url("icons/hyprdebian-cli.svg");
+  background-size: 26px 26px;
+  background-repeat: no-repeat;
+  background-position: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 8px;
 }

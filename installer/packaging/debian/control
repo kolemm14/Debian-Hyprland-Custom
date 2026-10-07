@@ -1,0 +1,15 @@
+Source: deblestia-installer
+Section: utils
+Priority: optional
+Maintainer: Deblestia Project <deblestia@example.com>
+Build-Depends: debhelper-compat (= 13), cargo, rustc, libgtk-4-dev, libadwaita-1-dev, pkg-config
+Standards-Version: 4.6.2
+Homepage: https://github.com/kolemm14/Debian-Hyprland-Custom
+
+Package: deblestia-installer
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, libgtk-4-1, libadwaita-1-0, policykit-1, jq, python3
+Description: Graphical installer for the Deblestia desktop environment
+ This package provides a beginner-friendly graphical installer
+ for the Deblestia desktop environment, which combines Hyprland
+ with custom Deblestia components on Debian 13.

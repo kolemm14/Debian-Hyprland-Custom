@@ -26,6 +26,10 @@ restent visibles lorsque le contenu dépasse la page.
    relativement à l’écran, en désignant le point d’ancrage sélectionné.
    L’échelle et les marges utilisent les pixels logiques, donc tiennent compte
    de la mise à l’échelle et de la rotation du moniteur.
+   Le sélecteur **Modèle visuel** propose le rendu historique **Cyber / Japonais**,
+   **Madara compact**, ainsi que les adaptations **Mond**, **Summit** et
+   **Meenimal** de Rain Clock GNOME. Les formats 12/24 h et date
+   textuelle/numérique sont configurables dans le même écran.
 3. L’aperçu est temporaire. **Appliquer** enregistre ; **Annuler** restaure les
    valeurs enregistrées. **Valeurs par défaut** prépare une réinitialisation qui
    doit elle aussi être appliquée. Changer d’écran abandonne son aperçu.
@@ -46,8 +50,14 @@ Le HUD requiert GTK3, Cairo/Pango et GTK Layer Shell, indépendamment de
 l’interface principale GTK4. Les paquets supplémentaires Debian sont :
 
 ```bash
-sudo apt install gir1.2-gtklayershell-0.1 python3-gi-cairo
+sudo apt install gir1.2-gtklayershell-0.1 python3-gi-cairo \
+  fontconfig fonts-noto-core fonts-noto-cjk
 ```
+
+L’installateur récupère automatiquement les polices des modèles Rain Clock
+depuis leur dépôt d’origine et les place dans
+`~/.local/share/fonts/mpvpaper-engine-rain-clock`. Définir
+`RAIN_CLOCK_SKIP_FONT_INSTALL=1` permet d’ignorer explicitement cette étape.
 
 Après installation de ces dépendances, fermer l’interface et mettre à jour
 les modules depuis le dépôt avec l’installateur existant. Ces options évitent
@@ -81,3 +91,13 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s config/mpvpaper-engine
 central, changer l’échelle et l’opacité, appliquer puis rouvrir l’éditeur ;
 mettre la vidéo en pause puis l’arrêter ; changer son cadrage ; enfin vérifier
 le passage des clics et le comportement après déconnexion/reconnexion d’un écran.
+
+## Dédicace et crédits
+
+Les modèles **Mond**, **Summit** et **Meenimal**, leurs proportions et leur jeu de
+polices sont adaptés de [Rain Clock GNOME](https://github.com/hugo-sants/rain-clock-gnome)
+par **Hugo Santos (@hugo-sants)**, sous licence GPL-3.0-or-later. Rain Clock crédite également
+les skins Rainmeter Mond et Summit ainsi que KDE Modern Clock de Prayag2.
+Les auteurs des polices restent ceux indiqués dans le README amont ; chaque police
+conserve ses propres conditions d’utilisation. Cette dédicace est aussi affichée
+directement dans l’éditeur HUD.

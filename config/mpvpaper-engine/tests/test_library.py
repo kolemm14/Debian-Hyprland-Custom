@@ -185,6 +185,14 @@ class CoreLibraryTests(unittest.TestCase):
         self.library.delete_to_trash(wallpaper.id, library_roots=(self.media_root,))
         self.assertTrue(self.library.get(wallpaper.id).missing)
 
+    def test_delete_refuses_root_and_parent_of_active_media(self):
+        wallpaper = self.library.import_file(self.media())
+        with self.assertRaises(LibraryError):
+            self.library.delete_to_trash(wallpaper.id, library_roots=(wallpaper.path,))
+        with self.assertRaises(LibraryError):
+            self.library.delete_to_trash(wallpaper.id, library_roots=(self.media_root,),
+                                         protected_paths=(wallpaper.path / "scene.pkg",))
+
 
 if __name__ == "__main__":
     unittest.main()

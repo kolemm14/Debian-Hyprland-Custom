@@ -31,5 +31,5 @@ if ((${#remaining[@]})); then
     printf '%s\n' "${remaining[@]}" >"$deblestia_state_dir/components"
     exit 1
 fi
-rm -f "$deblestia_state_dir/components" "$deblestia_state_dir/profile"
+rm -f "$deblestia_state_dir/components" "$deblestia_state_dir/profile" "$deblestia_state_dir/profile.conf"
 deblestia_t state_removed; printf '\n'

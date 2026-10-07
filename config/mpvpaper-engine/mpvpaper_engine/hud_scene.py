@@ -13,6 +13,25 @@ ANCHORS = {
     "bottom-left": (0, 1), "bottom": (.5, 1), "bottom-right": (1, 1),
 }
 PALETTE = {"text": "#FFFFFF", "muted": "#CCCCCC", "accent": "#FF5577", "lines": "#CCCCCC"}
+ENGLISH_MONTHS = (
+    "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+    "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
+)
+ENGLISH_MONTHS_SHORT = (
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+)
+ENGLISH_WEEKDAYS = (
+    "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY",
+    "FRIDAY", "SATURDAY", "SUNDAY",
+)
+MODEL_SIZE = {
+    "classic": (620, 560),
+    "mond": (620, 300),
+    "summit": (440, 520),
+    "meenimal": (440, 460),
+    "madara": (440, 320),
+}
 
 
 def logical_screen(monitor):
@@ -26,7 +45,8 @@ def logical_screen(monitor):
 
 def geometry(data, screen, panels=()):
     settings = settings_from_config(data)
-    width, height = 620 * settings.scale, 560 * settings.scale
+    base_width, base_height = MODEL_SIZE[settings.model]
+    width, height = base_width * settings.scale, base_height * settings.scale
     ax, ay = ANCHORS[settings.anchor]
     area = (safe_area(screen, list(panels), settings.safe_margin)
             if settings.avoid_layers else screen)
@@ -77,17 +97,69 @@ def entries(data, now=None):
     now = now or datetime.now().astimezone()
     english, japanese = ("GOOD MORNING", "おはよう") if 5 <= now.hour < 12 else (
         ("GOOD AFTERNOON", "こんにちは") if 12 <= now.hour < 18 else ("GOOD EVENING", "こんばんは"))
-    rows = [
-        (settings.greeting, english, 58, -110, "Noto Sans Bold", "text"),
-        (settings.day, now.strftime("%a").upper(), 56, -40, "Anurati", "text"),
-        (settings.time, now.strftime("%H:%M"), 42, 15, "Noto Sans", "text"),
-        (settings.date, now.strftime("%d"), 42, 65, "Noto Sans", "text"),
-        (settings.japanese, japanese, 28, 115, "Noto Sans CJK JP", "accent"),
-        (bool(settings.username), settings.username, 22, 155, "Noto Sans CJK JP", "muted"),
-    ]
-    if settings.decorative_lines:
-        rows.extend((True, "│", 38, offset, "Noto Sans", "lines")
-                    for offset in (-260, -215, 215, 260))
+    weekday = ENGLISH_WEEKDAYS[now.weekday()]
+    short_day = weekday[:3]
+    month = ENGLISH_MONTHS[now.month - 1]
+    date = (
+        f"{now.day:02d}.{now.month:02d}.{now.year}"
+        if settings.date_format == "numeric"
+        else f"{now.day:02d} {ENGLISH_MONTHS_SHORT[now.month - 1]} {now.year}"
+    )
+    time = now.strftime("%H:%M" if settings.use_24h else "%I:%M %p")
+    if settings.model == "mond":
+        rows = [
+            (settings.day, weekday, 86, -45, "Anurati", "text", 20),
+            (settings.date, date, 23, 42, "Poppins", "text", 4),
+            (settings.time, f"- {time} -", 23, 82, "Poppins", "text", 4),
+        ]
+    elif settings.model == "summit":
+        greeting_word = english.removeprefix("GOOD ")
+        summit_date = (
+            f"{now.day:02d}.{now.month:02d}.{now.year}"
+            if settings.date_format == "numeric"
+            else f"{now.day:02d} {month}"
+        )
+        rows = [
+            (settings.decorative_lines, "│", 58, -220, "Outfit", "lines", 0),
+            (settings.greeting, "GOOD", 17, -130, "Outfit ExtraBold", "text", 1),
+            (settings.greeting, greeting_word, 17, -102, "Outfit ExtraBold", "text", 1),
+            (settings.day, short_day, 115, -18, "Electroharmonix", "text", 1),
+            (settings.date, summit_date, 18, 76, "Outfit ExtraBold", "text", 1),
+            (settings.time, time, 18, 112, "Outfit ExtraBold", "text", 1),
+            (settings.decorative_lines, "│", 58, 208, "Outfit", "lines", 0),
+        ]
+    elif settings.model == "meenimal":
+        rows = [
+            (settings.time, now.strftime("%H"), 156, -112, "Google Sans Bold", "text", -5),
+            (settings.time, now.strftime("%M"), 156, 20, "Google Sans Bold", "text", -5),
+            (settings.day, weekday, 17, 148, "Gilroy-Bold", "text", 1),
+            (settings.date, f"{month} {now.day}", 16, 177, "Gilroy-SemiBold", "text", 1),
+        ]
+    elif settings.model == "madara":
+        compact_date = (
+            f"{now.day:02d}.{now.month:02d}.{now.year}"
+            if settings.date_format == "numeric"
+            else f"{now.day:02d} {month}"
+        )
+        rows = [
+            (settings.greeting, english, 16, -70, "Poppins Bold", "muted", 4),
+            (settings.day, short_day, 68, 0, "Anurati", "text", 6),
+            (settings.date, compact_date, 14, 62, "Poppins Bold", "text", 3),
+            (settings.time, time, 14, 94, "Poppins Bold", "text", 3),
+        ]
+    else:
+        rows = [
+            (settings.greeting, english, 58, -110, "Noto Sans Bold", "text", 0),
+            (settings.day, now.strftime("%a").upper(), 56, -40, "Anurati", "text", 0),
+            (settings.time, now.strftime("%H:%M"), 42, 15, "Noto Sans", "text", 0),
+            (settings.date, now.strftime("%d"), 42, 65, "Noto Sans", "text", 0),
+            (settings.japanese, japanese, 28, 115, "Noto Sans CJK JP", "accent", 0),
+            (bool(settings.username), settings.username, 22, 155,
+             "Noto Sans CJK JP", "muted", 0),
+        ]
+        if settings.decorative_lines:
+            rows.extend((True, "│", 38, offset, "Noto Sans", "lines", 0)
+                        for offset in (-260, -215, 215, 260))
     return [row[1:] for row in rows if row[0]]
 
 
@@ -102,7 +174,7 @@ def draw(context, data, rect, palette=None):
     if not settings.enabled:
         return
     palette = colors(data, palette)
-    for text, size, offset, family, color in entries(data):
+    for text, size, offset, family, color, spacing in entries(data):
         layout = PangoCairo.create_layout(context)
         PangoCairo.context_set_resolution(layout.get_context(), 96)
         font = Pango.FontDescription(family)
@@ -113,6 +185,12 @@ def draw(context, data, rect, palette=None):
         layout.set_ellipsize(Pango.EllipsizeMode.END)
         layout.set_single_paragraph_mode(True)
         layout.set_text(text, -1)
+        if spacing:
+            attributes = Pango.AttrList()
+            attributes.insert(Pango.attr_letter_spacing_new(
+                round(spacing * settings.scale * Pango.SCALE)
+            ))
+            layout.set_attributes(attributes)
         _, height = layout.get_pixel_size()
         value = palette[color]
         rgb = [int(value[index:index + 2], 16) / 255 for index in (1, 3, 5)]

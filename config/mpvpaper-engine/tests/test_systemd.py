@@ -43,7 +43,8 @@ class SystemdTests(unittest.TestCase):
             with mock.patch("mpvpaper_engine.systemd.shutil.which", return_value="/usr/bin/mpvpaper"):
                 manager.start_output("eDP-1", wallpaper, "loop-file=inf")
         command = runner.calls[-1][0]
-        self.assertEqual(command[:4], ["systemd-run", "--user", "--quiet", "--collect"])
+        self.assertEqual(command[:3], ["systemd-run", "--user", "--quiet"])
+        self.assertNotIn("--collect", command)  # Retain failed-unit exit status for diagnostics.
         self.assertIn("--unit=mpvpaper-engine-wallpaper-eDP-1.service", command)
         self.assertIn("--auto-pause", command)
         self.assertEqual(runner.calls[0][0][-1], "mpvpaper-engine-wallpaper-all.service")

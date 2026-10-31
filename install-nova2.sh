@@ -19,6 +19,14 @@ timestamp="$(date +%Y%m%d-%H%M%S)"
 backup_dir="$config_home/debian-hyprland-custom-backup-$timestamp"
 ui_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/deblestia"
 ui_state_file="$ui_state_dir/ui-mode"
+source_or_legacy() {
+    local canonical="$1" legacy="$2"
+    if [ -f "$repo_dir/$canonical" ]; then
+        printf '%s\n' "$repo_dir/$canonical"
+    else
+        printf '%s\n' "$repo_dir/$legacy"
+    fi
+}
 
 check_dependencies() {
     local variant="${1:-nova2}"
@@ -136,17 +144,17 @@ rm -f \
     "$waybar_dir/deblestia-bar-stats.sh" \
     "$waybar_dir/workspace-label.sh"
 cp -a "$repo_dir/config/hypr/scripts/." "$hypr_scripts_dir/"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/WaybarWallpaperSync.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/WaybarWallpaperSync.sh config/hypr/UserScripts/WaybarWallpaperSync.sh)" \
     "$hypr_user_scripts_dir/WaybarWallpaperSync.sh"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/MinimizeWindow.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/MinimizeWindow.sh config/hypr/UserScripts/MinimizeWindow.sh)" \
     "$hypr_user_scripts_dir/MinimizeWindow.sh"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/RestoreMinimizedWindow.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/RestoreMinimizedWindow.sh config/hypr/UserScripts/RestoreMinimizedWindow.sh)" \
     "$hypr_user_scripts_dir/RestoreMinimizedWindow.sh"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/DeblestiaSystemThemeSync.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh config/hypr/UserScripts/DeblestiaSystemThemeSync.sh)" \
     "$hypr_user_scripts_dir/DeblestiaSystemThemeSync.sh"
-install -m 0644 "$repo_dir/config/hypr/deblestia-input.conf" "$input_include"
-install -m 0644 "$repo_dir/config/hypr/deblestia-workspaces.conf" "$workspace_include"
-install -m 0644 "$repo_dir/config/hypr/deblestia-ui.conf" "$ui_include"
+install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-input.conf config/hypr/deblestia-input.conf)" "$input_include"
+install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-workspaces.conf config/hypr/deblestia-workspaces.conf)" "$workspace_include"
+install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-ui.conf config/hypr/deblestia-ui.conf)" "$ui_include"
 if [ ! -f "$hypr_main" ]; then
     printf '%s\n%s\n%s\n' "$ui_source" "$workspace_source" "$input_source" >"$hypr_main"
 else

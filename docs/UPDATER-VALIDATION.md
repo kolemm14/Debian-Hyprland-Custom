@@ -2,11 +2,11 @@
 
 ## Files created
 
-- `core/update/main.py` : orchestration, fetch temporaire, commits, CLI, dépendances.
-- `core/update/files.py` : mappings, références, plan différentiel, validation et écritures atomiques.
-- `core/update/transaction.py` : verrou, sauvegardes, journal durable, rollback et systemd.
-- `core/update/patches.py` : reconstruction des patches Nova hors de l’installation active.
-- `core/update/record.sh` : enregistrement après installation réussie.
+- `core/updater/main.py` : orchestration, fetch temporaire, commits, CLI, dépendances.
+- `core/updater/files.py` : mappings, références, plan différentiel, validation et écritures atomiques.
+- `core/transactions/transaction.py` : verrou, sauvegardes, journal durable, rollback et systemd. `core/updater/transaction.py` est un lien interne pour préserver les imports historiques du moteur.
+- `core/updater/patches.py` : reconstruction des patches Nova hors de l’installation active.
+- `core/updater/record.sh` : enregistrement après installation réussie ; `core/update/*` conserve les chemins historiques via liens symboliques.
 - `manifests/update-files.json` : destinations auditées, politiques et services par composant.
 - `tests/test_update_system.py` : transactions et scénarios d’installation/mise à jour isolés.
 - `docs/UPDATER.md` et ce rapport.

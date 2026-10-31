@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 
 ROOT = Path(__file__).parents[1]
-sys.path.insert(0, str(ROOT / 'core/update'))
+sys.path.insert(0, str(ROOT / 'core/updater'))
 from files import Locations, UpdateError, fingerprint, json_write, snapshot
 from transaction import Lock, Services, apply, recover, rollback
 
@@ -36,7 +36,8 @@ class UpdateSystemTests(unittest.TestCase):
         self.git('config', 'user.name', 'Test')
         self.git('config', 'user.email', 'test@example.invalid')
         shutil.copy2(ROOT / 'update.sh', self.repo / 'update.sh')
-        shutil.copytree(ROOT / 'core/update', self.repo / 'core/update', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/updater', self.repo / 'core/updater', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/transactions', self.repo / 'core/transactions', ignore=shutil.ignore_patterns('__pycache__'))
         (self.repo / 'manifests').mkdir()
         self.rules = [
             {'component': 'sample', 'source': 'config/sample/*.py', 'destination': 'home:.local/lib/sample/{name}', 'policy': 'managed', 'mode': '0755'},

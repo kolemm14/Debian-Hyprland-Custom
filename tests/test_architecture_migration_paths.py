@@ -223,6 +223,26 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, readme)
 
+
+    def test_shell_and_aurora_updater_manifest_sources_resolve(self):
+        import json
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        components = {"deblestia-shell", "deblestia-nova", "aurora-core"}
+        rules = [rule for rule in manifest["rules"] if rule.get("component") in components]
+        self.assertTrue(rules)
+        for rule in rules:
+            source = rule["source"]
+            if not any(char in source for char in "*?["):
+                with self.subTest(component=rule["component"], source=source):
+                    self.assertTrue((ROOT / source).is_file(), f"Updater source missing: {source}")
+        for patch_set in manifest.get("patch_sets", []):
+            if patch_set.get("component") == "deblestia-nova":
+                for patch in patch_set["patches"]:
+                    with self.subTest(patch=patch):
+                        self.assertTrue((ROOT / patch).is_file(), f"Updater patch missing: {patch}")
+        aurora = next(rule for rule in rules if rule.get("component") == "aurora-core")
+        self.assertEqual(aurora["link"], "repo:apps/desktop-shells/aurora/aurora")
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

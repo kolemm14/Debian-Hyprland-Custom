@@ -6,7 +6,7 @@ Inventory: 359 tracked files. This map is an audited path inventory and proposed
 
 ## File-by-file path map
 
-Les actifs Caelestia V2 et Nova Shell ont maintenant des copies canoniques sous `apps/desktop-shells/`; les scripts et inclusions Hyprland réutilisables ont des copies sous `shared/hyprland/`. Les installateurs concernés privilégient ces chemins et conservent le chemin historique en repli.
+Aurora (CLI et gestionnaire de profils), Caelestia V2 et Nova Shell ont maintenant des copies canoniques sous `apps/desktop-shells/`; les scripts et inclusions Hyprland réutilisables ont des copies sous `shared/hyprland/`. Les installateurs concernés privilégient ces chemins et conservent le chemin historique en repli.
 
 | Ancien chemin | Nouveau chemin proposé | Dépendances / consumers à contrôler | Modifications nécessaires | Validation |
 |---|---|---|---|---|
@@ -27,7 +27,7 @@ Les actifs Caelestia V2 et Nova Shell ont maintenant des copies canoniques sous 
 | `apps/system-apps/mirrorbridge/src/main.rs` | `apps/system-apps/mirrorbridge/src/main.rs` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `apps/system-apps/mirrorbridge/src/ui/mod.rs` | `apps/system-apps/mirrorbridge/src/ui/mod.rs` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `apps/system-apps/mirrorbridge/src/ui/window.rs` | `apps/system-apps/mirrorbridge/src/ui/window.rs` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
-| `bin/aurora` | `scripts/bin/aurora` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
+| `bin/aurora` | `apps/desktop-shells/aurora/aurora` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `apps/desktop-shells/caelestia-v2/shell.json` | `apps/desktop-shells/caelestia-v2/shell.json` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh` | `shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `shared/hyprland/UserScripts/MinimizeWindow.sh` | `shared/hyprland/UserScripts/MinimizeWindow.sh` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |

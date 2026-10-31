@@ -278,7 +278,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         for name in ("hardware.py", "compatibility.py"):
             wrapper = (ROOT / "core" / name).read_text(encoding="utf-8")
             self.assertIn('system', wrapper)
-            self.assertIn('runpy.run_path', wrapper)
+            self.assertIn('importlib.util.spec_from_file_location', wrapper)
 
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"

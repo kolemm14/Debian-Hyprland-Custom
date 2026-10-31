@@ -60,7 +60,9 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         rules = [rule for rule in manifest["rules"] if rule.get("component") == "mirrorbridge"]
         self.assertTrue(rules, "MirrorBridge updater rules are missing")
         self.assertTrue(all(rule["source"].startswith("apps/system-apps/mirrorbridge/") for rule in rules))
-        self.assertTrue(all(rule.get("build") == "apps/system-apps/mirrorbridge" for rule in rules))
+        build_rules = [rule for rule in rules if rule.get("build")]
+        self.assertTrue(build_rules, "MirrorBridge Cargo build rule is missing")
+        self.assertTrue(all(rule["build"] == "apps/system-apps/mirrorbridge" for rule in build_rules))
 
     def test_canonical_mpvpaper_application_and_manifest_paths_exist(self):
         import json

@@ -195,7 +195,7 @@ Les patches et opérations système nécessitant root restent des actions distin
 bash -n update.sh
 bash -n install.sh
 ./contribute.sh test
-python3 -m unittest discover -s config/mpvpaper-engine/tests -v
+python3 -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -v
 python3 -m unittest discover -s config/v3/tests -v
 ```
 

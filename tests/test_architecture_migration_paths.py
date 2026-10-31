@@ -316,7 +316,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
 
     def test_readme_uses_canonical_mirrorbridge_sparse_checkout_path(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("git sparse-checkout set apps/system-apps/mirrorbridge core/update manifests", readme)
+        self.assertIn("git sparse-checkout set apps/system-apps/mirrorbridge core/updater core/transactions manifests", readme)
 
     def test_mirrorbridge_installer_and_updater_prefer_canonical_app(self):
         import json

@@ -32,7 +32,7 @@ Finds the Debian-Hyprland-Custom checkout and resolves `$HOME` / `$REPO` paths.
 Lookup order:
 
 1. `DHC_REPO_ROOT` environment variable;
-2. `~/.config/debian-custom-manager/config.ini`;
+2. `~/.config/debian-custom-apps/system-tools/custom-manager/config.ini`;
 3. current Git worktree;
 4. `~/Debian-Hyprland-Custom`.
 

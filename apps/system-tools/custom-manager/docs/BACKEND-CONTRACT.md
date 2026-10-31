@@ -30,4 +30,4 @@ Supported variables in paths: `$HOME`, `$REPO`.
 
 ## Manager self-refresh
 
-The GUI launches `manager/scripts/update-wrapper.sh` for apply/rollback. The wrapper first delegates the real project transition to `update.sh`. Only after a successful transition does it rebuild/test/reinstall the Manager binary. It does not copy project files or decide update contents.
+The GUI launches `apps/system-tools/custom-apps/system-tools/custom-manager/scripts/update-wrapper.sh` for apply/rollback. The wrapper first delegates the real project transition to `update.sh`. Only after a successful transition does it rebuild/test/reinstall the Manager binary. It does not copy project files or decide update contents.

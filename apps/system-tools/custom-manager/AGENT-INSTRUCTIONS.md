@@ -2,7 +2,7 @@
 
 The architecture and source code are already decided. Do not redesign or refactor them.
 
-1. Copy the provided `manager/` directory exactly to the root of `Debian-Hyprland-Custom`.
+1. Copy the provided `apps/system-tools/custom-manager/` directory exactly to the root of `Debian-Hyprland-Custom`.
 2. Do not modify existing project files yet.
 3. Run:
 

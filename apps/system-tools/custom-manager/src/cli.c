@@ -183,8 +183,8 @@ static void route(Cli *a, DcmRoute r) {
         case DCM_OPEN:
             a->component = r.component; page_set(a, ACTIONS);
             status_set(a, "Component actions opened. No application launcher is registered."); break;
-        case DCM_UPDATE: prepare_launch(a, "apps/system-tools/custom-apps/system-tools/custom-manager/scripts/update-wrapper.sh", FALSE); break;
-        case DCM_ROLLBACK: prepare_launch(a, "apps/system-tools/custom-apps/system-tools/custom-manager/scripts/update-wrapper.sh", TRUE); break;
+        case DCM_UPDATE: prepare_launch(a, "apps/system-tools/custom-manager/scripts/update-wrapper.sh", FALSE); break;
+        case DCM_ROLLBACK: prepare_launch(a, "apps/system-tools/custom-manager/scripts/update-wrapper.sh", TRUE); break;
         default: status_set(a, "Unknown request. Try 'show components', 'check updates' or 'help'."); break;
     }
 }
@@ -410,8 +410,8 @@ int dcm_cli_run(gboolean animate) {
                 if (a.page == MENU) route(&a, (DcmRoute){menu_intents[id], -1});
                 else { a.component = id; page_set(&a, ACTIONS); }
             } else if (a.page == OVERVIEW) {
-                if (key == 'u') prepare_launch(&a, "apps/system-tools/custom-apps/system-tools/custom-manager/scripts/update-wrapper.sh", FALSE);
-                if (key == 'r') prepare_launch(&a, "apps/system-tools/custom-apps/system-tools/custom-manager/scripts/update-wrapper.sh", TRUE);
+                if (key == 'u') prepare_launch(&a, "apps/system-tools/custom-manager/scripts/update-wrapper.sh", FALSE);
+                if (key == 'r') prepare_launch(&a, "apps/system-tools/custom-manager/scripts/update-wrapper.sh", TRUE);
                 if (key == 'f') refresh_states(&a);
             } else if (a.page == ACTIONS) {
                 DcmComponent *c = g_ptr_array_index(a.components, a.component);

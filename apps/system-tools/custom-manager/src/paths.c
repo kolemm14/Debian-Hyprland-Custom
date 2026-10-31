@@ -97,7 +97,11 @@ static gchar *resolve_components_file(const gchar *repo_root) {
     const gchar *override = g_getenv("DCM_COMPONENTS_FILE");
     if (override && g_file_test(override, G_FILE_TEST_IS_REGULAR)) return g_strdup(override);
 
-    gchar *path = g_build_filename(repo_root, "manager", "data", "components.ini", NULL);
+    gchar *path = g_build_filename(repo_root, "apps", "system-tools", "custom-manager", "data", "components.ini", NULL);
+    if (g_file_test(path, G_FILE_TEST_IS_REGULAR)) return path;
+    g_free(path);
+
+    path = g_build_filename(repo_root, "manager", "data", "components.ini", NULL);
     if (g_file_test(path, G_FILE_TEST_IS_REGULAR)) return path;
     g_free(path);
 
@@ -121,7 +125,7 @@ DcmContext *dcm_context_new(GError **error) {
     if (!ctx->repo_root) {
         g_set_error(error, DCM_ERROR, 1,
                     "Dépôt Debian-Hyprland-Custom introuvable. Lancez le Manager depuis le dépôt, "
-                    "définissez DHC_REPO_ROOT, ou relancez apps/system-tools/custom-apps/system-tools/custom-manager/scripts/install.sh.");
+                    "définissez DHC_REPO_ROOT, ou relancez apps/system-tools/custom-manager/scripts/install.sh.");
         dcm_context_free(ctx);
         return NULL;
     }
@@ -129,7 +133,7 @@ DcmContext *dcm_context_new(GError **error) {
     ctx->components_file = resolve_components_file(ctx->repo_root);
     if (!ctx->components_file) {
         g_set_error(error, DCM_ERROR, 2,
-                    "Manifest du Manager introuvable (apps/system-tools/custom-apps/system-tools/custom-manager/data/components.ini).");
+                    "Manifest du Manager introuvable (apps/system-tools/custom-manager/data/components.ini).");
         dcm_context_free(ctx);
         return NULL;
     }

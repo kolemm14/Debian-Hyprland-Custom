@@ -29,7 +29,8 @@ class RepositoryUpdateTests(unittest.TestCase):
                         XDG_STATE_HOME=str(self.root / 'home/.local/state'))
         self.env.pop('HYPRLAND_INSTANCE_SIGNATURE', None)
         shutil.copy2(ROOT / 'update.sh', self.checkout / 'update.sh')
-        shutil.copytree(ROOT / 'core/update', self.checkout / 'core/update', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/updater', self.checkout / 'core/updater', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/transactions', self.checkout / 'core/transactions', ignore=shutil.ignore_patterns('__pycache__'))
         (self.checkout / 'manifests').mkdir()
         (self.checkout / 'manifests/update-files.json').write_text('{"schema":1,"rules":[]}')
 

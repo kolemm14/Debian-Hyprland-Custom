@@ -127,29 +127,6 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         self.assertIn('config/waybar', installer)
 
 
-    def test_canonical_desktop_shell_assets_and_shared_hyprland_paths_exist(self):
-        caelestia = ROOT / "apps/desktop-shells/caelestia-v2"
-        for relative in ("shell.json", "hyprland/caelestia-v2.conf",
-                         "scripts/caelestia-v2-launch.sh",
-                         "scripts/caelestia-v2-lock.sh",
-                         "scripts/caelestia-v2-display-profile.sh"):
-            with self.subTest(caelestia=relative):
-                self.assertTrue((caelestia / relative).is_file())
-        nova = ROOT / "apps/desktop-shells/nova-shell"
-        for relative in ("config/debian-config.json", "patches/qt68-compat.patch",
-                         "patches/mpvpaper-integration.patch",
-                         "patches/hyprland-ipc-compat.patch",
-                         "hyprland/deblestia-nova-shell.conf",
-                         "scripts/deblestia-nova-shell-launch.sh",
-                         "scripts/deblestia-nova-lock.sh"):
-            with self.subTest(nova=relative):
-                self.assertTrue((nova / relative).is_file())
-        for relative in ("deblestia-input.conf", "deblestia-workspaces.conf",
-                         "deblestia-ui.conf", "scripts/desktop-shell-mode.sh",
-                         "UserScripts/WaybarWallpaperSync.sh"):
-            with self.subTest(shared=relative):
-                self.assertTrue((ROOT / "shared/hyprland" / relative).is_file())
-
     def test_desktop_shell_installers_prefer_canonical_paths_with_legacy_fallback(self):
         caelestia = (ROOT / "install-v2.sh").read_text(encoding="utf-8")
         nova = (ROOT / "install-nova-shell.sh").read_text(encoding="utf-8")

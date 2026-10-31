@@ -334,20 +334,15 @@ Aurora (CLI et gestionnaire de profils), Caelestia V2 et Nova Shell ont maintena
 | `manager/src/cli_render.h` | `apps/system-tools/custom-manager/src/cli_render.h` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/component.c` | `apps/system-tools/custom-manager/src/component.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/component.h` | `apps/system-tools/custom-manager/src/component.h` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
-| `manager/src/component.o` | `apps/system-tools/custom-manager/src/component.o` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/install_state.c` | `apps/system-tools/custom-manager/src/install_state.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/install_state.h` | `apps/system-tools/custom-manager/src/install_state.h` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/main.c` | `apps/system-tools/custom-manager/src/main.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
-| `manager/src/main.o` | `apps/system-tools/custom-manager/src/main.o` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/paths.c` | `apps/system-tools/custom-manager/src/paths.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/paths.h` | `apps/system-tools/custom-manager/src/paths.h` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
-| `manager/src/paths.o` | `apps/system-tools/custom-manager/src/paths.o` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/runner.c` | `apps/system-tools/custom-manager/src/runner.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/runner.h` | `apps/system-tools/custom-manager/src/runner.h` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
-| `manager/src/runner.o` | `apps/system-tools/custom-manager/src/runner.o` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/ui.c` | `apps/system-tools/custom-manager/src/ui.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/src/ui.h` | `apps/system-tools/custom-manager/src/ui.h` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
-| `manager/src/ui.o` | `apps/system-tools/custom-manager/src/ui.o` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/tests/logo-image-match.md` | `apps/system-tools/custom-manager/tests/logo-image-match.md` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/tests/test-cli-pty.py` | `apps/system-tools/custom-manager/tests/test-cli-pty.py` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
 | `manager/tests/test-cli.c` | `apps/system-tools/custom-manager/tests/test-cli.c` | installateurs, packaging, composants INI, scripts manager | Corriger chemins build/data/tests et wrappers | Make + tests C/CLI + installation simulée |
@@ -369,3 +364,10 @@ Aurora (CLI et gestionnaire de profils), Caelestia V2 et Nova Shell ont maintena
 | `tests/test_update_system.py` | `tests/test_update_system.py` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `uninstall.sh` | `compat/uninstall.sh` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
 | `update.sh` | `compat/update.sh` | À analyser par recherche de références et imports | Adapter imports, chemins, manifests et documentation si référence trouvée | Tests du composant + recherche résiduelle |
+
+
+### Custom Manager — canonicalisation effectuée
+
+Les 38 fichiers source, ressources, scripts et tests utiles sont disponibles dans `apps/system-tools/custom-manager/`. Les objets compilés `.o` de l'ancien dossier ne sont pas recopiés : ils sont des artefacts générés, reconstruits par le Makefile.
+
+Les chemins C résolvent désormais les données du gestionnaire dans le nouvel emplacement en priorité, puis retombent sur `manager/data/components.ini` pour les anciennes installations. Les scripts d'installation et de mise à jour calculent la racine du dépôt depuis le nouveau niveau de profondeur. Le dossier historique `manager/` reste présent jusqu'à validation complète de compatibilité.

@@ -132,7 +132,7 @@ position des sorties.
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git deblestia-nova2
 cd deblestia-nova2
-git sparse-checkout set apps/waybars/deblestia-nova-2 shared/waybar shared/hyprland config/hypr docs core/update manifests
+git sparse-checkout set apps/waybars/deblestia-nova-2 shared/waybar shared/hyprland config/hypr docs core/updater core/transactions manifests
 ./install-deblestia-nova2.sh check
 ./install-deblestia-nova2.sh install
 ```
@@ -148,7 +148,7 @@ Immersive et le mémorise pour la prochaine connexion.
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git deblestia-nova-shell
 cd deblestia-nova-shell
-git sparse-checkout set apps/desktop-shells/nova-shell shared/hyprland core/update manifests
+git sparse-checkout set apps/desktop-shells/nova-shell shared/hyprland core/updater core/transactions manifests
 ./install-deblestia-nova-shell.sh check
 ./install-deblestia-nova-shell.sh install
 ./install-deblestia-nova-shell.sh launch
@@ -159,7 +159,7 @@ git sparse-checkout set apps/desktop-shells/nova-shell shared/hyprland core/upda
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git custom-debian-v2
 cd custom-debian-v2
-git sparse-checkout set apps/desktop-shells/caelestia-v2 shared/hyprland config/v2 core/update manifests
+git sparse-checkout set apps/desktop-shells/caelestia-v2 shared/hyprland config/v2 core/updater core/transactions manifests
 ./install-custom-debian-v2.sh check
 ./install-custom-debian-v2.sh install
 ```
@@ -183,7 +183,7 @@ Hugo Santos (@hugo-sants) :
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mpvpaper-engine
 cd mpvpaper-engine
-git sparse-checkout set apps/system-apps/mpvpaper-engine core/update manifests
+git sparse-checkout set apps/system-apps/mpvpaper-engine core/updater core/transactions manifests
 ./install-mpvpaper-engine.sh check
 ./install-mpvpaper-engine.sh install
 ```
@@ -193,7 +193,7 @@ git sparse-checkout set apps/system-apps/mpvpaper-engine core/update manifests
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git periphx
 cd periphx
-git sparse-checkout set apps/system-apps/periphx core/update manifests
+git sparse-checkout set apps/system-apps/periphx core/updater core/transactions manifests
 ./install-periphx.sh check
 ./install-periphx.sh install
 ./install-periphx.sh launch
@@ -204,7 +204,7 @@ git sparse-checkout set apps/system-apps/periphx core/update manifests
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mirrorbridge
 cd mirrorbridge
-git sparse-checkout set apps/system-apps/mirrorbridge core/update manifests
+git sparse-checkout set apps/system-apps/mirrorbridge core/updater core/transactions manifests
 ./install-mirrorbridge.sh check
 ./install-mirrorbridge.sh install
 ./install-mirrorbridge.sh launch

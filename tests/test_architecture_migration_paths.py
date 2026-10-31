@@ -38,6 +38,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             "config/caelestia",
             "config/nova-shell",
             "manager",
+            "apps/system-tools/custom-manager",
             "core/update",
             "manifests",
         )
@@ -82,6 +83,19 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         installer = (ROOT / "install-v3.sh").read_text(encoding="utf-8")
         self.assertIn("apps/system-apps/periphx", installer)
         self.assertIn("config/v3", installer)
+
+
+    def test_custom_manager_canonical_files_and_legacy_fallback_exist(self):
+        app = ROOT / "apps/system-tools/custom-manager"
+        self.assertTrue((app / "Makefile").is_file())
+        self.assertTrue((app / "src/paths.c").is_file())
+        self.assertTrue((app / "data/components.ini").is_file())
+        self.assertTrue((app / "scripts/update-wrapper.sh").is_file())
+        paths_source = (app / "src/paths.c").read_text(encoding="utf-8")
+        self.assertIn('"apps", "system-tools", "custom-manager"', paths_source)
+        self.assertIn('"manager", "data", "components.ini"', paths_source)
+        cli_source = (app / "src/cli.c").read_text(encoding="utf-8")
+        self.assertIn('"apps", "system-tools", "custom-manager", "scripts", "update-wrapper.sh"', cli_source)
 
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"

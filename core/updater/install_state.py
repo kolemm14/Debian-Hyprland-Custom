@@ -62,7 +62,7 @@ def load(locations):
 
 
 def version(tree):
-    for name in ('VERSION', 'manager/VERSION'):
+    for name in ('VERSION', 'apps/system-tools/custom-manager/VERSION', 'manager/VERSION'):
         path = tree / name
         if path.is_file():
             value = path.read_text().strip()

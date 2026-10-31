@@ -6,7 +6,7 @@ Move the repository toward a modular layout while preserving current installatio
 
 ## Safety rules
 
-- Work only on `refactor/architecture-migration`; do not commit migration work directly to `main`.
+- Work only on `refactor/repository-reorganization`; do not commit migration work directly to `main`.
 - Inspect each source group and its references before moving it.
 - Keep legacy installer entry points working until their replacements have been tested.
 - Update path references in installers, manifests, documentation, tests, and sparse-checkout examples together.
@@ -56,6 +56,7 @@ This mapping is a planning guide, not permission to move a mixed directory whole
 4. Run relevant Python tests, Rust checks, shell syntax checks, and path checks for each group.
 5. Update documentation only after the new paths and legacy entry points have been verified.
 6. Review the complete diff and CI results before proposing a pull request; merge only after review.
+7. Keep `main` unchanged throughout the migration. The final handoff must be a verified, tested branch with no remaining work except the explicitly authorized push to `main`.
 
 ## Verification checklist
 
@@ -67,3 +68,5 @@ This mapping is a planning guide, not permission to move a mixed directory whole
 - [ ] Shell scripts pass syntax checks.
 - [ ] Updater and rollback behavior remain intact.
 - [ ] No user data or existing configuration is deleted as part of a move.
+- [ ] All CI jobs pass on the migration branch.
+- [ ] The migration branch is compared with the latest `main` and contains no unintended changes.

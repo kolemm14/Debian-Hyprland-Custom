@@ -27,6 +27,14 @@ source_line="source = $hypr_include"
 input_source_line="source = $input_include"
 workspace_source_line="source = $workspace_include"
 ui_source_line="source = $ui_include"
+source_or_legacy() {
+    local canonical="$1" legacy="$2"
+    if [ -f "$repo_dir/$canonical" ]; then
+        printf '%s\\n' "$repo_dir/$canonical"
+    else
+        printf '%s\\n' "$repo_dir/$legacy"
+    fi
+}
 
 usage() {
     cat <<'EOF'
@@ -80,7 +88,8 @@ record_file() {
 }
 
 merge_settings() {
-    local preset="$repo_dir/config/nova-shell/debian-config.json" output
+    local preset output
+    preset="$(source_or_legacy apps/desktop-shells/nova-shell/config/debian-config.json config/nova-shell/debian-config.json)"
     mkdir -p "$settings_dir"
     if [ ! -f "$settings_file" ]; then
         install -m 0644 "$preset" "$settings_file"
@@ -130,9 +139,9 @@ install_shell() {
     revision="$(git -C "$staging/source" rev-parse HEAD)"
     local patch_file
     for patch_file in \
-        "$repo_dir/config/nova-shell/qt68-compat.patch" \
-        "$repo_dir/config/nova-shell/mpvpaper-integration.patch" \
-        "$repo_dir/config/nova-shell/hyprland-ipc-compat.patch"; do
+        "$(source_or_legacy apps/desktop-shells/nova-shell/patches/qt68-compat.patch config/nova-shell/qt68-compat.patch)" \
+        "$(source_or_legacy apps/desktop-shells/nova-shell/patches/mpvpaper-integration.patch config/nova-shell/mpvpaper-integration.patch)" \
+        "$(source_or_legacy apps/desktop-shells/nova-shell/patches/hyprland-ipc-compat.patch config/nova-shell/hyprland-ipc-compat.patch)"; do
         git -C "$staging/source" apply --whitespace=nowarn "$patch_file"
     done
 
@@ -156,15 +165,15 @@ install_shell() {
     fi
     mv "$staging/source" "$target"
 
-    install -m 0644 "$repo_dir/config/hypr/deblestia-nova-shell.conf" "$hypr_include"
+    install -m 0644 "$(source_or_legacy apps/desktop-shells/nova-shell/hyprland/deblestia-nova-shell.conf config/hypr/deblestia-nova-shell.conf)" "$hypr_include"
     install -m 0644 "$repo_dir/config/hypr/deblestia-input.conf" "$input_include"
     install -m 0644 "$repo_dir/config/hypr/deblestia-workspaces.conf" "$workspace_include"
     install -m 0644 "$repo_dir/config/hypr/deblestia-ui.conf" "$ui_include"
-    install -m 0755 "$repo_dir/config/hypr/scripts/deblestia-nova-shell-launch.sh" "$launch_target"
+    install -m 0755 "$(source_or_legacy apps/desktop-shells/nova-shell/scripts/deblestia-nova-shell-launch.sh config/hypr/scripts/deblestia-nova-shell-launch.sh)" "$launch_target"
     install -m 0755 "$repo_dir/config/hypr/scripts/desktop-shell-mode.sh" "$mode_target"
     install -m 0755 "$repo_dir/config/hypr/UserScripts/WaybarWallpaperSync.sh" \
         "$palette_target"
-    install -m 0755 "$repo_dir/config/hypr/scripts/deblestia-nova-lock.sh" "$lock_target"
+    install -m 0755 "$(source_or_legacy apps/desktop-shells/nova-shell/scripts/deblestia-nova-lock.sh config/hypr/scripts/deblestia-nova-lock.sh)" "$lock_target"
     merge_settings
     disable_conflicting_shell_source
 

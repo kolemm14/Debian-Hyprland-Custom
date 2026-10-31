@@ -278,7 +278,7 @@ case "$action" in
 esac
 
 # Record exact ownership for subsequent incremental updates.
-source "$repo_dir/core/update/record.sh"
+source "$repo_dir/core/updater/record.sh"
 if [ "$action" = install ] || [ "$action" = update ]; then
     deblestia_update_record "deblestia-nova"
 fi

@@ -138,10 +138,10 @@
     },
     {
       "component": "deblestia-bar",
-      "source": "config/waybar/**/*",
+      "source": "shared/waybar/**/*",
       "destination": "config:waybar/{relative}",
       "policy": "config",
-      "strip": "config/waybar/",
+      "strip": "shared/waybar/",
       "exclude": [
         "configs/[CUSTOM] Debian Glass",
         "styles/[CUSTOM] Debian Glass.css",
@@ -153,7 +153,22 @@
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/scripts/*",
+      "source": "apps/waybars/deblestia-bar/**/*",
+      "destination": "config:waybar/{relative}",
+      "policy": "config",
+      "strip": "apps/waybars/deblestia-bar/",
+      "exclude": [
+        "configs/[CUSTOM] Debian Glass",
+        "styles/[CUSTOM] Debian Glass.css",
+        "debian-glass-spotify.css",
+        "deblestia-bar-stats.sh",
+        "workspace-label.sh"
+      ],
+      "script_mode": true
+    },
+    {
+      "component": "deblestia-bar",
+      "source": "shared/hyprland/scripts/*",
       "destination": "config:hypr/scripts/{name}",
       "policy": "managed",
       "mode": "0755"
@@ -167,21 +182,21 @@
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/MinimizeWindow.sh",
+      "source": "shared/hyprland/UserScripts/MinimizeWindow.sh",
       "destination": "config:hypr/UserScripts/MinimizeWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/RestoreMinimizedWindow.sh",
+      "source": "shared/hyprland/UserScripts/RestoreMinimizedWindow.sh",
       "destination": "config:hypr/UserScripts/RestoreMinimizedWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/DeblestiaSystemThemeSync.sh",
+      "source": "shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh",
       "destination": "config:hypr/UserScripts/DeblestiaSystemThemeSync.sh",
       "policy": "managed",
       "mode": "0755"
@@ -209,10 +224,10 @@
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/waybar/**/*",
+      "source": "shared/waybar/**/*",
       "destination": "config:waybar/{relative}",
       "policy": "config",
-      "strip": "config/waybar/",
+      "strip": "shared/waybar/",
       "exclude": [
         "configs/[CUSTOM] Debian Glass",
         "styles/[CUSTOM] Debian Glass.css",
@@ -224,7 +239,22 @@
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/scripts/*",
+      "source": "apps/waybars/deblestia-nova-lite/**/*",
+      "destination": "config:waybar/{relative}",
+      "policy": "config",
+      "strip": "apps/waybars/deblestia-nova-lite/",
+      "exclude": [
+        "configs/[CUSTOM] Debian Glass",
+        "styles/[CUSTOM] Debian Glass.css",
+        "debian-glass-spotify.css",
+        "deblestia-bar-stats.sh",
+        "workspace-label.sh"
+      ],
+      "script_mode": true
+    },
+    {
+      "component": "deblestia-nova-lite",
+      "source": "shared/hyprland/scripts/*",
       "destination": "config:hypr/scripts/{name}",
       "policy": "managed",
       "mode": "0755"
@@ -238,21 +268,21 @@
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/MinimizeWindow.sh",
+      "source": "shared/hyprland/UserScripts/MinimizeWindow.sh",
       "destination": "config:hypr/UserScripts/MinimizeWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/RestoreMinimizedWindow.sh",
+      "source": "shared/hyprland/UserScripts/RestoreMinimizedWindow.sh",
       "destination": "config:hypr/UserScripts/RestoreMinimizedWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/DeblestiaSystemThemeSync.sh",
+      "source": "shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh",
       "destination": "config:hypr/UserScripts/DeblestiaSystemThemeSync.sh",
       "policy": "managed",
       "mode": "0755"
@@ -280,10 +310,10 @@
     },
     {
       "component": "nova2",
-      "source": "config/waybar/**/*",
+      "source": "shared/waybar/**/*",
       "destination": "config:waybar/{relative}",
       "policy": "config",
-      "strip": "config/waybar/",
+      "strip": "shared/waybar/",
       "exclude": [
         "configs/[CUSTOM] Debian Glass",
         "styles/[CUSTOM] Debian Glass.css",
@@ -295,7 +325,22 @@
     },
     {
       "component": "nova2",
-      "source": "config/hypr/scripts/*",
+      "source": "apps/waybars/deblestia-nova-2/**/*",
+      "destination": "config:waybar/{relative}",
+      "policy": "config",
+      "strip": "apps/waybars/deblestia-nova-2/",
+      "exclude": [
+        "configs/[CUSTOM] Debian Glass",
+        "styles/[CUSTOM] Debian Glass.css",
+        "debian-glass-spotify.css",
+        "deblestia-bar-stats.sh",
+        "workspace-label.sh"
+      ],
+      "script_mode": true
+    },
+    {
+      "component": "nova2",
+      "source": "shared/hyprland/scripts/*",
       "destination": "config:hypr/scripts/{name}",
       "policy": "managed",
       "mode": "0755"
@@ -309,21 +354,21 @@
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/MinimizeWindow.sh",
+      "source": "shared/hyprland/UserScripts/MinimizeWindow.sh",
       "destination": "config:hypr/UserScripts/MinimizeWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/RestoreMinimizedWindow.sh",
+      "source": "shared/hyprland/UserScripts/RestoreMinimizedWindow.sh",
       "destination": "config:hypr/UserScripts/RestoreMinimizedWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/DeblestiaSystemThemeSync.sh",
+      "source": "shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh",
       "destination": "config:hypr/UserScripts/DeblestiaSystemThemeSync.sh",
       "policy": "managed",
       "mode": "0755"

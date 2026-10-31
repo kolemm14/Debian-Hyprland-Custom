@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - refactor/architecture-migration
+      - refactor/repository-reorganization
   pull_request:
     branches:
       - main

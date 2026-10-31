@@ -529,16 +529,16 @@
     },
     {
       "component": "mirrorbridge",
-      "source": "config/mirrorbridge/Cargo.toml",
+      "source": "apps/system-apps/mirrorbridge/Cargo.toml",
       "destination": "home:.local/bin/mirrorbridge",
       "policy": "managed",
-      "build": "config/mirrorbridge",
+      "build": "apps/system-apps/mirrorbridge",
       "binary": "mirrorbridge",
       "mode": "0755"
     },
     {
       "component": "mirrorbridge",
-      "source": "config/mirrorbridge/*.desktop",
+      "source": "apps/system-apps/mirrorbridge/*.desktop",
       "destination": "home:.local/share/applications/{name}",
       "policy": "managed",
       "mode": "0644"

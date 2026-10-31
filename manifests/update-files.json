@@ -160,7 +160,7 @@
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
@@ -188,21 +188,21 @@
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
@@ -231,7 +231,7 @@
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
@@ -259,21 +259,21 @@
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
@@ -302,7 +302,7 @@
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
@@ -330,126 +330,126 @@
     },
     {
       "component": "nova2",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/caelestia/shell.json",
+      "source": "apps/desktop-shells/caelestia-v2/shell.json",
       "destination": "config:caelestia/shell.json",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/caelestia-v2.conf",
+      "source": "apps/desktop-shells/caelestia-v2/hyprland/caelestia-v2.conf",
       "destination": "config:hypr/caelestia-v2.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/caelestia-v2-launch.sh",
+      "source": "apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-launch.sh",
       "destination": "config:hypr/scripts/caelestia-v2-launch.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/caelestia-v2-lock.sh",
+      "source": "apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-lock.sh",
       "destination": "config:hypr/scripts/caelestia-v2-lock.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/caelestia-v2-display-profile.sh",
+      "source": "apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-display-profile.sh",
       "destination": "config:hypr/scripts/caelestia-v2-display-profile.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/desktop-shell-mode.sh",
+      "source": "shared/hyprland/scripts/desktop-shell-mode.sh",
       "destination": "config:hypr/scripts/desktop-shell-mode.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-nova-shell.conf",
+      "source": "apps/desktop-shells/nova-shell/hyprland/deblestia-nova-shell.conf",
       "destination": "config:hypr/deblestia-nova-shell.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/scripts/deblestia-nova-shell-launch.sh",
+      "source": "apps/desktop-shells/nova-shell/scripts/deblestia-nova-shell-launch.sh",
       "destination": "config:hypr/scripts/deblestia-nova-shell-launch.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/scripts/desktop-shell-mode.sh",
+      "source": "shared/hyprland/scripts/desktop-shell-mode.sh",
       "destination": "config:hypr/scripts/desktop-shell-mode.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/scripts/deblestia-nova-lock.sh",
+      "source": "apps/desktop-shells/nova-shell/scripts/deblestia-nova-lock.sh",
       "destination": "config:hypr/scripts/deblestia-nova-lock.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
@@ -545,14 +545,14 @@
     },
     {
       "component": "aurora-core",
-      "source": "bin/aurora",
+      "source": "apps/desktop-shells/aurora/aurora",
       "destination": "home:.local/bin/aurora",
       "policy": "managed",
-      "link": "repo:bin/aurora"
+      "link": "repo:apps/desktop-shells/aurora/aurora"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/nova-shell/debian-config.json",
+      "source": "apps/desktop-shells/nova-shell/config/debian-config.json",
       "destination": "config:illogical-impulse/config.json",
       "policy": "config",
       "mode": "0644"
@@ -574,9 +574,9 @@
       "component": "deblestia-nova",
       "destination": "config:quickshell/deblestia-nova",
       "patches": [
-        "config/nova-shell/qt68-compat.patch",
-        "config/nova-shell/mpvpaper-integration.patch",
-        "config/nova-shell/hyprland-ipc-compat.patch"
+        "apps/desktop-shells/nova-shell/patches/qt68-compat.patch",
+        "apps/desktop-shells/nova-shell/patches/mpvpaper-integration.patch",
+        "apps/desktop-shells/nova-shell/patches/hyprland-ipc-compat.patch"
       ]
     }
   ]

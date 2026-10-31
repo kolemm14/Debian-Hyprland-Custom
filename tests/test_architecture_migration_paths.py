@@ -243,6 +243,46 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         aurora = next(rule for rule in rules if rule.get("component") == "aurora-core")
         self.assertEqual(aurora["link"], "repo:apps/desktop-shells/aurora/aurora")
 
+
+    def test_all_updater_manifest_sources_and_build_directories_resolve(self):
+        import json
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        for rule in manifest["rules"]:
+            source = rule["source"]
+            wildcard = min((source.find(char) for char in "*?[" if char in source), default=-1)
+            if wildcard >= 0:
+                prefix = source[:wildcard].rstrip("/")
+                candidate = ROOT / prefix
+                if not candidate.exists():
+                    candidate = candidate.parent
+                with self.subTest(component=rule["component"], source=source):
+                    self.assertTrue(candidate.exists(), f"Updater glob has no source directory: {source}")
+            else:
+                with self.subTest(component=rule["component"], source=source):
+                    self.assertTrue((ROOT / source).is_file(), f"Updater source missing: {source}")
+            if rule.get("build"):
+                with self.subTest(component=rule["component"], build=rule["build"]):
+                    self.assertTrue((ROOT / rule["build"] / "Cargo.toml").is_file())
+        for patch_set in manifest.get("patch_sets", []):
+            for patch in patch_set["patches"]:
+                with self.subTest(component=patch_set["component"], patch=patch):
+                    self.assertTrue((ROOT / patch).is_file())
+
+    def test_waybar_updater_rules_use_variant_and_shared_canonical_sources(self):
+        import json
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        expected = {
+            "deblestia-bar": "apps/waybars/deblestia-bar/",
+            "deblestia-nova-lite": "apps/waybars/deblestia-nova-lite/",
+            "nova2": "apps/waybars/deblestia-nova-2/",
+        }
+        for component, prefix in expected.items():
+            sources = [r["source"] for r in manifest["rules"] if r.get("component") == component]
+            with self.subTest(component=component):
+                self.assertIn("shared/waybar/**/*", sources)
+                self.assertIn(prefix + "**/*", sources)
+                self.assertFalse(any(s == "config/waybar/**/*" for s in sources))
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

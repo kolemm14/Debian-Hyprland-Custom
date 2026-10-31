@@ -106,7 +106,9 @@ class RepositoryUpdateTests(unittest.TestCase):
             if index == 1:
                 result = self.run_update()
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((self.checkout / 'version').read_text(), '1')
+                runtime = self.root / 'home/.local/share/debian-hyprland-custom/runtime'
+                self.assertTrue(runtime.is_symlink())
+                self.assertEqual((runtime / 'version').read_text(), '1')
                 (self.checkout / 'local').write_text('local changes')
                 self.git('add', 'local')
                 self.git('commit', '-m', 'local work')

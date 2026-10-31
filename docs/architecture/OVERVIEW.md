@@ -6,7 +6,8 @@
 - `apps/system-tools`: system management tools (Custom Manager).
 - `apps/waybars`: the three Deblestia Waybar variants.
 - `apps/desktop-shells`: Caelestia V2, Nova Shell and Aurora.
-- `core`: registry, updater, transaction/rollback and system detection. The hardware detector, compatibility evaluator, localization helpers and setup orchestration now have canonical implementations under `core/system/`; legacy `core/*.py` and `core/*.sh` entry points remain as wrappers.
+- `core/system`: hardware detection, compatibility evaluation, localization and setup orchestration; legacy `core/*.py` and `core/*.sh` entry points preserve their APIs.
+- `core/updater`: updater orchestration, file ownership, install state, patch handling and recording. `core/transactions` owns the durable transaction journal and rollback engine. Legacy `core/update/*` paths are retained as relative symlinks.
 - `shared`: genuinely reusable Python, shell, Hyprland and Waybar assets.
 - `installer`, `manifests`, `profiles`, `resources`, `scripts`, `compat`, `tests`, `docs`: lifecycle, metadata, assets, automation, compatibility, validation and documentation.
 

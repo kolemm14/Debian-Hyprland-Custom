@@ -30,3 +30,6 @@ jobs:
         run: bash -n install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh contribute.sh
       - name: Validate updater manifest JSON
         run: python -m json.tool manifests/update-files.json > /dev/null
+
+      - name: Run MPVpaper Engine unit test suite
+        run: python -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -v

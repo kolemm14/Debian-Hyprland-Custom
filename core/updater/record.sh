@@ -7,5 +7,5 @@ deblestia_update_record() {
         printf '%s\n' 'Installation sans clone Git : suivi des mises à jour indisponible.' >&2
         return 0
     fi
-    PYTHONDONTWRITEBYTECODE=1 python3 "$update_root/core/update/main.py" "--${2:-record}-component" "$1"
+    PYTHONDONTWRITEBYTECODE=1 python3 "$update_root/core/updater/main.py" "--${2:-record}-component" "$1"
 }

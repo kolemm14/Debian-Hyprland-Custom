@@ -35,11 +35,11 @@ jobs:
       - name: Compile MPVpaper Python sources
         run: python -m compileall -q apps/system-apps/mpvpaper-engine
       - name: Validate installer and core shell syntax
-        run: bash -n core/setup.sh core/i18n.sh core/system/setup.sh core/system/i18n.sh install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh
+        run: bash -n update.sh core/setup.sh core/i18n.sh core/system/setup.sh core/system/i18n.sh core/updater/record.sh install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh
       - name: Validate updater manifest JSON
         run: python -m json.tool manifests/update-files.json > /dev/null
       - name: Compile canonical core and desktop shell Python sources
-        run: python -m compileall -q core/system apps/desktop-shells
+        run: python -m compileall -q core/system core/updater core/transactions apps/desktop-shells
       - name: Exercise canonical and legacy core CLI entry points
         run: |
           python core/system/hardware.py --help >/dev/null

@@ -4,6 +4,7 @@
 #include "cli_input.h"
 #include "cli_render.h"
 #include "runner.h"
+#include <glib/gstdio.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>

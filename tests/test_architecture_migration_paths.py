@@ -3,8 +3,8 @@
 Run from the repository root with:
     python3 -m unittest tests/test_architecture_migration_paths.py
 
-These checks intentionally validate the legacy layout first. They protect
-existing install entry points while each application is migrated separately.
+These checks validate canonical application paths and preserve legacy
+entry points during the staged migration.
 """
 from pathlib import Path
 import unittest
@@ -31,6 +31,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             "config/mirrorbridge",
             "apps/system-apps/mirrorbridge",
             "config/mpvpaper-engine",
+            "apps/system-apps/mpvpaper-engine",
             "config/v3",
             "config/waybar",
             "config/caelestia",
@@ -42,6 +43,26 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         for relative in expected:
             with self.subTest(path=relative):
                 self.assertTrue((ROOT / relative).is_dir(), f"Missing legacy source directory: {relative}")
+
+
+    def test_canonical_mpvpaper_application_and_manifest_paths_exist(self):
+        import json
+        app = ROOT / "apps/system-apps/mpvpaper-engine"
+        self.assertTrue((app / "mpvpaper-engine.py").is_file())
+        self.assertTrue((app / "mpvpaper_engine/paths.py").is_file())
+        self.assertTrue((app / "tests/test_paths.py").is_file())
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "mpvpaper-engine"]
+        self.assertTrue(rules, "MPVpaper updater rules are missing")
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/mpvpaper-engine/") for rule in rules))
+
+    def test_mpvpaper_installers_support_canonical_and_legacy_paths(self):
+        installer = (ROOT / "install-mpvpaper-engine.sh").read_text(encoding="utf-8")
+        easy = (ROOT / "install-mpvpaper-engine-easy.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/mpvpaper-engine", installer)
+        self.assertIn("config/mpvpaper-engine", installer)
+        self.assertIn("apps/system-apps/mpvpaper-engine", easy)
+        self.assertIn("config/mpvpaper-engine", easy)
 
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"

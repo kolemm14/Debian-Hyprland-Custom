@@ -193,7 +193,7 @@ git sparse-checkout set apps/system-apps/mpvpaper-engine core/update manifests
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git periphx
 cd periphx
-git sparse-checkout set config/v3 core/update manifests
+git sparse-checkout set apps/system-apps/periphx core/update manifests
 ./install-periphx.sh check
 ./install-periphx.sh install
 ./install-periphx.sh launch

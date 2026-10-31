@@ -17,9 +17,9 @@ component_manifest="$repo_dir/config/v2/components.tsv"
 source_or_legacy() {
     local canonical="$1" legacy="$2"
     if [ -f "$repo_dir/$canonical" ]; then
-        printf '%s\\n' "$repo_dir/$canonical"
+        printf '%s\n' "$repo_dir/$canonical"
     else
-        printf '%s\\n' "$repo_dir/$legacy"
+        printf '%s\n' "$repo_dir/$legacy"
     fi
 }
 theme_manifest="$repo_dir/config/v2/themes.tsv"

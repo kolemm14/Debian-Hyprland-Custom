@@ -260,6 +260,26 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
                 self.assertIn(prefix + "**/*", sources)
                 self.assertFalse(any(s == "config/waybar/**/*" for s in sources))
 
+
+    def test_core_system_modules_and_legacy_entry_points_are_preserved(self):
+        canonical = ROOT / "core/system"
+        for name in ("hardware.py", "compatibility.py", "i18n.sh", "setup.sh"):
+            with self.subTest(canonical=name):
+                self.assertTrue((canonical / name).is_file())
+        for name in ("hardware.py", "compatibility.py", "i18n.sh", "setup.sh"):
+            with self.subTest(legacy=name):
+                self.assertTrue((ROOT / "core" / name).is_file())
+        setup = (canonical / "setup.sh").read_text(encoding="utf-8")
+        self.assertIn('/" && pwd)', setup)
+        self.assertIn('core/system/i18n.sh', setup)
+        self.assertIn('core/system/compatibility.py', setup)
+        self.assertNotIn('core/compatibility.py', setup)
+        self.assertNotIn('core/i18n.sh', setup)
+        for name in ("hardware.py", "compatibility.py"):
+            wrapper = (ROOT / "core" / name).read_text(encoding="utf-8")
+            self.assertIn('system', wrapper)
+            self.assertIn('runpy.run_path', wrapper)
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

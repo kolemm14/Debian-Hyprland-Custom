@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-deblestia_repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+deblestia_repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 deblestia_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/deblestia/setup"
 deblestia_manifest="$deblestia_repo_dir/manifests/components.tsv"
 # shellcheck source=core/i18n.sh
-source "$deblestia_repo_dir/core/i18n.sh"
+source "$deblestia_repo_dir/core/system/i18n.sh"
 
 deblestia_profile() {
-    python3 "$deblestia_repo_dir/core/compatibility.py" --json | jq -r .profile
+    python3 "$deblestia_repo_dir/core/system/compatibility.py" --json | jq -r .profile
 }
 
 deblestia_compatibility() {

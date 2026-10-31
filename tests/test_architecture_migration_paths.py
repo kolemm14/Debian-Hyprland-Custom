@@ -112,7 +112,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         self.assertIn('"apps", "system-tools", "custom-manager"', paths_source)
         self.assertIn('"manager", "data", "components.ini"', paths_source)
         cli_source = (app / "src/cli.c").read_text(encoding="utf-8")
-        self.assertIn('"apps", "system-tools", "custom-manager", "scripts", "update-wrapper.sh"', cli_source)
+        self.assertIn('"apps/system-tools/custom-manager/scripts/update-wrapper.sh"', cli_source)
 
 
     def test_canonical_waybar_variants_and_shared_resources_exist(self):

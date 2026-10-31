@@ -46,6 +46,8 @@ jobs:
           python core/hardware.py --help >/dev/null
           python core/system/compatibility.py --help >/dev/null
           python core/compatibility.py --help >/dev/null
+      - name: Run system detection and unified setup regressions
+        run: python -m unittest discover -s tests -p 'test_setup*.py' -v
       - name: Run Aurora profile regression tests
         run: python -m unittest discover -s tests/aurora -v
 

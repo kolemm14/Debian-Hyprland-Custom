@@ -296,7 +296,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         checks = {
             "install-mirrorbridge.sh": ("apps/system-apps/mirrorbridge", "config/mirrorbridge"),
             "install-mpvpaper-engine.sh": ("apps/system-apps/mpvpaper-engine", "config/mpvpaper-engine"),
-            "install-periphx.sh": ("apps/system-apps/periphx", "config/v3"),
+            "install-v3.sh": ("apps/system-apps/periphx", "config/v3"),
             "install-v2.sh": ("apps/desktop-shells/caelestia-v2", "config/caelestia"),
             "install-nova-shell.sh": ("apps/desktop-shells/nova-shell", "config/nova-shell"),
             "install-aurora.sh": ("apps/desktop-shells/aurora", "core/aurora"),

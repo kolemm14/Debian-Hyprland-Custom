@@ -31,5 +31,10 @@ jobs:
       - name: Validate updater manifest JSON
         run: python -m json.tool manifests/update-files.json > /dev/null
 
+
+      - name: Install MPVpaper test runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-cairo gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-webkit-6.0 yt-dlp
       - name: Run MPVpaper Engine unit test suite
-        run: python -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -v
+        run: /usr/bin/python3 -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -v

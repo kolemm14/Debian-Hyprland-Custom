@@ -48,14 +48,6 @@ jobs:
           python core/compatibility.py --help >/dev/null
           python core/updater/main.py --help >/dev/null
           python core/update/main.py --help >/dev/null
-      - name: Diagnose non-destructive setup plan
-        run: |
-          set +e
-          ./install.sh --lang=en plan > "$RUNNER_TEMP/setup-plan.log" 2>&1
-          status=$?
-          cat "$RUNNER_TEMP/setup-plan.log"
-          echo "setup-plan exit code: $status"
-          exit 0
       - name: Run repository-level regression suite
         run: python -m unittest discover -s tests -v
       - name: Run Aurora profile regression tests

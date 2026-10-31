@@ -21,3 +21,12 @@ jobs:
           python-version: "3.x"
       - name: Verify migration path compatibility
         run: python -m unittest discover -s tests -p 'test_architecture_migration_paths.py' -v
+
+      - name: Run MPVpaper Engine path tests
+        run: python -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -p 'test_paths.py' -v
+      - name: Compile MPVpaper Python sources
+        run: python -m compileall -q apps/system-apps/mpvpaper-engine
+      - name: Validate installer shell syntax
+        run: bash -n install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh contribute.sh
+      - name: Validate updater manifest JSON
+        run: python -m json.tool manifests/update-files.json > /dev/null

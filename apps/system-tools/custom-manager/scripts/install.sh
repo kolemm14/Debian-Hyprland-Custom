@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 MANAGER_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd -- "$MANAGER_DIR/.." && pwd)"
+REPO_ROOT="$(cd -- "$MANAGER_DIR/../.." && pwd)"
 SKIP_BUILD=0
 
 if [[ "${1:-}" == "--skip-build" ]]; then

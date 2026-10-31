@@ -14,6 +14,14 @@ ui_state_file="$ui_state_dir/ui-mode"
 history_file="$state_dir/history.log"
 backup_root="$config_home/debian-immersive-v2-backups"
 component_manifest="$repo_dir/config/v2/components.tsv"
+source_or_legacy() {
+    local canonical="$1" legacy="$2"
+    if [ -f "$repo_dir/$canonical" ]; then
+        printf '%s\\n' "$repo_dir/$canonical"
+    else
+        printf '%s\\n' "$repo_dir/$legacy"
+    fi
+}
 theme_manifest="$repo_dir/config/v2/themes.tsv"
 theme_root="$config_home/debian-immersive-v2/themes"
 theme_override="$hypr_dir/debian-immersive-v2-theme.conf"
@@ -24,13 +32,13 @@ ui_source_line="source = $ui_include"
 dry_run=0
 
 sources=(
-    "$repo_dir/config/caelestia/shell.json"
-    "$repo_dir/config/hypr/caelestia-v2.conf"
-    "$repo_dir/config/hypr/scripts/caelestia-v2-launch.sh"
-    "$repo_dir/config/hypr/scripts/caelestia-v2-lock.sh"
-    "$repo_dir/config/hypr/scripts/caelestia-v2-display-profile.sh"
-    "$repo_dir/config/hypr/scripts/desktop-shell-mode.sh"
-    "$repo_dir/config/hypr/deblestia-ui.conf"
+    "$(source_or_legacy apps/desktop-shells/caelestia-v2/shell.json config/caelestia/shell.json)"
+    "$(source_or_legacy apps/desktop-shells/caelestia-v2/hyprland/caelestia-v2.conf config/hypr/caelestia-v2.conf)"
+    "$(source_or_legacy apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-launch.sh config/hypr/scripts/caelestia-v2-launch.sh)"
+    "$(source_or_legacy apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-lock.sh config/hypr/scripts/caelestia-v2-lock.sh)"
+    "$(source_or_legacy apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-display-profile.sh config/hypr/scripts/caelestia-v2-display-profile.sh)"
+    "$(source_or_legacy shared/hyprland/scripts/desktop-shell-mode.sh config/hypr/scripts/desktop-shell-mode.sh)"
+    "$(source_or_legacy shared/hyprland/deblestia-ui.conf config/hypr/deblestia-ui.conf)"
 )
 targets=(
     "$caelestia_dir/shell.json"

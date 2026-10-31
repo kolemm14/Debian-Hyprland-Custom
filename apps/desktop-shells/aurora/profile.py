@@ -49,10 +49,10 @@ class AuroraProfileManager:
             profile_name = "lite"
         if profile_name not in self.PROFILES:
             return False
-        
+
         os.makedirs(self.config_dir, exist_ok=True)
         state = {"profile": profile_name, "eco": False}
-        
+
         # Preserve eco state if file exists
         if os.path.exists(self.state_file):
             try:
@@ -61,10 +61,10 @@ class AuroraProfileManager:
                     state["eco"] = old_state.get("eco", False)
             except:
                 pass
-                
+
         with open(self.state_file, 'w') as f:
             json.dump(state, f)
-        
+
         self.generate_hyprland_profile(profile_name, state["eco"])
         return True
 
@@ -83,33 +83,33 @@ class AuroraProfileManager:
             settings["blur"] = False
             settings["animations"] = False
             settings["animated_wallpaper"] = False
-            
+
         hypr_dir = os.path.join(self.config_dir, "hypr", "profiles")
         os.makedirs(hypr_dir, exist_ok=True)
-        
+
         conf = []
         conf.append(f"# Auto-generated Aurora Profile: {profile_name.upper()} (Eco: {eco})")
-        
+
         if settings["blur"]:
             conf.append("decoration {\n    blur {\n        enabled = true\n        size = 3\n        passes = 2\n    }\n}")
         else:
             conf.append("decoration {\n    blur {\n        enabled = false\n    }\n}")
-            
+
         if settings["animations"]:
             conf.append("animations {\n    enabled = true\n}")
         else:
             conf.append("animations {\n    enabled = false\n}")
-            
+
         with open(os.path.join(hypr_dir, "active.conf"), 'w') as f:
             f.write("\n".join(conf))
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit(1)
-        
+
     cmd = sys.argv[1]
     manager = AuroraProfileManager()
-    
+
     if cmd == "set":
         manager.set_profile(sys.argv[2])
     elif cmd == "eco":

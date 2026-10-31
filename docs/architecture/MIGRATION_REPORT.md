@@ -39,6 +39,8 @@
 
 0. Confirm the expanded CI checks on the MPVpaper canonical copy before treating this group as validated.
 
+0. Confirm the expanded CI checks on the MPVpaper canonical copy before treating this group as validated.
+
 1. Finish MirrorBridge validation and reconcile its duplicate legacy/canonical source.
 2. Run the MPVpaper-specific CI checks; then plan removal or conversion of the duplicate legacy tree only after all sparse-checkout consumers are migrated.
 3. Migrate PeriphX with its Rust daemon and service as one unit.

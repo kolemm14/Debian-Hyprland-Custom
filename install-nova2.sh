@@ -53,18 +53,21 @@ action="${1:-install}"
 variant="${2:-nova2}"
 case "$variant" in
     bar)
+        waybar_app_dir="$repo_dir/apps/waybars/deblestia-bar"
         mode='bar'
         config_name='[Deblestia] Bar'
         style_name='[Deblestia] Bar.css'
         product_name='Deblestia Bar'
         ;;
     nova|nova-lite)
+        waybar_app_dir="$repo_dir/apps/waybars/deblestia-nova-lite"
         mode='nova-lite'
         config_name='[Deblestia] Nova'
         style_name='[Deblestia] Nova.css'
         product_name='Deblestia Nova Lite'
         ;;
     nova2)
+        waybar_app_dir="$repo_dir/apps/waybars/deblestia-nova-2"
         variant='nova2'
         mode='nova2'
         config_name='[Deblestia] Nova 2'
@@ -115,7 +118,17 @@ for path in "$hypr_main" "$input_include" "$workspace_include" "$ui_include"; do
     fi
 done
 
-cp -a "$repo_dir/config/waybar/." "$waybar_dir/"
+waybar_shared_dir="$repo_dir/shared/waybar"
+if [ ! -d "$waybar_shared_dir" ]; then
+    waybar_shared_dir="$repo_dir/config/waybar"
+fi
+if [ ! -d "$waybar_app_dir/configs" ] || [ ! -d "$waybar_app_dir/styles" ]; then
+    printf 'Fichiers de la variante Waybar introuvables : %s\\n' "$waybar_app_dir" >&2
+    exit 1
+fi
+cp -a "$waybar_shared_dir/." "$waybar_dir/"
+install -m 0644 "$waybar_app_dir/configs/$config_name" "$waybar_dir/configs/$config_name"
+install -m 0644 "$waybar_app_dir/styles/$style_name" "$waybar_dir/styles/$style_name"
 rm -f \
     "$waybar_dir/configs/[CUSTOM] Debian Glass" \
     "$waybar_dir/styles/[CUSTOM] Debian Glass.css" \

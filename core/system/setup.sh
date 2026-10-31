@@ -14,16 +14,8 @@ deblestia_compatibility() {
     python3 "$deblestia_repo_dir/core/system/compatibility.py" --json | jq -r .compatibility
 }
 
-deblestia_component_field() {
-    awk -F '\t' -v id="$1" -v field="$2" \
-        '$0 !~ /^#/ && $1 == id {print $field; exit}' "$deblestia_manifest"
-}
-
-deblestia_components_for_profile() {
-    awk -F '\t' -v profile="$1" \
-        '$0 !~ /^#/ && ("," $4 ",") ~ ("," profile ",") {print $1}' \
-        "$deblestia_manifest"
-}
+# shellcheck source=core/registry/components.sh
+source "$deblestia_repo_dir/core/registry/components.sh"
 
 deblestia_record_component() {
     mkdir -p "$deblestia_state_dir"

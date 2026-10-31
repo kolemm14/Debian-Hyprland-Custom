@@ -93,7 +93,7 @@ case "${1:-install}" in
 esac
 
 # Record exact ownership for subsequent incremental updates.
-source "$repo_dir/core/update/record.sh"
+source "$repo_dir/core/updater/record.sh"
 if [ "${1:-install}" = install ]; then
     deblestia_update_record "mirrorbridge"
 fi

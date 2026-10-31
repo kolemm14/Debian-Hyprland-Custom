@@ -34,12 +34,18 @@ jobs:
         run: python -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -p 'test_paths.py' -v
       - name: Compile MPVpaper Python sources
         run: python -m compileall -q apps/system-apps/mpvpaper-engine
-      - name: Validate installer shell syntax
-        run: bash -n install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh
+      - name: Validate installer and core shell syntax
+        run: bash -n core/setup.sh core/i18n.sh core/system/setup.sh core/system/i18n.sh install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh
       - name: Validate updater manifest JSON
         run: python -m json.tool manifests/update-files.json > /dev/null
-      - name: Compile canonical desktop shell Python sources
-        run: python -m compileall -q apps/desktop-shells
+      - name: Compile canonical core and desktop shell Python sources
+        run: python -m compileall -q core/system apps/desktop-shells
+      - name: Exercise canonical and legacy core CLI entry points
+        run: |
+          python core/system/hardware.py --help >/dev/null
+          python core/hardware.py --help >/dev/null
+          python core/system/compatibility.py --help >/dev/null
+          python core/compatibility.py --help >/dev/null
       - name: Run Aurora profile regression tests
         run: python -m unittest discover -s tests/aurora -v
 

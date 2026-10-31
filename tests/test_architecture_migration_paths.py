@@ -97,6 +97,35 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         cli_source = (app / "src/cli.c").read_text(encoding="utf-8")
         self.assertIn('"apps", "system-tools", "custom-manager", "scripts", "update-wrapper.sh"', cli_source)
 
+
+    def test_canonical_waybar_variants_and_shared_resources_exist(self):
+        variants = {
+            "deblestia-bar": ("[Deblestia] Bar", "[Deblestia] Bar.css"),
+            "deblestia-nova-lite": ("[Deblestia] Nova", "[Deblestia] Nova.css"),
+            "deblestia-nova-2": ("[Deblestia] Nova 2", "[Deblestia] Nova 2.css"),
+        }
+        for name, (config, style) in variants.items():
+            app = ROOT / "apps/waybars" / name
+            with self.subTest(variant=name):
+                self.assertTrue((app / "configs" / config).is_file())
+                self.assertTrue((app / "styles" / style).is_file())
+        shared = ROOT / "shared/waybar"
+        for relative in (
+            "Modules", "ModulesCustom", "ModulesWorkspaces",
+            "deblestia-waybar-switch.sh", "deblestia-focus.py",
+            "media-panel.py", "panel-colors.css", "icons/hyprdebian-cli.svg",
+        ):
+            with self.subTest(shared=relative):
+                self.assertTrue((shared / relative).exists(), f"Missing shared Waybar asset: {relative}")
+
+    def test_waybar_installer_prefers_canonical_variants_and_keeps_legacy_fallback(self):
+        installer = (ROOT / "install-nova2.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/waybars/deblestia-bar", installer)
+        self.assertIn("apps/waybars/deblestia-nova-lite", installer)
+        self.assertIn("apps/waybars/deblestia-nova-2", installer)
+        self.assertIn("shared/waybar", installer)
+        self.assertIn('config/waybar', installer)
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

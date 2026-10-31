@@ -183,7 +183,7 @@ Hugo Santos (@hugo-sants) :
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mpvpaper-engine
 cd mpvpaper-engine
-git sparse-checkout set config/mpvpaper-engine core/update manifests
+git sparse-checkout set apps/system-apps/mpvpaper-engine core/update manifests
 ./install-mpvpaper-engine.sh check
 ./install-mpvpaper-engine.sh install
 ```

@@ -47,6 +47,21 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
                 self.assertTrue((ROOT / relative).is_dir(), f"Missing legacy source directory: {relative}")
 
 
+    def test_canonical_mirrorbridge_sources_and_installer_manifest_exist(self):
+        import json
+        app = ROOT / "apps/system-apps/mirrorbridge"
+        self.assertTrue((app / "Cargo.toml").is_file())
+        self.assertTrue((app / "Cargo.lock").is_file())
+        self.assertTrue((app / "src/main.rs").is_file())
+        self.assertTrue((app / "src/backends/android.rs").is_file())
+        installer = (ROOT / "install-mirrorbridge.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/mirrorbridge", installer)
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "mirrorbridge"]
+        self.assertTrue(rules, "MirrorBridge updater rules are missing")
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/mirrorbridge/") for rule in rules))
+        self.assertTrue(all(rule.get("build") == "apps/system-apps/mirrorbridge" for rule in rules))
+
     def test_canonical_mpvpaper_application_and_manifest_paths_exist(self):
         import json
         app = ROOT / "apps/system-apps/mpvpaper-engine"

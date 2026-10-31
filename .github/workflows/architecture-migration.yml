@@ -2,7 +2,7 @@ name: Architecture migration checks
 
 concurrency:
   group: architecture-migration-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:

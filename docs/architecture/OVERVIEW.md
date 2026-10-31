@@ -25,4 +25,4 @@ The migration branch was forked from the existing architecture-migration work. T
 
 ## Migration state
 
-MirrorBridge has a canonical copy under `apps/system-apps/mirrorbridge`; the legacy copy remains in place intentionally. Its installer prefers the canonical source and falls back to the legacy sparse-checkout path. This is a compatibility transition, not a completed removal of the legacy source.
+MirrorBridge and MPVpaper Engine have canonical copies under `apps/system-apps/`; both legacy source trees remain intentionally. MirrorBridge's installer prefers its canonical source and falls back to the legacy sparse-checkout path. MPVpaper's main installer similarly resolves canonical then legacy; its easy installer supports either tree. MPVpaper updater manifest globs now target the canonical path. These are compatibility transitions, not completed removal of legacy sources.

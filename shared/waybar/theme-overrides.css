@@ -1,0 +1,11 @@
+/* Palette dynamique par défaut. Modifiée au besoin par deblestia-theme.sh. */
+@define-color nova_bg @glass;
+@define-color nova_bg_soft @glass;
+@define-color nova_hover @glass_hover;
+@define-color nova_accent @accent;
+@define-color nova_accent_strong @text;
+@define-color nova_text @text;
+@define-color nova_muted @muted;
+@define-color nova_good #a8d8ad;
+@define-color nova_warning #f1c27d;
+@define-color nova_danger #ff7f87;

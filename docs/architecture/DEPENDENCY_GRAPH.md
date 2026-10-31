@@ -7,6 +7,9 @@ flowchart TD
   Profiles[profiles] --> Installer[installer]
   Manifests[manifests] --> Installer
   Installer --> CoreSystem[core/system]
+  CoreSystem --> Hardware[hardware detection]
+  CoreSystem --> Compatibility[profile compatibility]
+  CoreSystem --> I18n[localization]
   Installer --> Updater[core/updater]
   Apps[apps components] --> Shared[shared libraries]
   Apps --> Core[core APIs]
@@ -24,6 +27,7 @@ flowchart TD
 - `manifests/components.tsv` names historical installer entry points. Those commands must remain callable during the transition.
 - `manifests/update-files.json` maps repository source globs to installed destinations. Moving a source directory without updating this manifest breaks updates even if a fresh install appears to work.
 - `core/update/main.py` imports sibling updater modules and handles Git history, snapshots, transactions and rollback. Keep its package/import contract stable or migrate the complete updater package atomically.
+- `core/system/setup.sh` is the canonical setup orchestration module. The historical `core/setup.sh` and `core/i18n.sh` are source-compatible wrappers; `core/hardware.py` and `core/compatibility.py` re-export their historical Python APIs and CLI behavior.
 - `install-v3.sh` owns the current PeriphX source layout and must be updated together with all PeriphX source paths.
 - `install-nova2.sh` selects three Waybar variants and installs Hyprland snippets; these are coupled groups, not independent folders.
 - Custom Manager has its own C path resolver and expects repository markers; preserve that contract or extend it with tests before relocating it.

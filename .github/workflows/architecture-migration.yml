@@ -31,7 +31,7 @@ jobs:
       - name: Compile MPVpaper Python sources
         run: python -m compileall -q apps/system-apps/mpvpaper-engine
       - name: Validate installer shell syntax
-        run: bash -n install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh contribute.sh
+        run: bash -n install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh contribute.sh
       - name: Validate updater manifest JSON
         run: python -m json.tool manifests/update-files.json > /dev/null
 

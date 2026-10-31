@@ -22,7 +22,7 @@
 
 - Command: `python -m unittest discover -s tests -p 'test_architecture_migration_paths.py' -v`
 - Result: 8 tests, 8 passed, 0 failed on GitHub Actions (Ubuntu runner, Python 3.15.1; run `41242557648`).
-- A broader CI job now additionally runs MPVpaper's path tests, Python bytecode compilation, Bash syntax checks and JSON validation; its result is tracked separately.
+- Expanded CI run `41242923297` passed: 8 migration path tests, 4 MPVpaper path tests, Python bytecode compilation, Bash syntax validation, updater-manifest JSON validation, and the full MPVpaper suite (406 tests, 406 passed). The CI environment installs GTK/Adwaita/WebKit/Pango-Cairo and yt-dlp dependencies and supplies a harmless `mpvpaper` stub for service unit tests; no real desktop runtime is launched.
 - Scope: repository path compatibility only. This does not validate Python application behavior, Bash installation flows, C/Rust builds, GUI runtime behavior, update transactions or rollback.
 
 ## Not yet completed

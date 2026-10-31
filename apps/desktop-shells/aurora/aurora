@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
-repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+app_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+profile_script="$app_dir/profile.py"
 
 usage() {
     echo "Aurora CLI"
@@ -14,7 +15,7 @@ usage() {
 
 case "${1:-}" in
     status)
-        profile=$(python3 "$repo_dir/core/aurora/profile.py" get)
+        profile=$(python3 "$profile_script" get)
         echo "Aurora Status"
         echo "Current Profile: $profile"
         ;;

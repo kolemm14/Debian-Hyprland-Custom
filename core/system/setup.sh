@@ -3,7 +3,7 @@
 deblestia_repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 deblestia_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/deblestia/setup"
 deblestia_manifest="$deblestia_repo_dir/manifests/components.tsv"
-# shellcheck source=core/i18n.sh
+# shellcheck source=core/system/i18n.sh
 source "$deblestia_repo_dir/core/system/i18n.sh"
 
 deblestia_profile() {
@@ -11,7 +11,7 @@ deblestia_profile() {
 }
 
 deblestia_compatibility() {
-    python3 "$deblestia_repo_dir/core/compatibility.py" --json | jq -r .compatibility
+    python3 "$deblestia_repo_dir/core/system/compatibility.py" --json | jq -r .compatibility
 }
 
 deblestia_component_field() {

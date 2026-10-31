@@ -13,7 +13,8 @@
 
 ## Completed in this phase
 
-- Staged the four system-management modules under `core/system/`: hardware detection, compatibility evaluation, localization and setup orchestration. Kept `core/hardware.py`, `core/compatibility.py`, `core/i18n.sh` and `core/setup.sh` as compatibility wrappers. The canonical setup resolves the repository root independently of the caller's working directory and now uses canonical system module paths.
+- Staged the four system-management modules under `core/system/`: hardware detection, compatibility evaluation, localization and setup orchestration. Kept `core/hardware.py`, `core/compatibility.py`, `core/i18n.sh` and `core/setup.sh` as compatibility wrappers; the Python wrappers re-export the original import APIs as well as CLI behavior.
+- Migrated updater implementation files to `core/updater/` and the transaction engine to `core/transactions/transaction.py`. Old `core/update/*` paths are relative symlinks, and the updater CLI/installers now use canonical paths. Updater tests were adapted to run against the new package layout.
 
 - Created the dedicated repository-reorganization branch without changing `main`.
 - Generated `MIGRATION_MAP.md` with 359 tracked file paths and proposed destinations.

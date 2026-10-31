@@ -294,14 +294,20 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
 
     def test_primary_installers_reference_existing_source_paths(self):
         checks = {
-            "install-mirrorbridge.sh": 'config/mirrorbridge',
-            "install-mpvpaper-engine.sh": 'config/mpvpaper-engine',
+            "install-mirrorbridge.sh": ("apps/system-apps/mirrorbridge", "config/mirrorbridge"),
+            "install-mpvpaper-engine.sh": ("apps/system-apps/mpvpaper-engine", "config/mpvpaper-engine"),
+            "install-periphx.sh": ("apps/system-apps/periphx", "config/v3"),
+            "install-v2.sh": ("apps/desktop-shells/caelestia-v2", "config/caelestia"),
+            "install-nova-shell.sh": ("apps/desktop-shells/nova-shell", "config/nova-shell"),
+            "install-aurora.sh": ("apps/desktop-shells/aurora", "core/aurora"),
         }
-        for installer, source_path in checks.items():
+        for installer, source_paths in checks.items():
             with self.subTest(installer=installer):
                 content = (ROOT / installer).read_text(encoding="utf-8")
-                self.assertIn(source_path, content)
-                self.assertTrue((ROOT / source_path).is_dir())
+                for source_path in source_paths:
+                    with self.subTest(source=source_path):
+                        self.assertIn(source_path, content)
+                        self.assertTrue((ROOT / source_path).is_dir())
 
 
 if __name__ == "__main__":

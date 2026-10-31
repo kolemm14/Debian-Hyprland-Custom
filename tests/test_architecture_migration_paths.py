@@ -263,6 +263,18 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("git sparse-checkout set apps/system-apps/mirrorbridge core/update manifests", readme)
 
+    def test_mirrorbridge_installer_and_updater_prefer_canonical_app(self):
+        import json
+        installer = (ROOT / "install-mirrorbridge.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/mirrorbridge", installer)
+        self.assertIn("config/mirrorbridge", installer)
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "mirrorbridge"]
+        self.assertTrue(rules)
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/mirrorbridge/") for rule in rules))
+        cargo_rule = next(rule for rule in rules if rule["source"].endswith("Cargo.toml"))
+        self.assertEqual(cargo_rule["build"], "apps/system-apps/mirrorbridge")
+
     def test_primary_installers_reference_existing_source_paths(self):
         checks = {
             "install-mirrorbridge.sh": 'config/mirrorbridge',

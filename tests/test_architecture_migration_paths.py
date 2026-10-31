@@ -367,3 +367,25 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_custom_manager_canonical_tree_and_legacy_compatibility(self):
+        app = ROOT / "apps/system-tools/custom-manager"
+        for relative in (
+            "Makefile", "VERSION", "data/components.ini",
+            "data/debian-custom-manager.desktop", "src/main.c",
+            "src/paths.c", "scripts/install.sh",
+            "scripts/update-wrapper.sh", "tests/test-cli.c",
+        ):
+            with self.subTest(path=relative):
+                self.assertTrue((app / relative).is_file())
+        self.assertTrue((ROOT / "manager/Makefile").is_file())
+        installer = (app / "scripts/install.sh").read_text(encoding="utf-8")
+        wrapper = (app / "scripts/update-wrapper.sh").read_text(encoding="utf-8")
+        paths = (app / "src/paths.c").read_text(encoding="utf-8")
+        cli = (app / "src/cli.c").read_text(encoding="utf-8")
+        self.assertIn('MANAGER_DIR/../../..', installer)
+        self.assertIn('MANAGER_DIR/../../..', wrapper)
+        self.assertIn('"apps", "system-tools", "custom-manager", "data"', paths)
+        self.assertIn('"manager", "data"', paths)
+        self.assertIn('apps/system-tools/custom-manager/scripts/update-wrapper.sh', cli)
+        self.assertNotIn('custom-apps/system-tools', paths + cli)

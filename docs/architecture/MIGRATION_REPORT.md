@@ -39,7 +39,7 @@
 
 ## Next safe sequence
 
-0. The MPVpaper suite and PeriphX Python/Rust suites now pass in the configured CI environment.
+0. CI run `41244048874` passed all configured repository path tests (13), MPVpaper path tests (4), PeriphX Python tests (20), PeriphX Rust tests (16), Custom Manager build/tests, and MPVpaper unit tests (406).
 
 0. CI run `41243513041` passed the MPVpaper, PeriphX and Custom Manager suites; the Waybar path and shell checks are queued for the next CI run.
 

@@ -19,6 +19,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check patch whitespace against main
+        run: git diff --check origin/main...HEAD
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -148,6 +148,13 @@ static gboolean job_collect(Cli *a) {
     g_clear_object(&a->cancel);
     return TRUE;
 }
+static gchar *manager_update_wrapper(Cli *a) {
+    gchar *canonical = g_build_filename(a->ctx->repo_root,
+        "apps", "system-tools", "custom-manager", "scripts", "update-wrapper.sh", NULL);
+    if (g_file_test(canonical, G_FILE_TEST_IS_REGULAR)) return canonical;
+    g_free(canonical);
+    return g_build_filename(a->ctx->repo_root, "manager", "scripts", "update-wrapper.sh", NULL);
+}
 static void prepare_launch(Cli *a, const gchar *script, gboolean rollback) {
     if (a->thread) { status_set(a, "Wait for the current check before starting an interactive operation."); return; }
     if (!script || !*script) { status_set(a, "This action is not registered for this component."); return; }
@@ -183,8 +190,18 @@ static void route(Cli *a, DcmRoute r) {
         case DCM_OPEN:
             a->component = r.component; page_set(a, ACTIONS);
             status_set(a, "Component actions opened. No application launcher is registered."); break;
-        case DCM_UPDATE: prepare_launch(a, "manager/scripts/update-wrapper.sh", FALSE); break;
-        case DCM_ROLLBACK: prepare_launch(a, "manager/scripts/update-wrapper.sh", TRUE); break;
+        case DCM_UPDATE: {
+            gchar *script = manager_update_wrapper(a);
+            prepare_launch(a, script, FALSE);
+            g_free(script);
+            break;
+        }
+        case DCM_ROLLBACK: {
+            gchar *script = manager_update_wrapper(a);
+            prepare_launch(a, script, TRUE);
+            g_free(script);
+            break;
+        }
         default: status_set(a, "Unknown request. Try 'show components', 'check updates' or 'help'."); break;
     }
 }
@@ -410,8 +427,11 @@ int dcm_cli_run(gboolean animate) {
                 if (a.page == MENU) route(&a, (DcmRoute){menu_intents[id], -1});
                 else { a.component = id; page_set(&a, ACTIONS); }
             } else if (a.page == OVERVIEW) {
-                if (key == 'u') prepare_launch(&a, "manager/scripts/update-wrapper.sh", FALSE);
-                if (key == 'r') prepare_launch(&a, "manager/scripts/update-wrapper.sh", TRUE);
+                if (key == 'u' || key == 'r') {
+                    gchar *script = manager_update_wrapper(&a);
+                    prepare_launch(&a, script, key == 'r');
+                    g_free(script);
+                }
                 if (key == 'f') refresh_states(&a);
             } else if (a.page == ACTIONS) {
                 DcmComponent *c = g_ptr_array_index(a.components, a.component);

@@ -55,7 +55,7 @@ EOL
         echo "source = ~/.config/aurora/hypr/aurora.conf"
         
         deblestia_record_component aurora-core
-        source "$repo_dir/core/update/record.sh"
+        source "$repo_dir/core/updater/record.sh"
         deblestia_update_record aurora-core
         ;;
     launch)
@@ -67,7 +67,7 @@ EOL
         # Remove symlink and config
         rm -f "$HOME/.local/bin/aurora"
         rm -rf "$HOME/.config/aurora"
-        source "$repo_dir/core/update/record.sh"
+        source "$repo_dir/core/updater/record.sh"
         deblestia_update_record aurora-core forget
         ;;
     *)

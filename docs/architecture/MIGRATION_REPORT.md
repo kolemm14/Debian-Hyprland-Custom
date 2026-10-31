@@ -13,6 +13,8 @@
 
 ## Completed in this phase
 
+- Staged the four system-management modules under `core/system/`: hardware detection, compatibility evaluation, localization and setup orchestration. Kept `core/hardware.py`, `core/compatibility.py`, `core/i18n.sh` and `core/setup.sh` as compatibility wrappers. The canonical setup resolves the repository root independently of the caller's working directory and now uses canonical system module paths.
+
 - Created the dedicated repository-reorganization branch without changing `main`.
 - Generated `MIGRATION_MAP.md` with 359 tracked file paths and proposed destinations.
 - Documented architecture overview, target directory rules, high-level dependency graph and compatibility policy.
@@ -35,7 +37,7 @@
 - Deblestia Bar, Nova Lite and Nova 2 configuration/style files are staged in their variant-specific application folders; reusable modules, scripts and resources are staged under `shared/waybar/`. `install-nova2.sh` prefers these canonical locations and retains the old `config/waybar` source as a shared-assets fallback.
 - Aurora CLI and profile manager, Caelestia V2 and Nova Shell assets are staged under `apps/desktop-shells/`; the Aurora installer prefers the colocated CLI/profile with fallback to `bin/aurora` and `core/aurora/profile.py`. shared Hyprland includes, scripts and user scripts are staged under `shared/hyprland/`. Their installers (plus Nova 2) now prefer canonical paths and fall back to legacy `config/` paths. The original source trees remain untouched. README sparse-checkout commands for Nova 2, Nova Shell and Caelestia V2 now include the canonical application/shared directories.
 - Updater manifest sources are now aligned with the staged canonical paths: MirrorBridge, PeriphX, MPVpaper, Aurora, Caelestia V2, Nova Shell, all three Waybar variants and shared Hyprland/Waybar resources. The migration test now checks every exact updater source, each glob's source directory, Rust build manifests and Nova patch files. The remaining updater work is to migrate rules alongside components not yet moved (especially core/installer and other legacy components), not to fix these staged groups.
-- Core subpackage migration (`registry`, `updater`, `transactions`, `system`), installer framework reorganization, service packaging and complete internal-reference migration remain outstanding.
+- Core system files have a canonical home, but `registry`, `updater` and `transactions` are not yet separated into their target packages. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. The new system wrapper/CLI checks are added to CI; their latest run is pending at report update time.
 - No local Debian desktop installation, live Hyprland/Waybar runtime, end-to-end install/update/rollback or GUI integration test has been executed. GitHub Actions provides isolated source-level Python, Bash, C and Rust validation only.
 - GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
 

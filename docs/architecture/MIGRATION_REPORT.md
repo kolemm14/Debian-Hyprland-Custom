@@ -18,6 +18,12 @@
 - Documented architecture overview, target directory rules, high-level dependency graph and compatibility policy.
 - Confirmed critical coupling between source directories, installers, manifests, updater, sparse-checkout instructions and tests.
 
+## Validation executed
+
+- Command: `python -m unittest discover -s tests -p 'test_architecture_migration_paths.py' -v`
+- Result: 6 tests, 6 passed, 0 failed (GitHub Actions, Ubuntu runner, Python 3.15.1).
+- Scope: repository path compatibility only. This does not validate Python application behavior, Bash installation flows, C/Rust builds, GUI runtime behavior, update transactions or rollback.
+
 ## Not yet completed
 
 - No broad directory moves have been performed.
@@ -25,7 +31,7 @@
 - The other application groups have not been moved.
 - Manifest, updater, installer, service, packaging and all internal references have not yet been migrated.
 - No local Python, Bash, C, Rust or desktop integration test suite has been executed in this environment.
-- GitHub Actions status must be checked before treating the path tests as passed.
+- GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
 
 ## Next safe sequence
 

@@ -166,12 +166,12 @@ install_shell() {
     mv "$staging/source" "$target"
 
     install -m 0644 "$(source_or_legacy apps/desktop-shells/nova-shell/hyprland/deblestia-nova-shell.conf config/hypr/deblestia-nova-shell.conf)" "$hypr_include"
-    install -m 0644 "$repo_dir/config/hypr/deblestia-input.conf" "$input_include"
-    install -m 0644 "$repo_dir/config/hypr/deblestia-workspaces.conf" "$workspace_include"
-    install -m 0644 "$repo_dir/config/hypr/deblestia-ui.conf" "$ui_include"
+    install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-input.conf config/hypr/deblestia-input.conf)" "$input_include"
+    install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-workspaces.conf config/hypr/deblestia-workspaces.conf)" "$workspace_include"
+    install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-ui.conf config/hypr/deblestia-ui.conf)" "$ui_include"
     install -m 0755 "$(source_or_legacy apps/desktop-shells/nova-shell/scripts/deblestia-nova-shell-launch.sh config/hypr/scripts/deblestia-nova-shell-launch.sh)" "$launch_target"
-    install -m 0755 "$repo_dir/config/hypr/scripts/desktop-shell-mode.sh" "$mode_target"
-    install -m 0755 "$repo_dir/config/hypr/UserScripts/WaybarWallpaperSync.sh" \
+    install -m 0755 "$(source_or_legacy shared/hyprland/scripts/desktop-shell-mode.sh config/hypr/scripts/desktop-shell-mode.sh)" "$mode_target"
+    install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/WaybarWallpaperSync.sh config/hypr/UserScripts/WaybarWallpaperSync.sh)" \
         "$palette_target"
     install -m 0755 "$(source_or_legacy apps/desktop-shells/nova-shell/scripts/deblestia-nova-lock.sh config/hypr/scripts/deblestia-nova-lock.sh)" "$lock_target"
     merge_settings

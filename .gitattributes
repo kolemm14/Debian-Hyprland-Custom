@@ -1,0 +1,2 @@
+# Patch files preserve upstream context whitespace required for reliable patch application.
+*.patch whitespace=-blank-at-eol

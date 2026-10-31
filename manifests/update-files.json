@@ -3,135 +3,135 @@
   "rules": [
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.py",
+      "source": "apps/system-apps/mpvpaper-engine/*.py",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-launcher",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-launcher",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-toggle",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-toggle",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-quick-menu",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-quick-menu",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/install-sddm-background.sh",
+      "source": "apps/system-apps/mpvpaper-engine/install-sddm-background.sh",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/install-hud-fonts.sh",
+      "source": "apps/system-apps/mpvpaper-engine/install-hud-fonts.sh",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/sddm-background.patch",
+      "source": "apps/system-apps/mpvpaper-engine/sddm-background.patch",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper_engine/**/*.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper_engine/**/*.py",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/tests/**/*.py",
+      "source": "apps/system-apps/mpvpaper-engine/tests/**/*.py",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-launcher",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-launcher",
       "destination": "home:.local/bin/mpvpaper-engine",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-launcher"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-enginectl.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-enginectl.py",
       "destination": "home:.local/bin/mpvpaper-enginectl",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-enginectl.py"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper_download.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper_download.py",
       "destination": "home:.local/bin/mpvpaper-workshop",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper_download.py"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-toggle",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-toggle",
       "destination": "home:.local/bin/mpvpaper-engine-toggle",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-toggle"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-waybar.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-waybar.py",
       "destination": "home:.local/bin/mpvpaper-engine-waybar",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-waybar.py"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-quick-menu",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-quick-menu",
       "destination": "home:.local/bin/mpvpaper-engine-quick-menu",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-quick-menu"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.service",
+      "source": "apps/system-apps/mpvpaper-engine/*.service",
       "destination": "home:.config/systemd/user/{name}",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.timer",
+      "source": "apps/system-apps/mpvpaper-engine/*.timer",
       "destination": "home:.config/systemd/user/{name}",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.desktop",
+      "source": "apps/system-apps/mpvpaper-engine/*.desktop",
       "destination": "home:.local/share/applications/{name}",
       "policy": "managed",
       "mode": "0644"

@@ -29,6 +29,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
     def test_application_source_directories_exist_before_migration(self):
         expected = (
             "config/mirrorbridge",
+            "apps/system-apps/mirrorbridge",
             "config/mpvpaper-engine",
             "config/v3",
             "config/waybar",
@@ -53,6 +54,14 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase.lower(), content.lower())
+
+    def test_canonical_mirrorbridge_manifest_exists(self):
+        self.assertTrue((ROOT / "apps/system-apps/mirrorbridge/Cargo.toml").is_file())
+        self.assertTrue((ROOT / "apps/system-apps/mirrorbridge/src/main.rs").is_file())
+
+    def test_readme_uses_canonical_mirrorbridge_sparse_checkout_path(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("git sparse-checkout set apps/system-apps/mirrorbridge core/update manifests", readme)
 
     def test_primary_installers_reference_existing_source_paths(self):
         checks = {

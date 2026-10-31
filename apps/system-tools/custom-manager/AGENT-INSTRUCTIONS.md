@@ -1,24 +1,26 @@
-# Minimal agent task
+# Custom Manager — maintenance instructions
 
-The architecture and source code are already decided. Do not redesign or refactor them.
+The canonical application source is `apps/system-tools/custom-manager/`.
+The historical `manager/` directory remains as a compatibility copy during
+this staged migration; do not copy this directory to the repository root.
 
-1. Copy the provided `apps/system-tools/custom-manager/` directory exactly to the root of `Debian-Hyprland-Custom`.
-2. Do not modify existing project files yet.
-3. Run:
+Do not redesign the application or change its public CLI/GUI behavior as part
+of a path migration.
 
-```bash
-cd manager
-bash tests/test-layout.sh
-bash tests/test-components.sh
-bash -n scripts/install.sh scripts/uninstall.sh tests/*.sh
-```
-
-4. If GTK3 development files are already installed, also run:
+Run from the repository root:
 
 ```bash
-make clean all test
-./build/debian-custom-manager --diagnose
+bash -n apps/system-tools/custom-manager/scripts/*.sh
+make -C apps/system-tools/custom-manager clean all test
 ```
 
-5. If compilation dependencies are missing, report only the missing packages. Do not install or change architecture automatically.
-6. Return the exact command output and errors. Do not rewrite any source file unless explicitly instructed.
+The build requires GCC, Make, pkg-config and GTK3 development headers
+(`build-essential pkg-config libgtk-3-dev` on Debian).
+
+The installer must resolve the repository root from its canonical depth and
+write the canonical repository path to the user's Manager configuration.
+Component data lookup must prefer the canonical path and retain the legacy
+`manager/data/components.ini` fallback until the compatibility phase ends.
+
+Never remove the historical directory or claim a test passed unless the
+command or CI job was actually executed and its result inspected.

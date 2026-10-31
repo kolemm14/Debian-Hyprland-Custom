@@ -28,7 +28,7 @@ réglages, sauvegardes, manifeste et installateur.
 - aperçu avant application ;
 - application atomique et annulation immédiate.
 
-État : le centre de contrôle matériel existe dans `config/v3/device-center.py`.
+État : le centre de contrôle matériel existe dans `apps/system-apps/periphx/device-center.py`.
 Il consomme en priorité l’inventaire physique agrégé par `pericored`, sépare les
 interfaces externes de clavier, souris et manette, puis conserve les outils Debian
 comme repli. L’onglet Affichage ouvre MPVpaper Engine. Les commandes propriétaires

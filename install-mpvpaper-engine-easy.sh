@@ -401,7 +401,7 @@ download_project() {
             "$TARGET_DIR"
 
         git -C "$TARGET_DIR" sparse-checkout set \
-            apps/system-apps/mpvpaper-engine config/mpvpaper-engine core/update manifests
+            apps/system-apps/mpvpaper-engine config/mpvpaper-engine core/updater core/transactions manifests
     fi
 
     ok "Source downloaded"

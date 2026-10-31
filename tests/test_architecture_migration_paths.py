@@ -214,6 +214,15 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         self.assertIn('"$repo_dir/bin/aurora"', installer)
         self.assertIn('"$repo_dir/core/aurora/profile.py"', installer)
 
+
+    def test_readme_sparse_checkout_instructions_use_canonical_shell_paths(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for path in ("apps/waybars/deblestia-nova-2", "shared/waybar",
+                     "apps/desktop-shells/nova-shell",
+                     "apps/desktop-shells/caelestia-v2", "shared/hyprland"):
+            with self.subTest(path=path):
+                self.assertIn(path, readme)
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

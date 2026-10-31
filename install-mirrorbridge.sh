@@ -11,7 +11,7 @@ elif [ -f "$legacy_source_dir/Cargo.toml" ]; then
     # Compatibility for existing sparse checkouts that still include config/mirrorbridge.
     source_dir="$legacy_source_dir"
 else
-    printf 'ERREUR : source MirrorBridge introuvable. Vérifiez le checkout du dépôt.\\n' >&2
+    printf 'ERREUR : source MirrorBridge introuvable. Vérifiez le checkout du dépôt.\n' >&2
     exit 1
 fi
 manifest="$source_dir/Cargo.toml"

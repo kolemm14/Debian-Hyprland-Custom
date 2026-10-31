@@ -35,7 +35,7 @@ jobs:
       - name: Compile MPVpaper Python sources
         run: python -m compileall -q apps/system-apps/mpvpaper-engine
       - name: Validate installer and core shell syntax
-        run: bash -n update.sh core/setup.sh core/i18n.sh core/system/setup.sh core/system/i18n.sh core/updater/record.sh install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh
+        run: bash -n update.sh core/setup.sh core/i18n.sh core/system/setup.sh core/system/i18n.sh core/updater/record.sh core/update/record.sh install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh
       - name: Validate updater manifest JSON
         run: python -m json.tool manifests/update-files.json > /dev/null
       - name: Compile canonical core and desktop shell Python sources
@@ -46,6 +46,8 @@ jobs:
           python core/hardware.py --help >/dev/null
           python core/system/compatibility.py --help >/dev/null
           python core/compatibility.py --help >/dev/null
+          python core/updater/main.py --help >/dev/null
+          python core/update/main.py --help >/dev/null
       - name: Run repository-level regression suite
         run: python -m unittest discover -s tests -v
       - name: Run Aurora profile regression tests

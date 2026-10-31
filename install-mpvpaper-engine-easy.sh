@@ -375,7 +375,7 @@ download_project() {
     step "6/8 — Download MPVpaper Engine"
 
     if [ -f "$TARGET_DIR/install-mpvpaper-engine.sh" ] &&
-       [ -d "$TARGET_DIR/config/mpvpaper-engine" ]; then
+       { [ -d "$TARGET_DIR/apps/system-apps/mpvpaper-engine" ] || [ -d "$TARGET_DIR/config/mpvpaper-engine" ]; }; then
         say "Existing project found: $TARGET_DIR"
 
         if [ -d "$TARGET_DIR/.git" ]; then
@@ -401,7 +401,7 @@ download_project() {
             "$TARGET_DIR"
 
         git -C "$TARGET_DIR" sparse-checkout set \
-            config/mpvpaper-engine core/update manifests
+            apps/system-apps/mpvpaper-engine config/mpvpaper-engine core/update manifests
     fi
 
     ok "Source downloaded"

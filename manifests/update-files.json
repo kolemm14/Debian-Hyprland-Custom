@@ -456,63 +456,63 @@
     },
     {
       "component": "periphx",
-      "source": "config/v3/device-center.py",
+      "source": "apps/system-apps/periphx/device-center.py",
       "destination": "home:.local/lib/debian-next-v3/device-center.py",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/lib/debian-next-v3/periphx.py",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "periphx",
-      "source": "config/v3/io.github.kebemouhamet08.DebianNextV3Devices.desktop",
+      "source": "apps/system-apps/periphx/io.github.kebemouhamet08.DebianNextV3Devices.desktop",
       "destination": "home:.local/share/applications/io.github.kebemouhamet08.PeriphX.desktop",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "periphx",
-      "source": "config/v3/pericored/pericored.service",
+      "source": "apps/system-apps/periphx/pericored/pericored.service",
       "destination": "config:systemd/user/pericored.service",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/periphx",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/periphx-launcher"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/debian-next-v3-devices",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/periphx-launcher"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/periphx-cli",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/periphx.py"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/pericored",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/pericored"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/lib/debian-next-v3/periphx-launcher",
       "policy": "managed",
       "generate": "periphx-launcher",
@@ -520,10 +520,10 @@
     },
     {
       "component": "periphx",
-      "source": "config/v3/pericored/Cargo.toml",
+      "source": "apps/system-apps/periphx/pericored/Cargo.toml",
       "destination": "home:.local/lib/debian-next-v3/pericored",
       "policy": "managed",
-      "build": "config/v3/pericored",
+      "build": "apps/system-apps/periphx/pericored",
       "binary": "pericored",
       "mode": "0755"
     },

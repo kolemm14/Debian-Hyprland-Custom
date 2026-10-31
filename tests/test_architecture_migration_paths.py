@@ -270,7 +270,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             with self.subTest(legacy=name):
                 self.assertTrue((ROOT / "core" / name).is_file())
         setup = (canonical / "setup.sh").read_text(encoding="utf-8")
-        self.assertIn('/" && pwd)', setup)
+        self.assertIn('$(dirname "${BASH_SOURCE[0]}")/../..', setup)
         self.assertIn('core/system/i18n.sh', setup)
         self.assertIn('core/system/compatibility.py', setup)
         self.assertNotIn('core/compatibility.py', setup)

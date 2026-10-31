@@ -113,7 +113,14 @@ class RepositoryUpdateTests(unittest.TestCase):
                 self.git('add', 'local')
                 self.git('commit', '-m', 'local work')
             else:
+                # The updater follows the installed commit recorded in InstallState,
+                # not the development checkout's HEAD. Local development history and
+                # files must remain untouched while the installed runtime advances.
                 before = self.git('rev-parse', 'HEAD')
-                self.assertNotEqual(self.run_update().returncode, 0)
+                result = self.run_update()
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.git('rev-parse', 'HEAD'), before)
                 self.assertEqual((self.checkout / 'local').read_text(), 'local changes')
+                runtime = self.root / 'home/.local/share/debian-hyprland-custom/runtime'
+                self.assertTrue(runtime.is_symlink())
+                self.assertEqual((runtime / 'version').read_text(), '2')

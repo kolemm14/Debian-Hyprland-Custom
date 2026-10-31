@@ -2,7 +2,7 @@
 
 ## Status
 
-**PARTIALLY COMPLETED — MirrorBridge and MPVpaper canonical copies are staged; full migration and runtime validation remain outstanding.**
+**PARTIALLY COMPLETED — application groups, shared assets, core system, updater and transaction engine have canonical paths; registry extraction, installer reorganization and full runtime validation remain outstanding.**
 
 ## Branch and baseline
 
@@ -38,7 +38,7 @@
 - Deblestia Bar, Nova Lite and Nova 2 configuration/style files are staged in their variant-specific application folders; reusable modules, scripts and resources are staged under `shared/waybar/`. `install-nova2.sh` prefers these canonical locations and retains the old `config/waybar` source as a shared-assets fallback.
 - Aurora CLI and profile manager, Caelestia V2 and Nova Shell assets are staged under `apps/desktop-shells/`; the Aurora installer prefers the colocated CLI/profile with fallback to `bin/aurora` and `core/aurora/profile.py`. shared Hyprland includes, scripts and user scripts are staged under `shared/hyprland/`. Their installers (plus Nova 2) now prefer canonical paths and fall back to legacy `config/` paths. The original source trees remain untouched. README sparse-checkout commands for Nova 2, Nova Shell and Caelestia V2 now include the canonical application/shared directories.
 - Updater manifest sources are now aligned with the staged canonical paths: MirrorBridge, PeriphX, MPVpaper, Aurora, Caelestia V2, Nova Shell, all three Waybar variants and shared Hyprland/Waybar resources. The migration test now checks every exact updater source, each glob's source directory, Rust build manifests and Nova patch files. The remaining updater work is to migrate rules alongside components not yet moved (especially core/installer and other legacy components), not to fix these staged groups.
-- Core system files have a canonical home, but `registry`, `updater` and `transactions` are not yet separated into their target packages. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. The new system wrapper/CLI checks are added to CI; their latest run is pending at report update time.
+- `core/system`, `core/updater` and `core/transactions` now have canonical implementations. `core/registry` is not yet separated from the current TSV manifest and shell lookup functions; this extraction requires a separately tested contract. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. CI now runs the repository-level regression suite against the canonical core packages; the latest run is pending at report update time.
 - No local Debian desktop installation, live Hyprland/Waybar runtime, end-to-end install/update/rollback or GUI integration test has been executed. GitHub Actions provides isolated source-level Python, Bash, C and Rust validation only.
 - GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
 
@@ -51,8 +51,8 @@
 1. Finish MirrorBridge validation and reconcile its duplicate legacy/canonical source.
 2. Run the MPVpaper-specific CI checks; then plan removal or conversion of the duplicate legacy tree only after all sparse-checkout consumers are migrated.
 3. Keep the legacy trees for MirrorBridge, MPVpaper, PeriphX and Custom Manager until all old sparse-checkout and installed updater cases are validated; then plan compatibility cleanup.
-4. Audit Aurora and the updater/core package; then complete component manifests, sparse-checkout documentation and GUI/system integration tests before legacy cleanup.
-5. Move core modules only as complete packages and validate rollback/update behavior.
+4. Complete updater/core integration checks and installer framework migration; then finish component manifests, sparse-checkout documentation and GUI/system integration tests before legacy cleanup.
+5. Extract the registry only after defining and testing a stable reader contract for `manifests/components.tsv`; then reorganize the installer framework and validate rollback/update behavior.
 6. Finish central path resolution, docs, CI and full regression matrix.
 
 ## Validation honesty

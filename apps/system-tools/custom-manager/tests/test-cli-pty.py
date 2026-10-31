@@ -24,7 +24,7 @@ class Session:
         self.before = termios.tcgetattr(self.slave)
         self.resize(120, 30, notify=False)
         env = dict(os.environ, TERM='xterm-256color', COLORTERM=colorterm, LC_ALL=locale,
-                   DHC_REPO_ROOT=str(root), DCM_COMPONENTS_FILE=str(root / 'apps/system-tools/custom-apps/system-tools/custom-manager/data/components.ini'))
+                   DHC_REPO_ROOT=str(root), DCM_COMPONENTS_FILE=str(root / 'apps/system-tools/custom-manager/data/components.ini'))
         if not color:
             env['NO_COLOR'] = '1'
         else:
@@ -122,7 +122,7 @@ def main():
         (root / 'install.sh').write_text('#!/bin/sh\nexit 0\n')
         (root / 'update.sh').write_text('#!/bin/sh\nprintf "backend argument: %s\\n" "$1"\n')
         (root / 'update.sh').chmod(0o755)
-        (root / 'apps/system-tools/custom-apps/system-tools/custom-manager/data/components.ini').write_text(
+        (root / 'apps/system-tools/custom-manager/data/components.ini').write_text(
             '[component:core]\nname=Test Core\nrequired=true\ndetect_all=$REPO/install.sh\n'
             'install_script=install.sh\ndescription=Required test fixture\n'
             '[component:mpvpaper-engine]\nname=MPVpaper Engine\nrequired=false\n'

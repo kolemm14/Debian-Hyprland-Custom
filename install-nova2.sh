@@ -209,7 +209,7 @@ fi
 printf '%s installé. Sauvegarde : %s\n' "$product_name" "$backup_dir"
 
 # Record exact ownership for subsequent incremental updates.
-source "$repo_dir/core/update/record.sh"
+source "$repo_dir/core/updater/record.sh"
 case "$variant" in
     bar) update_component=deblestia-bar ;;
     nova|nova-lite) update_component=deblestia-nova-lite ;;

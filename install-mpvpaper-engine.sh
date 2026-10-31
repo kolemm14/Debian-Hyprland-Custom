@@ -147,5 +147,5 @@ printf 'MPVpaper Engine installé. Sauvegarde : %s\n' "$backup_dir"
 printf 'Lancez-le avec : %s\n' "$bin_dir/mpvpaper-engine"
 
 # Record exact ownership for subsequent incremental updates.
-source "$repo_dir/core/update/record.sh"
+source "$repo_dir/core/updater/record.sh"
 deblestia_update_record "mpvpaper-engine"

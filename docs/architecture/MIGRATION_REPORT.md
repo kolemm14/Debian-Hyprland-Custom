@@ -9,7 +9,7 @@
 - Working branch: `refactor/repository-reorganization`.
 - Base: existing `refactor/architecture-migration` work.
 - Original main baseline recorded earlier: `57d81a05b8b13596f90c844dd33fbe128e31bfac`.
-- The migration branch includes the prior plan, compatibility test, CI workflow, MirrorBridge canonical copy, MPVpaper Engine canonical copy (111 files) and PeriphX canonical copy (16 files).
+- The migration branch includes the prior plan, compatibility test, CI workflow, MirrorBridge canonical copy, MPVpaper Engine canonical copy (111 files), PeriphX canonical copy (16 files) and Custom Manager canonical copy (43 files).
 
 ## Completed in this phase
 
@@ -31,7 +31,8 @@
 - MPVpaper's primary installer and easy installer now prefer/accept the canonical source while retaining legacy sparse-checkout support.
 - MPVpaper updater manifest source globs, contributor test discovery, README sparse-checkout instructions, updater docs and Custom Manager detail path now point to the canonical source.
 - PeriphX's 16-file canonical copy is present; `install-v3.sh`, updater rules, README sparse-checkout instructions, roadmap and PeriphX test paths now resolve to the canonical path with legacy fallback in the installer.
-- Custom Manager source, Waybar variants and desktop shells have not been migrated.
+- Custom Manager's C resolver now prefers canonical component data and falls back to the legacy manager path; update actions resolve the canonical wrapper first. Its install and update scripts calculate the repository root from the deeper canonical location.
+- Waybar variants and desktop shells have not been migrated.
 - Core, updater package, installer framework, service packaging and complete internal-reference migration remain outstanding.
 - No local Python, Bash, C, Rust or desktop integration test suite has been executed in this environment.
 - GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
@@ -44,7 +45,7 @@
 
 1. Finish MirrorBridge validation and reconcile its duplicate legacy/canonical source.
 2. Run the MPVpaper-specific CI checks; then plan removal or conversion of the duplicate legacy tree only after all sparse-checkout consumers are migrated.
-3. Keep PeriphX's legacy tree until all old sparse-checkout and installed updater cases are validated; then plan compatibility cleanup.
+3. Keep the legacy trees for MirrorBridge, MPVpaper, PeriphX and Custom Manager until all old sparse-checkout and installed updater cases are validated; then plan compatibility cleanup.
 4. Migrate Custom Manager, Waybar variants and desktop shells in dependency-aware groups.
 5. Move core modules only as complete packages and validate rollback/update behavior.
 6. Finish central path resolution, docs, CI and full regression matrix.

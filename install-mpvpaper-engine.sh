@@ -3,7 +3,16 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source_dir="$repo_dir/config/mpvpaper-engine"
+canonical_source_dir="$repo_dir/apps/system-apps/mpvpaper-engine"
+legacy_source_dir="$repo_dir/config/mpvpaper-engine"
+if [ -f "$canonical_source_dir/mpvpaper-engine.py" ]; then
+    source_dir="$canonical_source_dir"
+elif [ -f "$legacy_source_dir/mpvpaper-engine.py" ]; then
+    source_dir="$legacy_source_dir"
+else
+    printf 'ERREUR : source MPVpaper Engine introuvable.\n' >&2
+    exit 1
+fi
 install_dir="$HOME/.local/lib/mpvpaper-engine"
 bin_dir="$HOME/.local/bin"
 desktop_dir="$HOME/.local/share/applications"

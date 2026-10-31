@@ -30,9 +30,9 @@ ui_source_line="source = $ui_include"
 source_or_legacy() {
     local canonical="$1" legacy="$2"
     if [ -f "$repo_dir/$canonical" ]; then
-        printf '%s\\n' "$repo_dir/$canonical"
+        printf '%s\n' "$repo_dir/$canonical"
     else
-        printf '%s\\n' "$repo_dir/$legacy"
+        printf '%s\n' "$repo_dir/$legacy"
     fi
 }
 

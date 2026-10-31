@@ -119,7 +119,7 @@ les sources.
 ### Deblestia Shell
 
 ```bash
-a./install-deblestia-shell.sh check
+./install-deblestia-shell.sh check
 ./install-deblestia-shell.sh install
 ```
 

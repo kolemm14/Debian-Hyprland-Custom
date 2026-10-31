@@ -23,7 +23,7 @@ It does **not** absorb MPVpaper Engine, Aurora, Nova, MirrorBridge or Pericored.
 
 ```bash
 sudo apt install build-essential pkg-config libgtk-3-dev
-cd manager
+cd apps/system-tools/custom-manager
 make
 make test
 ./build/debian-custom-manager
@@ -38,7 +38,7 @@ DHC_REPO_ROOT=/path/to/Debian-Hyprland-Custom ./build/debian-custom-manager
 ## Install for the current user
 
 ```bash
-cd manager
+cd apps/system-tools/custom-manager
 ./scripts/install.sh
 ```
 
@@ -47,7 +47,7 @@ This installs only the Manager under `~/.local`. It does not modify the desktop 
 ## Uninstall the Manager
 
 ```bash
-cd manager
+cd apps/system-tools/custom-manager
 ./scripts/uninstall.sh
 ```
 

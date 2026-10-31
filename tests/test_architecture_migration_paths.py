@@ -201,6 +201,19 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         self.assertIn("shared/hyprland", waybar)
         self.assertIn("config/hypr", waybar)
 
+
+    def test_canonical_aurora_assets_and_legacy_installer_fallback_exist(self):
+        app = ROOT / "apps/desktop-shells/aurora"
+        self.assertTrue((app / "aurora").is_file())
+        self.assertTrue((app / "profile.py").is_file())
+        cli = (app / "aurora").read_text(encoding="utf-8")
+        self.assertIn('profile_script="$app_dir/profile.py"', cli)
+        installer = (ROOT / "install-aurora.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/desktop-shells/aurora/aurora", installer)
+        self.assertIn("apps/desktop-shells/aurora/profile.py", installer)
+        self.assertIn('"$repo_dir/bin/aurora"', installer)
+        self.assertIn('"$repo_dir/core/aurora/profile.py"', installer)
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

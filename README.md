@@ -204,7 +204,7 @@ git sparse-checkout set config/v3 core/update manifests
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/kolemm14/Debian-Hyprland-Custom.git mirrorbridge
 cd mirrorbridge
-git sparse-checkout set config/mirrorbridge core/update manifests
+git sparse-checkout set apps/system-apps/mirrorbridge core/update manifests
 ./install-mirrorbridge.sh check
 ./install-mirrorbridge.sh install
 ./install-mirrorbridge.sh launch

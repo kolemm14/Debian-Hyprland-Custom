@@ -33,6 +33,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             "config/mpvpaper-engine",
             "apps/system-apps/mpvpaper-engine",
             "config/v3",
+            "apps/system-apps/periphx",
             "config/waybar",
             "config/caelestia",
             "config/nova-shell",
@@ -63,6 +64,24 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         self.assertIn("config/mpvpaper-engine", installer)
         self.assertIn("apps/system-apps/mpvpaper-engine", easy)
         self.assertIn("config/mpvpaper-engine", easy)
+
+
+    def test_canonical_periphx_sources_and_manifest_exist(self):
+        import json
+        app = ROOT / "apps/system-apps/periphx"
+        self.assertTrue((app / "device-center.py").is_file())
+        self.assertTrue((app / "periphx.py").is_file())
+        self.assertTrue((app / "pericored/Cargo.toml").is_file())
+        self.assertTrue((app / "tests/test_periphx_cli.py").is_file())
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "periphx"]
+        self.assertTrue(rules, "PeriphX updater rules are missing")
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/periphx/") for rule in rules))
+
+    def test_periphx_installer_supports_canonical_and_legacy_paths(self):
+        installer = (ROOT / "install-v3.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/periphx", installer)
+        self.assertIn("config/v3", installer)
 
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"

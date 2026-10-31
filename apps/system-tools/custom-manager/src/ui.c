@@ -295,7 +295,7 @@ static void interactive_update(GtkButton *button, gpointer user_data) {
     const gchar *args_rollback[] = {"--rollback", NULL};
     const gchar *const *args = g_strcmp0(mode, "rollback") == 0 ? args_rollback : args_apply;
     GError *error = NULL;
-    if (!dcm_launch_interactive(app->ctx, "apps/system-tools/custom-apps/system-tools/custom-manager/scripts/update-wrapper.sh", args, &error)) {
+    if (!dcm_launch_interactive(app->ctx, "apps/system-tools/custom-manager/scripts/update-wrapper.sh", args, &error)) {
         show_error(app, error->message);
         g_clear_error(&error);
     }

@@ -66,7 +66,7 @@ automatic() {
     local compatibility profile dependency_mode=automatic choice
     compatibility="$(deblestia_compatibility)"
     profile="${DEBLESTIA_PROFILE:-$(deblestia_profile)}"
-    if [ "$compatibility" = UNSUPPORTED ]; then
+    if [ "$compatibility" = UNSUPPORTED ] && [ "${DEBLESTIA_PLAN_ONLY:-0}" != 1 ]; then
         printf '\n' >&2; deblestia_t automatic_refused >&2; printf '\n' >&2
         return 1
     fi

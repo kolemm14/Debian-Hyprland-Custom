@@ -280,6 +280,24 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             self.assertIn('system', wrapper)
             self.assertIn('importlib.util.spec_from_file_location', wrapper)
 
+
+    def test_updater_and_transactions_have_canonical_modules_and_legacy_symlinks(self):
+        updater = ROOT / "core/updater"
+        for name in ("main.py", "files.py", "install_state.py", "manager_backend.py",
+                     "patches.py", "record.sh", "transaction.py"):
+            with self.subTest(canonical=name):
+                self.assertTrue((updater / name).exists())
+        self.assertTrue((ROOT / "core/transactions/transaction.py").is_file())
+        for name in ("main.py", "files.py", "install_state.py", "manager_backend.py",
+                     "patches.py", "record.sh", "transaction.py"):
+            with self.subTest(legacy=name):
+                self.assertTrue((ROOT / "core/update" / name).is_symlink())
+        update_cli = (ROOT / "update.sh").read_text(encoding="utf-8")
+        self.assertIn("core/updater/main.py", update_cli)
+        self.assertIn("core/transactions/transaction.py", update_cli)
+        recorder = (updater / "record.sh").read_text(encoding="utf-8")
+        self.assertIn("core/updater/main.py", recorder)
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")

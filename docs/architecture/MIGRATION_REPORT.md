@@ -57,15 +57,18 @@ continuation; they are local results, not GitHub Actions results:
 - All tracked shell scripts passed `bash -n` and ShellCheck. Python compilation,
 	updater-manifest JSON validation, canonical/legacy CLI help, systemd unit
 	verification, and `git diff --check` also passed.
-- Rust formatting now passes for both installer crates. The privileged helper
-	has 6 unit tests and passes strict Clippy. `make -C installer test` passes,
-	but the GUI binary still contains zero tests. The full `make -C installer
-	check` remains **not clean** because strict Clippy reports unused installer
-	state/page models in `installer/src/state.rs`; those data structures are not
-	wired into the running GUI (which currently displays only a static welcome
-	page). This is a genuine incomplete-prototype warning, not a formatting issue;
-	it was not suppressed. Treat the GUI as experimental and do not claim a
-	production-ready installer until a tested installation flow is integrated.
+- Before this continuation, the full `make -C installer check` was not
+	clean: strict Clippy reported unused placeholder page and state models because
+	the GTK binary only displayed a static welcome page. In this continuation,
+	those unused prototype models were removed, the remaining language/dry-run
+	state was made explicit in the UI, and the UI now labels itself as
+	informational rather than a working installation flow. A dedicated
+	`.github/workflows/installer-check.yml` workflow now runs formatting, strict
+	Clippy, workspace tests and release compilation on this branch and on relevant
+	pull requests. These checks have **not yet been observed passing** for the
+	current branch commit; source edits and workflow creation alone are not proof
+	of a successful build. Treat the GUI as experimental until a tested
+	installation flow is integrated and exercised.
 - ShellCheck-driven edits only clarify the best-effort command guards and
 	sourced-variable contracts; canonical and legacy Hyprland scripts remain
 	behaviorally aligned.

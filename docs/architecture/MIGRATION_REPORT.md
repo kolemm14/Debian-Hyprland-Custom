@@ -69,10 +69,11 @@ continuation; they are local results, not GitHub Actions results:
 - ShellCheck-driven edits only clarify the best-effort command guards and
 	sourced-variable contracts; canonical and legacy Hyprland scripts remain
 	behaviorally aligned.
-- Latest remote CI at the start of this continuation passed for commit `6aa30d3`
-	(run `41325674233`, job `path-compatibility`). The current local changes have
-	not yet been committed or run in CI; local success does not establish their
-	hosted result.
+- Latest remote CI observed at the start of this continuation passed for commit
+	`6aa30d3` (run `41325674233`, job `path-compatibility`). The additional
+	inventory, ShellCheck, and helper-test changes are committed locally as
+	`d788aee`, but are not pushed; hosted CI for that commit is therefore not yet
+	available. Local success does not establish its hosted result.
 
 ## Not yet completed
 

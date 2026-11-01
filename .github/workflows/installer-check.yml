@@ -1,0 +1,52 @@
+name: Installer checks
+
+on:
+  push:
+    branches:
+      - fix/installer-clippy-and-paths
+    paths:
+      - "installer/**"
+      - ".github/workflows/installer-check.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "installer/**"
+      - ".github/workflows/installer-check.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-checks-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installer:
+    name: Rust installer workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install GTK and Adwaita build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libudev-dev pkg-config
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --manifest-path installer/Cargo.toml --all -- --check
+
+      - name: Run strict Clippy
+        run: cargo clippy --manifest-path installer/Cargo.toml --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Run workspace tests
+        run: cargo test --manifest-path installer/Cargo.toml --workspace --all-targets --all-features --locked
+
+      - name: Build release workspace
+        run: cargo build --manifest-path installer/Cargo.toml --workspace --release --locked

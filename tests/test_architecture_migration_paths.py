@@ -67,7 +67,7 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         paths = [path for path in paths if path]
         categories = Counter(_inventory_category(path) for path in paths)
         self.assertNotIn(None, categories, "Some tracked paths have no documented disposition")
-        self.assertEqual(len(paths), 602)
+        self.assertEqual(len(paths), 603)
         self.assertEqual(categories, {
             "generated_objects": 10,
             "canonical_apps": 196,
@@ -82,10 +82,10 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
             "root_commands": 23,
             "scratch_helper": 1,
             "fix_patches": 2,
-            "repository_docs_and_tests": 44,
+            "repository_docs_and_tests": 45,
         })
         inventory = (ROOT / "docs/architecture/MIGRATION_MAP.md").read_text(encoding="utf-8")
-        self.assertIn("602 tracked paths", inventory)
+        self.assertIn("603 tracked paths", inventory)
 
     def test_legacy_installers_are_preserved(self):
         expected = (

@@ -14,7 +14,7 @@
 ## Current audited baseline
 
 The migration branch was forked from the existing architecture-migration work.
-The current audited tree contains 602 tracked files: root 29, `.github` 2,
+The current audited tree contains 603 tracked files: root 29, `.github` 3,
 `apps` 201, `bin` 1, `config` 191, `core` 25, `docs` 24, `fixes` 2,
 `installer` 38, `manager` 43, `manifests` 2, `profiles` 4, `shared` 33 and
 `tests` 7. The totals include tracked Custom Manager `.o` files under both

@@ -81,7 +81,6 @@ pub fn execute(plan: &InstallPlan) -> Result<()> {
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::installer_script;
@@ -117,10 +116,12 @@ mod tests {
         let result = installer_script(&root, "missing-component");
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("was not found"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("was not found")
+        );
 
         fs::remove_dir_all(root).unwrap();
     }

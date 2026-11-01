@@ -64,9 +64,9 @@ continuation; they are local results, not GitHub Actions results:
 	the GTK binary only displayed a static welcome page. In this continuation,
 	those unused prototype models were removed, the remaining language/dry-run
 	state was made explicit in the UI, and the UI now labels itself as
-	informational rather than a working installation flow. Three focused unit
-	tests now cover path traversal rejection, missing scripts and successful
-	script resolution. A dedicated
+	informational rather than a working installation flow. Five focused unit
+	tests now cover executable-relative root discovery, path traversal rejection,
+	missing scripts, unrelated directories and successful script resolution. A dedicated
 	`.github/workflows/installer-check.yml` workflow now runs formatting, strict
 	Clippy, workspace tests and release compilation on this branch and on relevant
 	pull requests. These checks have **not yet been observed passing** for the

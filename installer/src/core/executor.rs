@@ -24,11 +24,11 @@ fn find_repository_root(start: &Path) -> Option<PathBuf> {
 fn repository_root() -> Result<PathBuf> {
     if let Some(root) = std::env::var_os("DEBLESTIA_REPO_DIR") {
         let path = PathBuf::from(root);
-        if is_repository_root(&path) {
+        if path.is_absolute() && is_repository_root(&path) {
             return Ok(path);
         }
         return Err(anyhow!(
-            "DEBLESTIA_REPO_DIR is not a Deblestia source checkout: {}",
+            "DEBLESTIA_REPO_DIR must be an absolute path to a Deblestia source checkout: {}",
             path.display()
         ));
     }

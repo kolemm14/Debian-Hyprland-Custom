@@ -89,6 +89,7 @@ automatic() {
         deblestia_t components_deferred; printf '\n'
         return 0
     fi
+    # shellcheck disable=SC2154 # Initialized by the sourced core/setup.sh.
     mkdir -p "$deblestia_state_dir"
     printf '%s\n' "$profile" >"$deblestia_state_dir/profile"
     if [ -f "$repo_dir/profiles/$profile.conf" ]; then

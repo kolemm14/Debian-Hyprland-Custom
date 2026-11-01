@@ -13,7 +13,13 @@
 
 ## Current audited baseline
 
-The migration branch was forked from the existing architecture-migration work. The audited tree contains 359 tracked files at the time this document was generated. Main legacy groups include `config/` (191 files), `installer/` (38), `manager/` (43), `core/` (12), `docs/` (18), `tests/` (7), `manifests/` (2) and `profiles/` (4). See [MIGRATION_MAP.md](MIGRATION_MAP.md) for the file-by-file path inventory.
+The migration branch was forked from the existing architecture-migration work.
+The current audited tree contains 602 tracked files: root 29, `.github` 2,
+`apps` 201, `bin` 1, `config` 191, `core` 25, `docs` 24, `fixes` 2,
+`installer` 38, `manager` 43, `manifests` 2, `profiles` 4, `shared` 33 and
+`tests` 7. The totals include tracked Custom Manager `.o` files under both
+canonical and legacy trees; the detailed, executable path-family inventory is
+in [MIGRATION_MAP.md](MIGRATION_MAP.md).
 
 ## Design constraints
 

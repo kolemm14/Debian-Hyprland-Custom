@@ -2,13 +2,62 @@
 
 Baseline branch: `refactor/repository-reorganization`
 Baseline tree: `39188b0d538823a161667e32c8610ad74bada3e2`
-Inventory snapshot: 359 tracked files at the baseline tree above. The current
-branch contains 602 tracked files; this earlier map is not an exhaustive current
-inventory and must be refreshed before using it as a final migration checklist.
-It records proposed destinations and does not claim all dependency edges have
-been verified.
+The file-by-file table below is a **historical snapshot** from the 359-file
+baseline and is not the current move checklist. The current audited revision is
+`6aa30d3dc38a770d090471b7c8596075de8b4ccc`, with 602 tracked paths and no
+untracked, non-ignored files. The current path-family disposition is summarized
+below; each tracked path is assigned by one ordered prefix/exception rule.
+
+## Current inventory and disposition
+
+Counts were computed from `git ls-files` at the audited revision. Rules are
+applied in the order shown so that generated objects and legacy subtrees are
+counted once. “Keep” is a compatibility or ownership decision, not a claim that
+all code has reached its final location.
+
+| Rule | Current tracked paths | Count | Justified disposition |
+|---|---|---:|---|
+| 1 | `apps/system-tools/custom-manager/src/*.o` and `manager/src/*.o` | 10 | Tracked build artifacts, not application source; retain pending separate artifact cleanup review. |
+| 2 | `apps/**` except rule 1 | 196 | Canonical application trees: system apps, Custom Manager, Waybars, desktop shells and their local tests/resources. |
+| 3 | `core/system/**`, `core/updater/**`, `core/transactions/**`, `core/registry/**` | 13 | Canonical core implementations. |
+| 4 | `installer/**` | 38 | Canonical Rust GUI installer, helper, packaging, policy and resources; shell-installer integration remains separate work. |
+| 5 | `shared/**` | 33 | Reusable Hyprland and Waybar assets with current consumers. |
+| 6 | `config/v2/**` | 2 | V2 installer inputs retained at their established data path. |
+| 7 | `config/**` except rule 6 | 189 | Historical application/configuration copies and installer/sparse-checkout fallbacks. |
+| 8 | `manager/**` except rule 1 | 38 | Legacy Custom Manager data/source compatibility tree. |
+| 9 | `bin/aurora` | 1 | Legacy Aurora CLI fallback. |
+| 10 | `core/hardware.py`, `core/compatibility.py`, `core/i18n.sh`, `core/setup.sh`, `core/aurora/**`, `core/update/**` | 12 | Core compatibility wrappers and old updater symlinks. |
+| 11 | Root `*.sh` except `scratch.sh` | 23 | Public root commands used by documentation, component dispatch, wrappers and sparse checkouts. Preserve until each caller is migrated and tested. |
+| 12 | `scratch.sh` | 1 | Existing argument-inspection helper; no in-repository consumer found, so retain pending ownership review rather than delete. |
+| 13 | `fixes/**` | 2 | Patch data consumed by `fix-sddm-session-text.sh`; current relative contract keeps the files here. |
+| 14 | `.github/**`, root metadata, `docs/**`, `manifests/**`, `profiles/**`, `tests/**` | 44 | CI, repository metadata, documentation, manifests, profiles and tests stay in their role-specific paths. |
+|  | **Total** | **602** | The ordered rules account for every tracked path exactly once. |
+
+Top-level totals: root 29; `.github` 2; `apps` 201; `bin` 1; `config` 191;
+`core` 25; `docs` 24; `fixes` 2; `installer` 38; `manager` 43; `manifests` 2;
+`profiles` 4; `shared` 33; `tests` 7. Sum: 602. `apps` includes its five
+tracked Custom Manager object files; `manager` includes its five equivalents.
+
+The tracked root commands are deliberately not moved wholesale: `manifests/components.tsv`
+names installer paths, `core/system/setup.sh` dispatches them, root scripts call
+one another, and sparse-checkout recipes invoke root commands. The root SDDM
+repair command also depends on patch files under `fixes/`. See the migration
+plan and directory rules before changing these boundaries. The top-level
+`resources/`, `scripts/`, and `compat/` buckets are not created merely to match
+the target diagram: existing assets are application-local or shared, while root
+commands remain public contracts.
+
+Reproduce the tracked and untracked counts with `git ls-files | wc -l` and
+`git ls-files --others --exclude-standard`. Use `rg` across code, manifests,
+tests, docs and workflows to review path consumers before changing a rule.
+The prefix table is an exhaustive path-family assignment, not a semantic proof
+of every dependency or an end-to-end runtime validation.
 
 ## File-by-file path map
+
+The rows below preserve the original baseline inventory for historical context;
+their “proposed destination” and consumer notes are not current status unless
+confirmed by the current inventory above and the source tree.
 
 Aurora (CLI et gestionnaire de profils), Caelestia V2 et Nova Shell ont maintenant des copies canoniques sous `apps/desktop-shells/`; les scripts et inclusions Hyprland réutilisables ont des copies sous `shared/hyprland/`. Les installateurs concernés privilégient ces chemins et conservent le chemin historique en repli.
 

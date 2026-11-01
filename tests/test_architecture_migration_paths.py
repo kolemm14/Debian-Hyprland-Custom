@@ -12,7 +12,81 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _inventory_category(relative_path):
+    """Assign a tracked path to one documented, non-overlapping inventory rule."""
+    path = Path(relative_path)
+    parts = path.parts
+    if (path.suffix == ".o" and len(parts) >= 2 and parts[-2] == "src" and
+            (relative_path.startswith("apps/system-tools/custom-manager/") or
+             relative_path.startswith("manager/"))):
+        return "generated_objects"
+    if relative_path.startswith("apps/"):
+        return "canonical_apps"
+    if (relative_path.startswith("core/system/") or
+            relative_path.startswith("core/updater/") or
+            relative_path.startswith("core/transactions/") or
+            relative_path.startswith("core/registry/")):
+        return "canonical_core"
+    if relative_path.startswith("installer/"):
+        return "installer"
+    if relative_path.startswith("shared/"):
+        return "shared"
+    if relative_path.startswith("config/v2/"):
+        return "v2_config"
+    if relative_path.startswith("config/"):
+        return "legacy_config"
+    if relative_path.startswith("manager/"):
+        return "legacy_manager"
+    if relative_path == "bin/aurora":
+        return "aurora_fallback"
+    if (relative_path in {
+            "core/hardware.py", "core/compatibility.py", "core/i18n.sh", "core/setup.sh"
+        } or relative_path.startswith("core/aurora/") or
+            relative_path.startswith("core/update/")):
+        return "legacy_core"
+    if relative_path == "scratch.sh":
+        return "scratch_helper"
+    if "/" not in relative_path and path.suffix == ".sh":
+        return "root_commands"
+    if relative_path.startswith("fixes/"):
+        return "fix_patches"
+    if (relative_path.startswith((".github/", "docs/", "manifests/", "profiles/", "tests/")) or
+            relative_path in {".gitattributes", ".gitignore", "LICENSE.md", "README.md", "README.en.md"}):
+        return "repository_docs_and_tests"
+    return None
+
+
 class LegacyPathCompatibilityTests(unittest.TestCase):
+    def test_current_tracked_inventory_is_fully_classified(self):
+        import subprocess
+        from collections import Counter
+
+        paths = subprocess.run(
+            ["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True
+        ).stdout.decode().split("\0")
+        paths = [path for path in paths if path]
+        categories = Counter(_inventory_category(path) for path in paths)
+        self.assertNotIn(None, categories, "Some tracked paths have no documented disposition")
+        self.assertEqual(len(paths), 602)
+        self.assertEqual(categories, {
+            "generated_objects": 10,
+            "canonical_apps": 196,
+            "canonical_core": 13,
+            "installer": 38,
+            "shared": 33,
+            "v2_config": 2,
+            "legacy_config": 189,
+            "legacy_manager": 38,
+            "aurora_fallback": 1,
+            "legacy_core": 12,
+            "root_commands": 23,
+            "scratch_helper": 1,
+            "fix_patches": 2,
+            "repository_docs_and_tests": 44,
+        })
+        inventory = (ROOT / "docs/architecture/MIGRATION_MAP.md").read_text(encoding="utf-8")
+        self.assertIn("602 tracked paths", inventory)
+
     def test_legacy_installers_are_preserved(self):
         expected = (
             "install-mirrorbridge.sh",
@@ -241,22 +315,47 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
     def test_all_updater_manifest_sources_and_build_directories_resolve(self):
         import json
         manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        matched_components = set()
         for rule in manifest["rules"]:
             source = rule["source"]
-            wildcard = min((source.find(char) for char in "*?[" if char in source), default=-1)
-            if wildcard >= 0:
-                prefix = source[:wildcard].rstrip("/")
-                candidate = ROOT / prefix
-                if not candidate.exists():
-                    candidate = candidate.parent
-                with self.subTest(component=rule["component"], source=source):
-                    self.assertTrue(candidate.exists(), f"Updater glob has no source directory: {source}")
-            else:
-                with self.subTest(component=rule["component"], source=source):
-                    self.assertTrue((ROOT / source).is_file(), f"Updater source missing: {source}")
+            matches = [path for path in ROOT.glob(source) if path.is_file()]
+            with self.subTest(component=rule["component"], source=source):
+                self.assertTrue(matches, f"Updater source pattern matched no files: {source}")
+            matched_components.add(rule["component"])
+
+            strip = rule.get("strip")
+            if strip:
+                strip_root = ROOT / strip
+                for path in matches:
+                    with self.subTest(component=rule["component"], source=source, strip=strip):
+                        self.assertTrue(path.is_relative_to(strip_root), f"Strip prefix {strip!r} does not contain {path}")
+
             if rule.get("build"):
                 with self.subTest(component=rule["component"], build=rule["build"]):
                     self.assertTrue((ROOT / rule["build"] / "Cargo.toml").is_file())
+                    self.assertTrue(rule.get("binary"), "Cargo build rule is missing its binary name")
+
+            link = rule.get("link")
+            if link:
+                kind, _, target = link.partition(":")
+                with self.subTest(component=rule["component"], link=link):
+                    self.assertIn(kind, {"home", "config", "repo"}, f"Unknown link target kind: {kind}")
+                    self.assertTrue(target, f"Empty link target: {link}")
+                    if kind == "repo":
+                        self.assertTrue((ROOT / target).is_file(), f"Repository link target missing: {target}")
+
+        component_ids = {
+            line.split("\t", 1)[0]
+            for line in (ROOT / "manifests/components.tsv").read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#")
+        }
+        # Nova 2 remains a separately updatable historical component, while
+        # the setup registry intentionally exposes the newer Deblestia Nova.
+        self.assertEqual(matched_components - component_ids, {"nova2"})
+        self.assertTrue(component_ids <= matched_components)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("### Deblestia Nova 2 (compatibilité)", readme)
+
         for patch_set in manifest.get("patch_sets", []):
             for patch in patch_set["patches"]:
                 with self.subTest(component=patch_set["component"], patch=patch):
@@ -318,6 +417,59 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
     def test_updater_docs_expand_legacy_sparse_checkouts_to_canonical_paths(self):
         docs = (ROOT / "docs/UPDATER.md").read_text(encoding="utf-8")
         self.assertIn("git sparse-checkout add core/updater core/transactions manifests", docs)
+
+    def test_legacy_sparse_checkout_symlinks_recover_after_adding_targets(self):
+        import subprocess
+        import sys
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="legacy-updater-sparse-") as temp_dir:
+            checkout = Path(temp_dir) / "checkout"
+            subprocess.run(
+                ["git", "clone", "--quiet", "--shared", "--no-checkout", str(ROOT), str(checkout)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(checkout), "checkout", "--quiet", "--detach", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(checkout), "sparse-checkout", "init", "--cone"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(checkout), "sparse-checkout", "set", "core/update", "manifests"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            legacy_entry = checkout / "core/update/main.py"
+            canonical_target = checkout / "core/updater/main.py"
+            self.assertTrue(legacy_entry.is_symlink())
+            self.assertFalse(canonical_target.exists())
+
+            subprocess.run(
+                ["git", "-C", str(checkout), "sparse-checkout", "add", "core/updater", "core/transactions"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertTrue(canonical_target.is_file())
+            subprocess.run(
+                [sys.executable, str(legacy_entry), "--help"],
+                cwd=temp_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
 
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"

@@ -18,9 +18,9 @@
 - Extracted the shell component-registry reader to `core/registry/components.sh`; the TSV data remains in `manifests/components.tsv` and is not yet a separate registry package.
 
 - Created the dedicated repository-reorganization branch without changing `main`.
-- Generated `MIGRATION_MAP.md` as a 359-file inventory snapshot at its recorded
-	baseline; the current branch has 602 tracked files and the map needs refresh
-	before it can serve as an exhaustive final inventory.
+- The old file-by-file table remains a 359-file historical snapshot. Added a
+	current 602-path family inventory and a regression classifier that fails if a
+	tracked path is unclassified or a family count drifts.
 - Documented architecture overview, target directory rules, high-level dependency graph and compatibility policy.
 - Confirmed critical coupling between source directories, installers, manifests, updater, sparse-checkout instructions and tests.
 
@@ -36,11 +36,13 @@
 The following checks were executed in the isolated worktree on the current
 continuation; they are local results, not GitHub Actions results:
 
-- Architecture migration path suite: 27 tests passed after moving the existing
-	Custom Manager assertions into the discoverable test class.
+- Architecture migration path suite: 29 tests passed. It now classifies all 602
+	tracked paths, proves updater source globs match files, checks component-ID
+	alignment (including documented updater-only Nova 2), and exercises recovery
+	from a legacy sparse checkout whose core/update symlinks lack targets.
 - MPVpaper path tests: 4 passed; MPVpaper unit suite: 406 passed using the same
 	harmless `mpvpaper` test executable as CI.
-- Repository regression suite: 83 passed (including the Aurora tests); the
+- Repository regression suite: 85 passed (including the Aurora tests); the
 	dedicated Aurora suite also passed all 3 tests.
 - MirrorBridge Rust suite: 3 passed; PeriphX daemon Rust suite: 16 passed.
 - Custom Manager compiled successfully and its full `make test` target passed.
@@ -52,22 +54,25 @@ continuation; they are local results, not GitHub Actions results:
 - The installer plan integration test exceeded its previous fixed 10-second
 	timeout during real hardware probing (18.2 seconds in an isolated run). Its
 	timeout is now 30 seconds; the focused test and full repository suite passed.
-- Selected workflow Bash syntax, Python compilation, manifest JSON validation,
-	canonical/legacy CLI help and `git diff --check` passed.
-- `make -C installer test` passed but the Rust crates currently contain zero
-	unit tests. The broader `make -C installer check` is **not clean**: its first
-	step, `cargo fmt --check`, reports formatting differences in existing Rust
-	sources; Clippy and the chained check-target tests therefore did not run.
-	This installer formatting issue predates and is outside the focused migration
-	fixes in this commit and remains a release risk.
-- GitHub Actions for commit `6500f5e` was successful. The two immediately prior
-	failed workflow runs failed at the Custom Manager job; public log download
-	returned HTTP 403, so their detailed hosted-run output could not be verified.
-	The local reruns above do not establish the result for a future commit.
-- After commit `c49d3d6` was pushed to the migration branch, its architecture
-	workflow completed successfully (run `41323335430`, job `path-compatibility`).
-	This verifies that commit only; a subsequent documentation-only commit needs
-	its own completed run before handoff.
+- All tracked shell scripts passed `bash -n` and ShellCheck. Python compilation,
+	updater-manifest JSON validation, canonical/legacy CLI help, systemd unit
+	verification, and `git diff --check` also passed.
+- Rust formatting now passes for both installer crates. The privileged helper
+	has 6 unit tests and passes strict Clippy. `make -C installer test` passes,
+	but the GUI binary still contains zero tests. The full `make -C installer
+	check` remains **not clean** because strict Clippy reports unused installer
+	state/page models in `installer/src/state.rs`; those data structures are not
+	wired into the running GUI (which currently displays only a static welcome
+	page). This is a genuine incomplete-prototype warning, not a formatting issue;
+	it was not suppressed. Treat the GUI as experimental and do not claim a
+	production-ready installer until a tested installation flow is integrated.
+- ShellCheck-driven edits only clarify the best-effort command guards and
+	sourced-variable contracts; canonical and legacy Hyprland scripts remain
+	behaviorally aligned.
+- Latest remote CI at the start of this continuation passed for commit `6aa30d3`
+	(run `41325674233`, job `path-compatibility`). The current local changes have
+	not yet been committed or run in CI; local success does not establish their
+	hosted result.
 
 ## Not yet completed
 
@@ -78,8 +83,13 @@ continuation; they are local results, not GitHub Actions results:
 - Custom Manager's C resolver now prefers canonical component data and falls back to the legacy manager path; update actions resolve the canonical wrapper first. Its install and update scripts calculate the repository root from the deeper canonical location.
 - Deblestia Bar, Nova Lite and Nova 2 configuration/style files are staged in their variant-specific application folders; reusable modules, scripts and resources are staged under `shared/waybar/`. `install-nova2.sh` prefers these canonical locations and retains the old `config/waybar` source as a shared-assets fallback.
 - Aurora CLI and profile manager, Caelestia V2 and Nova Shell assets are staged under `apps/desktop-shells/`; the Aurora installer prefers the colocated CLI/profile with fallback to `bin/aurora` and `core/aurora/profile.py`. shared Hyprland includes, scripts and user scripts are staged under `shared/hyprland/`. Their installers (plus Nova 2) now prefer canonical paths and fall back to legacy `config/` paths. The original source trees remain untouched. README sparse-checkout commands for Nova 2, Nova Shell and Caelestia V2 now include the canonical application/shared directories.
-- Updater manifest sources are now aligned with the staged canonical paths: MirrorBridge, PeriphX, MPVpaper, Aurora, Caelestia V2, Nova Shell, all three Waybar variants and shared Hyprland/Waybar resources. The migration test now checks every exact updater source, each glob's source directory, Rust build manifests and Nova patch files. The remaining updater work is to migrate rules alongside components not yet moved (especially core/installer and other legacy components), not to fix these staged groups.
+- Updater manifest sources are now aligned with the staged canonical paths: MirrorBridge, PeriphX, MPVpaper, Aurora, Caelestia V2, Nova Shell, all three Waybar variants and shared Hyprland/Waybar resources. The migration test now expands every source glob, checks all Rust build manifests and Nova patch files, and verifies component IDs. Remaining updater work is limited to rules for components whose implementations and installation contracts have not yet been migrated; the already staged groups should not be reworked.
 - `core/system`, `core/updater`, `core/transactions` and the registry reader now have canonical implementations. The shell reader is `core/registry/components.sh`; registry data remains in `manifests/components.tsv`, with no separate typed registry API yet. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. CI runs the repository-level regression suite against the canonical core packages.
+- The Rust helper's input validation and JSON action decoding now have local
+	unit coverage; the GUI installation flow remains an unintegrated prototype.
+	`make -C installer check` fails on strict dead-code diagnostics until those
+	models are either connected to a tested GUI workflow or intentionally retired
+	in a separately reviewed change.
 - No local Debian desktop installation, live Hyprland/Waybar runtime, end-to-end install/update/rollback or GUI integration test has been executed. GitHub Actions provides isolated source-level Python, Bash, C and Rust validation only.
 - GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
 

@@ -3,6 +3,7 @@
 # The caller defines deblestia_manifest before sourcing this file.
 
 deblestia_component_field() {
+    # shellcheck disable=SC2154 # The caller defines this before sourcing the reader.
     awk -F '\t' -v id="$1" -v field="$2" \
         '$0 !~ /^#/ && $1 == id {print $field; exit}' "$deblestia_manifest"
 }

@@ -26,6 +26,7 @@ case "${1:-install}" in
         
         # Init profile matching system (lite, balanced, ultra)
         target_profile="balanced"
+        # shellcheck disable=SC2154 # Initialized by the sourced core/setup.sh.
         if [ -n "${DEBLESTIA_PROFILE:-}" ]; then
             case "${DEBLESTIA_PROFILE,,}" in
                 lite|legacy) target_profile="lite" ;;

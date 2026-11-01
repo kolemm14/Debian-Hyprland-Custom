@@ -1,8 +1,8 @@
-use libadwaita::prelude::*;
-use libadwaita::{Application, ApplicationWindow, NavigationView, NavigationPage};
-use gtk4::{gio, glib};
-use std::sync::{Arc, Mutex};
 use crate::state::InstallerState;
+use gtk4::{gio, glib};
+use libadwaita::prelude::*;
+use libadwaita::{Application, ApplicationWindow, NavigationPage, NavigationView};
+use std::sync::{Arc, Mutex};
 
 pub struct InstallerApp {
     app: Application,
@@ -11,17 +11,15 @@ pub struct InstallerApp {
 
 impl InstallerApp {
     pub fn new(app_id: &str, state: Arc<Mutex<InstallerState>>) -> Self {
-        let app = Application::builder()
-            .application_id(app_id)
-            .build();
-            
+        let app = Application::builder().application_id(app_id).build();
+
         Self { app, state }
     }
 
     pub fn setup_actions(&self) {
         // Setup language switching actions
         let lang_action = gio::SimpleAction::new("switch-lang", Some(glib::VariantTy::STRING));
-        
+
         let state_clone = self.state.clone();
         lang_action.connect_activate(move |_, parameter| {
             if let Some(variant) = parameter {
@@ -32,7 +30,7 @@ impl InstallerApp {
                 }
             }
         });
-        
+
         self.app.add_action(&lang_action);
     }
 
@@ -45,18 +43,20 @@ impl InstallerApp {
                 .default_width(800)
                 .default_height(600)
                 .build();
-                
+
             let nav_view = NavigationView::new();
-            
+
             // Example page
             let welcome_page = NavigationPage::builder()
                 .title("Welcome")
                 .tag("welcome")
-                .child(&gtk4::Label::new(Some("Welcome to the Deblestia Installer")))
+                .child(&gtk4::Label::new(Some(
+                    "Welcome to the Deblestia Installer",
+                )))
                 .build();
-                
+
             nav_view.add(&welcome_page);
-            
+
             window.set_content(Some(&nav_view));
             window.present();
         });

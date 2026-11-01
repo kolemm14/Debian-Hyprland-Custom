@@ -19,7 +19,7 @@
 
 - Created the dedicated repository-reorganization branch without changing `main`.
 - The old file-by-file table remains a 359-file historical snapshot. Added a
-	current 602-path family inventory and a regression classifier that fails if a
+	current 603-path family inventory and a regression classifier that fails if a
 	tracked path is unclassified or a family count drifts.
 - Documented architecture overview, target directory rules, high-level dependency graph and compatibility policy.
 - Confirmed critical coupling between source directories, installers, manifests, updater, sparse-checkout instructions and tests.
@@ -36,10 +36,12 @@
 The following checks were executed in the isolated worktree on the current
 continuation; they are local results, not GitHub Actions results:
 
-- Architecture migration path suite: 29 tests passed. It now classifies all 602
-	tracked paths, proves updater source globs match files, checks component-ID
-	alignment (including documented updater-only Nova 2), and exercises recovery
-	from a legacy sparse checkout whose core/update symlinks lack targets.
+- Architecture migration path suite: 29 tests passed on the preceding 602-path
+	baseline, proving updater source globs, component-ID alignment (including
+	documented updater-only Nova 2), and recovery from a legacy sparse checkout.
+	The current continuation adds one tracked CI workflow; its initial PR run
+	exposed the stale 602-path assertion. The assertion and inventory are now
+	updated to 603 paths and will be rechecked by the new PR run.
 - MPVpaper path tests: 4 passed; MPVpaper unit suite: 406 passed using the same
 	harmless `mpvpaper` test executable as CI.
 - Repository regression suite: 85 passed (including the Aurora tests); the

@@ -4,31 +4,50 @@ use std::process::Command;
 
 use super::planner::InstallPlan;
 
-/// Resolve the source tree without depending on a developer-specific home directory.
+/// Check for the root markers required by the source-tree installer.
+fn is_repository_root(path: &Path) -> bool {
+    path.join("install.sh").is_file() && path.join("manifests/components.tsv").is_file()
+}
+
+/// Walk upward from a known location until the repository markers are found.
+fn find_repository_root(start: &Path) -> Option<PathBuf> {
+    start
+        .ancestors()
+        .find(|candidate| is_repository_root(candidate))
+        .map(Path::to_path_buf)
+}
+
+/// Resolve the source tree without depending on a developer-specific home directory or CWD.
 ///
 /// Packagers and test environments can set DEBLESTIA_REPO_DIR explicitly. Otherwise,
-/// use the current working directory, which is useful when running from a checkout.
+/// discover a checkout by walking upward from the running executable's location.
 fn repository_root() -> Result<PathBuf> {
     if let Some(root) = std::env::var_os("DEBLESTIA_REPO_DIR") {
         let path = PathBuf::from(root);
-        if path.is_dir() {
+        if is_repository_root(&path) {
             return Ok(path);
         }
         return Err(anyhow!(
-            "DEBLESTIA_REPO_DIR does not point to a directory: {}",
+            "DEBLESTIA_REPO_DIR is not a Deblestia source checkout: {}",
             path.display()
         ));
     }
 
-    let current_dir = std::env::current_dir().context("Cannot determine current directory")?;
-    if current_dir.is_dir() {
-        Ok(current_dir)
-    } else {
-        Err(anyhow!(
-            "Current directory is not a directory: {}",
-            current_dir.display()
-        ))
-    }
+    let executable =
+        std::env::current_exe().context("Cannot determine the installer executable path")?;
+    let executable_dir = executable.parent().ok_or_else(|| {
+        anyhow!(
+            "Installer executable has no parent directory: {}",
+            executable.display()
+        )
+    })?;
+
+    find_repository_root(executable_dir).ok_or_else(|| {
+        anyhow!(
+            "Cannot locate the Deblestia source checkout above {}. Set DEBLESTIA_REPO_DIR to the checkout root.",
+            executable_dir.display()
+        )
+    })
 }
 
 fn installer_script(root: &Path, component: &str) -> Result<PathBuf> {
@@ -97,6 +116,31 @@ mod tests {
             "deblestia-installer-executor-{}-{nonce}",
             std::process::id()
         ))
+    }
+
+    #[test]
+    fn discovers_repository_root_from_executable_directory_not_caller_directory() {
+        let root = temporary_root();
+        let executable_dir = root.join("installer/target/debug");
+        fs::create_dir_all(&executable_dir).unwrap();
+        fs::create_dir_all(root.join("manifests")).unwrap();
+        fs::write(root.join("install.sh"), "#!/usr/bin/env bash\\n").unwrap();
+        fs::write(root.join("manifests/components.tsv"), "id\\tname\\n").unwrap();
+
+        let discovered = super::find_repository_root(&executable_dir).unwrap();
+
+        assert_eq!(discovered, root);
+        fs::remove_dir_all(discovered).unwrap();
+    }
+
+    #[test]
+    fn does_not_treat_an_unrelated_directory_as_a_repository() {
+        let root = temporary_root();
+        fs::create_dir_all(&root).unwrap();
+
+        assert!(super::find_repository_root(&root).is_none());
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

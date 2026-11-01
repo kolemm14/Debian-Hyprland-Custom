@@ -54,10 +54,20 @@ continuation; they are local results, not GitHub Actions results:
 	timeout is now 30 seconds; the focused test and full repository suite passed.
 - Selected workflow Bash syntax, Python compilation, manifest JSON validation,
 	canonical/legacy CLI help and `git diff --check` passed.
+- `make -C installer test` passed but the Rust crates currently contain zero
+	unit tests. The broader `make -C installer check` is **not clean**: its first
+	step, `cargo fmt --check`, reports formatting differences in existing Rust
+	sources; Clippy and the chained check-target tests therefore did not run.
+	This installer formatting issue predates and is outside the focused migration
+	fixes in this commit and remains a release risk.
 - GitHub Actions for commit `6500f5e` was successful. The two immediately prior
 	failed workflow runs failed at the Custom Manager job; public log download
 	returned HTTP 403, so their detailed hosted-run output could not be verified.
 	The local reruns above do not establish the result for a future commit.
+- After commit `c49d3d6` was pushed to the migration branch, its architecture
+	workflow completed successfully (run `41323335430`, job `path-compatibility`).
+	This verifies that commit only; a subsequent documentation-only commit needs
+	its own completed run before handoff.
 
 ## Not yet completed
 

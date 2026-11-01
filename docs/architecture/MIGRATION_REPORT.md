@@ -2,7 +2,7 @@
 
 ## Status
 
-**PARTIALLY COMPLETED — application groups, shared assets, core system, updater and transaction engine have canonical paths; registry extraction, installer reorganization and full runtime validation remain outstanding.**
+**PARTIALLY COMPLETED — application groups, shared assets, core system, updater, transaction engine and the registry reader have canonical paths. The registry data remains in `manifests/components.tsv`; installer reorganization and full runtime validation remain outstanding.**
 
 ## Branch and baseline
 
@@ -15,9 +15,12 @@
 
 - Staged the four system-management modules under `core/system/`: hardware detection, compatibility evaluation, localization and setup orchestration. Kept `core/hardware.py`, `core/compatibility.py`, `core/i18n.sh` and `core/setup.sh` as compatibility wrappers; the Python wrappers re-export the original import APIs as well as CLI behavior.
 - Migrated updater implementation files to `core/updater/` and the transaction engine to `core/transactions/transaction.py`. Old `core/update/*` paths are relative symlinks, and the updater CLI/installers now use canonical paths. Updater tests were adapted to run against the new package layout.
+- Extracted the shell component-registry reader to `core/registry/components.sh`; the TSV data remains in `manifests/components.tsv` and is not yet a separate registry package.
 
 - Created the dedicated repository-reorganization branch without changing `main`.
-- Generated `MIGRATION_MAP.md` with 359 tracked file paths and proposed destinations.
+- Generated `MIGRATION_MAP.md` as a 359-file inventory snapshot at its recorded
+	baseline; the current branch has 602 tracked files and the map needs refresh
+	before it can serve as an exhaustive final inventory.
 - Documented architecture overview, target directory rules, high-level dependency graph and compatibility policy.
 - Confirmed critical coupling between source directories, installers, manifests, updater, sparse-checkout instructions and tests.
 
@@ -27,6 +30,34 @@
 - Result: 8 tests, 8 passed, 0 failed on GitHub Actions (Ubuntu runner, Python 3.15.1; run `41242557648`).
 - Expanded CI run `41242923297` passed: 8 migration path tests, 4 MPVpaper path tests, Python bytecode compilation, Bash syntax validation, updater-manifest JSON validation, and the full MPVpaper suite (406 tests, 406 passed). The CI environment installs GTK/Adwaita/WebKit/Pango-Cairo and yt-dlp dependencies and supplies a harmless `mpvpaper` stub for service unit tests; no real desktop runtime is launched.
 - Scope: repository path compatibility only. This does not validate Python application behavior, Bash installation flows, C/Rust builds, GUI runtime behavior, update transactions or rollback.
+
+## Additional local validation
+
+The following checks were executed in the isolated worktree on the current
+continuation; they are local results, not GitHub Actions results:
+
+- Architecture migration path suite: 27 tests passed after moving the existing
+	Custom Manager assertions into the discoverable test class.
+- MPVpaper path tests: 4 passed; MPVpaper unit suite: 406 passed using the same
+	harmless `mpvpaper` test executable as CI.
+- Repository regression suite: 83 passed (including the Aurora tests); the
+	dedicated Aurora suite also passed all 3 tests.
+- MirrorBridge Rust suite: 3 passed; PeriphX daemon Rust suite: 16 passed.
+- Custom Manager compiled successfully and its full `make test` target passed.
+	An earlier PTY assertion had counted delayed bytes from the initial frame as
+	an idle redraw; the helper now drains that startup paint before checking
+	idleness. The PTY suite passed three consecutive runs and the full clean/build/
+	test target passed after this change. Hosted CI for the resulting commit is
+	still required.
+- The installer plan integration test exceeded its previous fixed 10-second
+	timeout during real hardware probing (18.2 seconds in an isolated run). Its
+	timeout is now 30 seconds; the focused test and full repository suite passed.
+- Selected workflow Bash syntax, Python compilation, manifest JSON validation,
+	canonical/legacy CLI help and `git diff --check` passed.
+- GitHub Actions for commit `6500f5e` was successful. The two immediately prior
+	failed workflow runs failed at the Custom Manager job; public log download
+	returned HTTP 403, so their detailed hosted-run output could not be verified.
+	The local reruns above do not establish the result for a future commit.
 
 ## Not yet completed
 
@@ -38,22 +69,23 @@
 - Deblestia Bar, Nova Lite and Nova 2 configuration/style files are staged in their variant-specific application folders; reusable modules, scripts and resources are staged under `shared/waybar/`. `install-nova2.sh` prefers these canonical locations and retains the old `config/waybar` source as a shared-assets fallback.
 - Aurora CLI and profile manager, Caelestia V2 and Nova Shell assets are staged under `apps/desktop-shells/`; the Aurora installer prefers the colocated CLI/profile with fallback to `bin/aurora` and `core/aurora/profile.py`. shared Hyprland includes, scripts and user scripts are staged under `shared/hyprland/`. Their installers (plus Nova 2) now prefer canonical paths and fall back to legacy `config/` paths. The original source trees remain untouched. README sparse-checkout commands for Nova 2, Nova Shell and Caelestia V2 now include the canonical application/shared directories.
 - Updater manifest sources are now aligned with the staged canonical paths: MirrorBridge, PeriphX, MPVpaper, Aurora, Caelestia V2, Nova Shell, all three Waybar variants and shared Hyprland/Waybar resources. The migration test now checks every exact updater source, each glob's source directory, Rust build manifests and Nova patch files. The remaining updater work is to migrate rules alongside components not yet moved (especially core/installer and other legacy components), not to fix these staged groups.
-- `core/system`, `core/updater` and `core/transactions` now have canonical implementations. `core/registry` is not yet separated from the current TSV manifest and shell lookup functions; this extraction requires a separately tested contract. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. CI now runs the repository-level regression suite against the canonical core packages; the latest run is pending at report update time.
+- `core/system`, `core/updater`, `core/transactions` and the registry reader now have canonical implementations. The shell reader is `core/registry/components.sh`; registry data remains in `manifests/components.tsv`, with no separate typed registry API yet. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. CI runs the repository-level regression suite against the canonical core packages.
 - No local Debian desktop installation, live Hyprland/Waybar runtime, end-to-end install/update/rollback or GUI integration test has been executed. GitHub Actions provides isolated source-level Python, Bash, C and Rust validation only.
 - GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
 
 ## Next safe sequence
 
-0. CI run `41244048874` passed all configured repository path tests (13), MPVpaper path tests (4), PeriphX Python tests (20), PeriphX Rust tests (16), Custom Manager build/tests, and MPVpaper unit tests (406).
-
-0. CI run `41243513041` passed the MPVpaper, PeriphX and Custom Manager suites; the Waybar path and shell checks are queued for the next CI run.
-
-1. Finish MirrorBridge validation and reconcile its duplicate legacy/canonical source.
-2. Run the MPVpaper-specific CI checks; then plan removal or conversion of the duplicate legacy tree only after all sparse-checkout consumers are migrated.
-3. Keep the legacy trees for MirrorBridge, MPVpaper, PeriphX and Custom Manager until all old sparse-checkout and installed updater cases are validated; then plan compatibility cleanup.
-4. Complete updater/core integration checks and installer framework migration; then finish component manifests, sparse-checkout documentation and GUI/system integration tests before legacy cleanup.
-5. Extract the registry only after defining and testing a stable reader contract for `manifests/components.tsv`; then reorganize the installer framework and validate rollback/update behavior.
-6. Finish central path resolution, docs, CI and full regression matrix.
+1. Finish the remaining installer/core integration and update the historical
+	migration map from the current branch tree.
+2. Keep the legacy trees for MirrorBridge, MPVpaper, PeriphX and Custom Manager
+	until old sparse-checkout and already-installed updater cases are validated;
+	do not remove them as part of this staged migration.
+3. Define any future registry data/API migration separately from the extracted
+	shell reader and test its compatibility contract before changing consumers.
+4. Run end-to-end install, update and rollback checks on a Debian/Hyprland host;
+	no live desktop or GUI integration test has been executed in this work.
+5. After committing and pushing only to the migration branch, wait for the
+	workflow on that exact commit to finish before release handoff.
 
 ## Validation honesty
 

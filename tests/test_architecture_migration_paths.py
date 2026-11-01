@@ -315,6 +315,10 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
         recorder = (updater / "record.sh").read_text(encoding="utf-8")
         self.assertIn("core/updater/main.py", recorder)
 
+    def test_updater_docs_expand_legacy_sparse_checkouts_to_canonical_paths(self):
+        docs = (ROOT / "docs/UPDATER.md").read_text(encoding="utf-8")
+        self.assertIn("git sparse-checkout add core/updater core/transactions manifests", docs)
+
     def test_migration_plan_documents_compatibility_requirements(self):
         plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
         self.assertTrue(plan.is_file(), "Migration plan is missing")
@@ -334,6 +338,12 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
     def test_readme_uses_canonical_mirrorbridge_sparse_checkout_path(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("git sparse-checkout set apps/system-apps/mirrorbridge core/updater core/transactions manifests", readme)
+        self.assertIn("sources canoniques sous `apps/`", readme)
+
+    def test_readme_documents_canonical_periphx_manifest_and_legacy_path(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/periphx/components.tsv", readme)
+        self.assertIn("config/v3/components.tsv` reste disponible comme compatibilité", readme)
 
     def test_mirrorbridge_installer_and_updater_prefer_canonical_app(self):
         import json
@@ -364,10 +374,6 @@ class LegacyPathCompatibilityTests(unittest.TestCase):
                         self.assertIn(source_path, content)
                         self.assertTrue((ROOT / source_path).is_dir())
 
-
-if __name__ == "__main__":
-    unittest.main()
-
     def test_custom_manager_canonical_tree_and_legacy_compatibility(self):
         app = ROOT / "apps/system-tools/custom-manager"
         for relative in (
@@ -389,3 +395,7 @@ if __name__ == "__main__":
         self.assertIn('"manager", "data"', paths)
         self.assertIn('apps/system-tools/custom-manager/scripts/update-wrapper.sh', cli)
         self.assertNotIn('custom-apps/system-tools', paths + cli)
+
+
+if __name__ == "__main__":
+    unittest.main()

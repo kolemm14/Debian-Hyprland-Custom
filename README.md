@@ -90,7 +90,9 @@ continue de mettre à jour son propre projet amont.
 ## Télécharger et installer un seul composant
 
 Chaque bloc ci-dessous crée son propre dossier et utilise le clonage partiel de
-Git. Il télécharge le script racine et uniquement la partie de `config/` nécessaire.
+Git. Il télécharge le script racine et les chemins nécessaires au composant,
+notamment ses sources canoniques sous `apps/`, les ressources partagées et, selon
+le composant, les manifestes ou configurations historiques encore requis.
 Exécutez un bloc à la fois depuis le dossier dans lequel vous souhaitez conserver
 les sources.
 
@@ -578,9 +580,11 @@ SDDM ne prenant pas en charge `mpvpaper`, l'écran de connexion reste une image 
 
 ## PeriphX — centre de contrôle matériel
 
-PeriphX est préparé comme un composant indépendant. Son manifeste se
-trouve dans `config/v3/components.tsv` et sa feuille de route dans
-`docs/V3-ROADMAP.md`. Il ne modifie aucune des trois interfaces conservées.
+PeriphX est préparé comme un composant indépendant. Son manifeste canonique se
+trouve dans `apps/system-apps/periphx/components.tsv`; le chemin historique
+`config/v3/components.tsv` reste disponible comme compatibilité. Sa feuille de
+route se trouve dans `docs/V3-ROADMAP.md`. Il ne modifie aucune des trois
+interfaces conservées.
 
 Installez le centre de contrôle matériel avec :
 

@@ -2,7 +2,11 @@
 
 Baseline branch: `refactor/repository-reorganization`
 Baseline tree: `39188b0d538823a161667e32c8610ad74bada3e2`
-Inventory: 359 tracked files. This map is an audited path inventory and proposed destination map; it does not claim all dependency edges have been verified.
+Inventory snapshot: 359 tracked files at the baseline tree above. The current
+branch contains 602 tracked files; this earlier map is not an exhaustive current
+inventory and must be refreshed before using it as a final migration checklist.
+It records proposed destinations and does not claim all dependency edges have
+been verified.
 
 ## File-by-file path map
 
@@ -368,6 +372,6 @@ Aurora (CLI et gestionnaire de profils), Caelestia V2 et Nova Shell ont maintena
 
 ### Custom Manager — canonicalisation effectuée
 
-Les 38 fichiers source, ressources, scripts et tests utiles sont disponibles dans `apps/system-tools/custom-manager/`. Les objets compilés `.o` de l'ancien dossier ne sont pas recopiés : ils sont des artefacts générés, reconstruits par le Makefile.
+Les 38 fichiers source, ressources, scripts et tests utiles sont disponibles dans `apps/system-tools/custom-manager/`. Des objets compilés `.o` sont toutefois présents dans les deux arbres suivis par Git; ils ne sont pas utilisés par le Makefile canonique, qui reconstruit les objets dans `build/`.
 
 Les chemins C résolvent désormais les données du gestionnaire dans le nouvel emplacement en priorité, puis retombent sur `manager/data/components.ini` pour les anciennes installations. Les scripts d'installation et de mise à jour calculent la racine du dépôt depuis le nouveau niveau de profondeur. Le dossier historique `manager/` reste présent jusqu'à validation complète de compatibilité.

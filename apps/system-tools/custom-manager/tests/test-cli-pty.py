@@ -185,6 +185,9 @@ def main():
             (('--cli', '--no-animation'), False, signal.SIGTERM),
         ]:
             s = Session(root, *args, color=color)
+            # The title may arrive before the first frame has drained from the
+            # PTY. Allow that initial paint to finish before checking idleness.
+            s.read(0.25)
             assert not s.read(0.25), 'disabled animation redrew while idle'
             if not color:
                 assert not re.search(rb'\x1b\[[0-9;]*m', s.output), 'NO_COLOR emitted SGR'

@@ -1,0 +1,227 @@
+import importlib.util
+import json
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+
+MODULE_PATH = Path(__file__).parents[1] / "mpvpaper-enginectl.py"
+sys.path.insert(0, str(MODULE_PATH.parent))
+SPEC = importlib.util.spec_from_file_location("mpvpaper_enginectl", MODULE_PATH)
+CONTROLLER = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(CONTROLLER)
+
+
+class FakeSocket:
+    def __init__(self, responses, payloads):
+        self.responses = responses
+        self.payloads = payloads
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def settimeout(self, _timeout):
+        pass
+
+    def connect(self, path):
+        self.path = path
+
+    def sendall(self, payload):
+        self.payloads.append(json.loads(payload))
+
+    def makefile(self, _mode):
+        return self
+
+    def readline(self):
+        return self.responses.pop(0)
+
+
+class ColorEngineTests(unittest.TestCase):
+    def test_malformed_config_is_normalized_without_crashing(self):
+        malformed = {
+            "wallpaper": ["not-a-path"],
+            "output": "../../unsafe-output",
+            "volume": "invalide",
+            "speed": float("inf"),
+            "gamma": 900,
+            "temperature": "500",
+            "assignments": {"DP-1": {"contrast": "bad"}, "": {}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            config_file = Path(directory) / "config.json"
+            config_file.write_text(json.dumps(malformed), encoding="utf-8")
+            with mock.patch.object(CONTROLLER, "CONFIG_FILE", config_file):
+                config = CONTROLLER.load_config()
+
+        self.assertEqual(config["wallpaper"], "")
+        self.assertEqual(config["output"], "*")
+        self.assertEqual(config["volume"], 0)
+        self.assertEqual(config["speed"], 5.0)
+        self.assertEqual(config["gamma"], 100)
+        self.assertEqual(config["temperature"], 1000)
+        self.assertEqual(set(config["assignments"]), {"DP-1"})
+
+    def test_save_config_is_private_and_atomic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_dir = Path(directory) / "config"
+            config_file = config_dir / "config.json"
+            with mock.patch.object(CONTROLLER, "CONFIG_DIR", config_dir), mock.patch.object(
+                CONTROLLER, "CONFIG_FILE", config_file
+            ):
+                CONTROLLER.save_config(CONTROLLER.DEFAULT_CONFIG)
+            self.assertEqual(config_dir.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(config_file.stat().st_mode & 0o777, 0o600)
+
+    def test_mpv_options_include_per_output_ipc_and_colors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(CONTROLLER, "RUNTIME_DIR", Path(directory)):
+                config = {
+                    **CONTROLLER.DEFAULT_CONFIG,
+                    "output": "HDMI-A-1",
+                    "brightness": 12,
+                    "temperature": 4500,
+                    "red_balance": 25,
+                    "blue_balance": -8,
+                }
+                options = CONTROLLER.mpv_options(config)
+
+        self.assertIn("input-ipc-server=", options)
+        self.assertIn("HDMI-A-1.sock", options)
+        self.assertIn("brightness=12", options)
+        self.assertIn("colortemperature=temperature=4500", options)
+        self.assertIn("rm=0.25", options)
+        self.assertIn("bm=-0.08", options)
+        self.assertIn("panscan=1.0", options)
+        self.assertIn("keepaspect=yes", options)
+        self.assertIn("terminal=no", options)
+
+    def test_contain_and_stretch_wallpaper_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(CONTROLLER, "RUNTIME_DIR", Path(directory)):
+                contain = CONTROLLER.mpv_options({
+                    **CONTROLLER.DEFAULT_CONFIG, "fit_mode": "contain",
+                })
+                stretch = CONTROLLER.mpv_options({
+                    **CONTROLLER.DEFAULT_CONFIG, "fit_mode": "stretch",
+                })
+        self.assertIn("panscan=0.0", contain)
+        self.assertIn("keepaspect=yes", contain)
+        self.assertIn("keepaspect=no", stretch)
+
+    def test_apply_colors_uses_live_mpv_ipc(self):
+        payloads = []
+        responses = [b'{"error":"success"}\n'] * 6
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory)
+            (runtime / "DP-1.sock").touch()
+            fake = FakeSocket(responses, payloads)
+            with mock.patch.object(CONTROLLER, "RUNTIME_DIR", runtime), mock.patch.object(
+                CONTROLLER.socket, "socket", return_value=fake
+            ):
+                CONTROLLER.apply_colors({
+                    **CONTROLLER.DEFAULT_CONFIG,
+                    "output": "DP-1",
+                    "contrast": 18,
+                })
+
+        self.assertEqual(payloads[1]["command"], ["set_property", "contrast", 18])
+        self.assertEqual(payloads[-1]["command"][0:2], ["set_property", "vf"])
+        self.assertIsInstance(fake.path, str)
+
+    def test_capture_wallpaper_requests_rendered_video_frame(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory)
+            video = runtime / "wallpaper.mp4"
+            video.write_bytes(b"video")
+
+            def fake_request(output, command):
+                self.assertEqual(output, "DP-1")
+                return {"data": str(video) if command[1] == "path" else 3.5}
+
+            def fake_run(command, **_options):
+                Path(command[-1]).write_bytes(b"png")
+                return mock.Mock(returncode=0, stderr="")
+
+            with mock.patch.object(CONTROLLER, "RUNTIME_DIR", runtime), mock.patch.object(
+                CONTROLLER, "ipc_request", side_effect=fake_request
+            ), mock.patch.object(CONTROLLER.subprocess, "run", side_effect=fake_run):
+                capture = CONTROLLER.capture_wallpaper("DP-1", CONTROLLER.DEFAULT_CONFIG)
+
+        self.assertEqual(capture.name, "DP-1.png")
+        self.assertEqual(capture.parent.name, "captures")
+
+    def test_capture_filter_contains_all_color_adjustments(self):
+        value = CONTROLLER.capture_filter({
+            **CONTROLLER.DEFAULT_CONFIG,
+            "brightness": 20,
+            "temperature": 4500,
+            "red_balance": 12,
+        })
+        self.assertIn("brightness=0.20", value)
+        self.assertIn("colortemperature=temperature=4500", value)
+        self.assertIn("rm=0.12", value)
+
+    def test_palette_capture_samples_four_video_scenes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory)
+            video = runtime / "wallpaper.mp4"
+            video.write_bytes(b"video")
+            commands = []
+
+            def fake_run(command, **_options):
+                commands.append(command)
+                if command[0] == "ffprobe":
+                    return mock.Mock(returncode=0, stdout="20.0\n", stderr="")
+                Path(command[-1]).write_bytes(b"png")
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(CONTROLLER, "RUNTIME_DIR", runtime), \
+                    mock.patch.object(CONTROLLER.subprocess, "run", side_effect=fake_run):
+                capture = CONTROLLER.capture_palette_source(
+                    video, "DP-1", CONTROLLER.DEFAULT_CONFIG
+                )
+
+        ffmpeg = commands[1]
+        self.assertEqual(ffmpeg.count("-i"), 4)
+        self.assertIn("xstack=inputs=4", ffmpeg[ffmpeg.index("-filter_complex") + 1])
+        self.assertEqual(capture.name, "DP-1-theme.png")
+
+    def test_adapt_theme_uses_video_frame_without_switching_wallpaper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_home = root / "config"
+            nova = config_home / "quickshell/deblestia-nova/scripts/colors/switchwall.sh"
+            waybar = config_home / "hypr/UserScripts/WaybarWallpaperSync.sh"
+            nova.parent.mkdir(parents=True)
+            waybar.parent.mkdir(parents=True)
+            nova.touch()
+            waybar.touch()
+            frame = root / "frame.png"
+            frame.write_bytes(b"png")
+            calls = []
+
+            def fake_run(command, **_options):
+                calls.append(command)
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch.dict("os.environ", {"XDG_CONFIG_HOME": str(config_home)}), \
+                    mock.patch.object(CONTROLLER, "capture_palette_source", return_value=frame), \
+                    mock.patch.object(CONTROLLER.subprocess, "run", side_effect=fake_run):
+                result_frame, targets = CONTROLLER.adapt_desktop_theme(
+                    "DP-1", CONTROLLER.DEFAULT_CONFIG, root / "wallpaper.mp4"
+                )
+
+        self.assertEqual(result_frame, frame)
+        self.assertEqual(targets, ["Nova et applications", "Waybar"])
+        self.assertIn("--noswitch", calls[0])
+        self.assertIn("--image", calls[0])
+        self.assertIn("--wallpaper", calls[1])
+
+
+if __name__ == "__main__":
+    unittest.main()

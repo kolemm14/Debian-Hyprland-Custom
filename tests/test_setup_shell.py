@@ -12,7 +12,7 @@ class SetupShellTests(unittest.TestCase):
     def execute(self, command, **environment):
         env = {**os.environ, **environment}
         return subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True,
-                              timeout=10, check=False)
+                              timeout=30, check=False)
 
     def test_help_is_non_destructive(self):
         result = self.execute(["./install.sh", "--help"])

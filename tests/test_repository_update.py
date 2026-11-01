@@ -29,7 +29,8 @@ class RepositoryUpdateTests(unittest.TestCase):
                         XDG_STATE_HOME=str(self.root / 'home/.local/state'))
         self.env.pop('HYPRLAND_INSTANCE_SIGNATURE', None)
         shutil.copy2(ROOT / 'update.sh', self.checkout / 'update.sh')
-        shutil.copytree(ROOT / 'core/update', self.checkout / 'core/update', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/updater', self.checkout / 'core/updater', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/transactions', self.checkout / 'core/transactions', ignore=shutil.ignore_patterns('__pycache__'))
         (self.checkout / 'manifests').mkdir()
         (self.checkout / 'manifests/update-files.json').write_text('{"schema":1,"rules":[]}')
 
@@ -105,12 +106,21 @@ class RepositoryUpdateTests(unittest.TestCase):
             if index == 1:
                 result = self.run_update()
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((self.checkout / 'version').read_text(), '1')
+                runtime = self.root / 'home/.local/share/debian-hyprland-custom/runtime'
+                self.assertTrue(runtime.is_symlink())
+                self.assertEqual((runtime / 'version').read_text(), '1')
                 (self.checkout / 'local').write_text('local changes')
                 self.git('add', 'local')
                 self.git('commit', '-m', 'local work')
             else:
+                # The updater follows the installed commit recorded in InstallState,
+                # not the development checkout's HEAD. Local development history and
+                # files must remain untouched while the installed runtime advances.
                 before = self.git('rev-parse', 'HEAD')
-                self.assertNotEqual(self.run_update().returncode, 0)
+                result = self.run_update()
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.git('rev-parse', 'HEAD'), before)
                 self.assertEqual((self.checkout / 'local').read_text(), 'local changes')
+                runtime = self.root / 'home/.local/share/debian-hyprland-custom/runtime'
+                self.assertTrue(runtime.is_symlink())
+                self.assertEqual((runtime / 'version').read_text(), '2')

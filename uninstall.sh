@@ -6,6 +6,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$repo_dir/core/setup.sh"
 action="${1:-uninstall}"
 
+# shellcheck disable=SC2154 # Initialized by the sourced core/setup.sh.
 if [ ! -f "$deblestia_state_dir/components" ]; then
     deblestia_t no_installation; printf '\n'
     exit 0

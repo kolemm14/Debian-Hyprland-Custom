@@ -182,7 +182,9 @@ if [ -f "$swaync_dir/style.css" ]; then
 fi
 
 for command_name in kitty ghostty rofi swaync-client; do
-    command -v "$command_name" >/dev/null 2>&1 && printf 'OK %s\n' "$command_name" || true
+    if command -v "$command_name" >/dev/null 2>&1; then
+        printf 'OK %s\n' "$command_name" || true
+    fi
 done
 if command -v kitty >/dev/null 2>&1; then
     kitty @ set-colors --all "$kitty_theme" >/dev/null 2>&1 || true
@@ -193,7 +195,11 @@ fi
 for pid in $(pidof ghostty 2>/dev/null || true); do
     kill -SIGUSR2 "$pid" >/dev/null 2>&1 || true
 done
-command -v swaync-client >/dev/null 2>&1 && swaync-client -rs >/dev/null 2>&1 || true
+if command -v swaync-client >/dev/null 2>&1; then
+    swaync-client -rs >/dev/null 2>&1 || true
+fi
 if [ "${1:-}" != --no-waybar-reload ]; then
-    command -v pkill >/dev/null 2>&1 && pkill -SIGUSR2 -x waybar >/dev/null 2>&1 || true
+    if command -v pkill >/dev/null 2>&1; then
+        pkill -SIGUSR2 -x waybar >/dev/null 2>&1 || true
+    fi
 fi

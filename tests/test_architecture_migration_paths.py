@@ -1,0 +1,553 @@
+"""Baseline path checks for the staged repository architecture migration.
+
+Run from the repository root with:
+    python3 -m unittest tests/test_architecture_migration_paths.py
+
+These checks validate canonical application paths and preserve legacy
+entry points during the staged migration.
+"""
+from pathlib import Path
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _inventory_category(relative_path):
+    """Assign a tracked path to one documented, non-overlapping inventory rule."""
+    path = Path(relative_path)
+    parts = path.parts
+    if (path.suffix == ".o" and len(parts) >= 2 and parts[-2] == "src" and
+            (relative_path.startswith("apps/system-tools/custom-manager/") or
+             relative_path.startswith("manager/"))):
+        return "generated_objects"
+    if relative_path.startswith("apps/"):
+        return "canonical_apps"
+    if (relative_path.startswith("core/system/") or
+            relative_path.startswith("core/updater/") or
+            relative_path.startswith("core/transactions/") or
+            relative_path.startswith("core/registry/")):
+        return "canonical_core"
+    if relative_path.startswith("installer/"):
+        return "installer"
+    if relative_path.startswith("shared/"):
+        return "shared"
+    if relative_path.startswith("config/v2/"):
+        return "v2_config"
+    if relative_path.startswith("config/"):
+        return "legacy_config"
+    if relative_path.startswith("manager/"):
+        return "legacy_manager"
+    if relative_path == "bin/aurora":
+        return "aurora_fallback"
+    if (relative_path in {
+            "core/hardware.py", "core/compatibility.py", "core/i18n.sh", "core/setup.sh"
+        } or relative_path.startswith("core/aurora/") or
+            relative_path.startswith("core/update/")):
+        return "legacy_core"
+    if relative_path == "scratch.sh":
+        return "scratch_helper"
+    if "/" not in relative_path and path.suffix == ".sh":
+        return "root_commands"
+    if relative_path.startswith("fixes/"):
+        return "fix_patches"
+    if (relative_path.startswith((".github/", "docs/", "manifests/", "profiles/", "tests/")) or
+            relative_path in {".gitattributes", ".gitignore", "LICENSE.md", "README.md", "README.en.md"}):
+        return "repository_docs_and_tests"
+    return None
+
+
+class LegacyPathCompatibilityTests(unittest.TestCase):
+    def test_current_tracked_inventory_is_fully_classified(self):
+        import subprocess
+        from collections import Counter
+
+        paths = subprocess.run(
+            ["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True
+        ).stdout.decode().split("\0")
+        paths = [path for path in paths if path]
+        categories = Counter(_inventory_category(path) for path in paths)
+        self.assertNotIn(None, categories, "Some tracked paths have no documented disposition")
+        self.assertEqual(len(paths), 602)
+        self.assertEqual(categories, {
+            "generated_objects": 10,
+            "canonical_apps": 196,
+            "canonical_core": 13,
+            "installer": 38,
+            "shared": 33,
+            "v2_config": 2,
+            "legacy_config": 189,
+            "legacy_manager": 38,
+            "aurora_fallback": 1,
+            "legacy_core": 12,
+            "root_commands": 23,
+            "scratch_helper": 1,
+            "fix_patches": 2,
+            "repository_docs_and_tests": 44,
+        })
+        inventory = (ROOT / "docs/architecture/MIGRATION_MAP.md").read_text(encoding="utf-8")
+        self.assertIn("602 tracked paths", inventory)
+
+    def test_legacy_installers_are_preserved(self):
+        expected = (
+            "install-mirrorbridge.sh",
+            "install-mpvpaper-engine.sh",
+            "install-periphx.sh",
+            "install-deblestia-bar.sh",
+            "install-aurora.sh",
+            "install.sh",
+        )
+        for relative in expected:
+            with self.subTest(path=relative):
+                self.assertTrue((ROOT / relative).is_file(), f"Missing legacy entry point: {relative}")
+
+    def test_application_source_directories_exist_before_migration(self):
+        expected = (
+            "config/mirrorbridge",
+            "apps/system-apps/mirrorbridge",
+            "config/mpvpaper-engine",
+            "apps/system-apps/mpvpaper-engine",
+            "config/v3",
+            "apps/system-apps/periphx",
+            "config/waybar",
+            "config/caelestia",
+            "config/nova-shell",
+            "manager",
+            "apps/system-tools/custom-manager",
+            "core/update",
+            "manifests",
+        )
+        for relative in expected:
+            with self.subTest(path=relative):
+                self.assertTrue((ROOT / relative).is_dir(), f"Missing legacy source directory: {relative}")
+
+
+    def test_canonical_mirrorbridge_sources_and_installer_manifest_exist(self):
+        import json
+        app = ROOT / "apps/system-apps/mirrorbridge"
+        self.assertTrue((app / "Cargo.toml").is_file())
+        self.assertTrue((app / "Cargo.lock").is_file())
+        self.assertTrue((app / "src/main.rs").is_file())
+        self.assertTrue((app / "src/backends/android.rs").is_file())
+        installer = (ROOT / "install-mirrorbridge.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/mirrorbridge", installer)
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "mirrorbridge"]
+        self.assertTrue(rules, "MirrorBridge updater rules are missing")
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/mirrorbridge/") for rule in rules))
+        build_rules = [rule for rule in rules if rule.get("build")]
+        self.assertTrue(build_rules, "MirrorBridge Cargo build rule is missing")
+        self.assertTrue(all(rule["build"] == "apps/system-apps/mirrorbridge" for rule in build_rules))
+
+    def test_canonical_mpvpaper_application_and_manifest_paths_exist(self):
+        import json
+        app = ROOT / "apps/system-apps/mpvpaper-engine"
+        self.assertTrue((app / "mpvpaper-engine.py").is_file())
+        self.assertTrue((app / "mpvpaper_engine/paths.py").is_file())
+        self.assertTrue((app / "tests/test_paths.py").is_file())
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "mpvpaper-engine"]
+        self.assertTrue(rules, "MPVpaper updater rules are missing")
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/mpvpaper-engine/") for rule in rules))
+
+    def test_mpvpaper_installers_support_canonical_and_legacy_paths(self):
+        installer = (ROOT / "install-mpvpaper-engine.sh").read_text(encoding="utf-8")
+        easy = (ROOT / "install-mpvpaper-engine-easy.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/mpvpaper-engine", installer)
+        self.assertIn("config/mpvpaper-engine", installer)
+        self.assertIn("apps/system-apps/mpvpaper-engine", easy)
+        self.assertIn("config/mpvpaper-engine", easy)
+
+
+    def test_canonical_periphx_sources_and_manifest_exist(self):
+        import json
+        app = ROOT / "apps/system-apps/periphx"
+        self.assertTrue((app / "device-center.py").is_file())
+        self.assertTrue((app / "periphx.py").is_file())
+        self.assertTrue((app / "pericored/Cargo.toml").is_file())
+        self.assertTrue((app / "tests/test_periphx_cli.py").is_file())
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "periphx"]
+        self.assertTrue(rules, "PeriphX updater rules are missing")
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/periphx/") for rule in rules))
+
+    def test_periphx_installer_supports_canonical_and_legacy_paths(self):
+        installer = (ROOT / "install-v3.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/periphx", installer)
+        self.assertIn("config/v3", installer)
+
+
+    def test_custom_manager_canonical_files_and_legacy_fallback_exist(self):
+        app = ROOT / "apps/system-tools/custom-manager"
+        self.assertTrue((app / "Makefile").is_file())
+        self.assertTrue((app / "src/paths.c").is_file())
+        self.assertTrue((app / "data/components.ini").is_file())
+        self.assertTrue((app / "scripts/update-wrapper.sh").is_file())
+        paths_source = (app / "src/paths.c").read_text(encoding="utf-8")
+        self.assertIn('"apps", "system-tools", "custom-manager"', paths_source)
+        self.assertIn('"manager", "data", "components.ini"', paths_source)
+        cli_source = (app / "src/cli.c").read_text(encoding="utf-8")
+        self.assertIn('"apps/system-tools/custom-manager/scripts/update-wrapper.sh"', cli_source)
+
+
+    def test_canonical_waybar_variants_and_shared_resources_exist(self):
+        variants = {
+            "deblestia-bar": ("[Deblestia] Bar", "[Deblestia] Bar.css"),
+            "deblestia-nova-lite": ("[Deblestia] Nova", "[Deblestia] Nova.css"),
+            "deblestia-nova-2": ("[Deblestia] Nova 2", "[Deblestia] Nova 2.css"),
+        }
+        for name, (config, style) in variants.items():
+            app = ROOT / "apps/waybars" / name
+            with self.subTest(variant=name):
+                self.assertTrue((app / "configs" / config).is_file())
+                self.assertTrue((app / "styles" / style).is_file())
+        shared = ROOT / "shared/waybar"
+        for relative in (
+            "Modules", "ModulesCustom", "ModulesWorkspaces",
+            "deblestia-waybar-switch.sh", "deblestia-focus.py",
+            "media-panel.py", "panel-colors.css", "icons/hyprdebian-cli.svg",
+        ):
+            with self.subTest(shared=relative):
+                self.assertTrue((shared / relative).exists(), f"Missing shared Waybar asset: {relative}")
+
+    def test_waybar_installer_prefers_canonical_variants_and_keeps_legacy_fallback(self):
+        installer = (ROOT / "install-nova2.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/waybars/deblestia-bar", installer)
+        self.assertIn("apps/waybars/deblestia-nova-lite", installer)
+        self.assertIn("apps/waybars/deblestia-nova-2", installer)
+        self.assertIn("shared/waybar", installer)
+        self.assertIn('config/waybar', installer)
+
+
+    def test_desktop_shell_installers_prefer_canonical_paths_with_legacy_fallback(self):
+        caelestia = (ROOT / "install-v2.sh").read_text(encoding="utf-8")
+        nova = (ROOT / "install-nova-shell.sh").read_text(encoding="utf-8")
+        for source in ("apps/desktop-shells/caelestia-v2", "config/caelestia",
+                       "shared/hyprland", "config/hypr"):
+            with self.subTest(installer="caelestia", source=source):
+                self.assertIn(source, caelestia)
+        for source in ("apps/desktop-shells/nova-shell", "config/nova-shell",
+                       "config/hypr"):
+            with self.subTest(installer="nova", source=source):
+                self.assertIn(source, nova)
+
+
+    def test_canonical_desktop_shell_assets_and_shared_hyprland_paths_exist(self):
+        caelestia = ROOT / "apps/desktop-shells/caelestia-v2"
+        for relative in ("shell.json", "hyprland/caelestia-v2.conf",
+                         "scripts/caelestia-v2-launch.sh",
+                         "scripts/caelestia-v2-lock.sh",
+                         "scripts/caelestia-v2-display-profile.sh"):
+            with self.subTest(caelestia=relative):
+                self.assertTrue((caelestia / relative).is_file())
+        nova = ROOT / "apps/desktop-shells/nova-shell"
+        for relative in ("config/debian-config.json", "patches/qt68-compat.patch",
+                         "patches/mpvpaper-integration.patch",
+                         "patches/hyprland-ipc-compat.patch",
+                         "hyprland/deblestia-nova-shell.conf",
+                         "scripts/deblestia-nova-shell-launch.sh",
+                         "scripts/deblestia-nova-lock.sh"):
+            with self.subTest(nova=relative):
+                self.assertTrue((nova / relative).is_file())
+        for relative in ("deblestia-input.conf", "deblestia-workspaces.conf",
+                         "deblestia-ui.conf", "scripts/desktop-shell-mode.sh",
+                         "UserScripts/WaybarWallpaperSync.sh"):
+            with self.subTest(shared=relative):
+                self.assertTrue((ROOT / "shared/hyprland" / relative).is_file())
+
+    def test_desktop_shell_installers_prefer_canonical_paths_with_legacy_fallback(self):
+        caelestia = (ROOT / "install-v2.sh").read_text(encoding="utf-8")
+        nova = (ROOT / "install-nova-shell.sh").read_text(encoding="utf-8")
+        waybar = (ROOT / "install-nova2.sh").read_text(encoding="utf-8")
+        for source in ("apps/desktop-shells/caelestia-v2", "config/caelestia",
+                       "shared/hyprland", "config/hypr"):
+            with self.subTest(installer="caelestia", source=source):
+                self.assertIn(source, caelestia)
+        for source in ("apps/desktop-shells/nova-shell", "config/nova-shell",
+                       "shared/hyprland", "config/hypr"):
+            with self.subTest(installer="nova", source=source):
+                self.assertIn(source, nova)
+        self.assertIn("shared/hyprland", waybar)
+        self.assertIn("config/hypr", waybar)
+
+
+    def test_canonical_aurora_assets_and_legacy_installer_fallback_exist(self):
+        app = ROOT / "apps/desktop-shells/aurora"
+        self.assertTrue((app / "aurora").is_file())
+        self.assertTrue((app / "profile.py").is_file())
+        cli = (app / "aurora").read_text(encoding="utf-8")
+        self.assertIn('profile_script="$app_dir/profile.py"', cli)
+        installer = (ROOT / "install-aurora.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/desktop-shells/aurora/aurora", installer)
+        self.assertIn("apps/desktop-shells/aurora/profile.py", installer)
+        self.assertIn('"$repo_dir/bin/aurora"', installer)
+        self.assertIn('"$repo_dir/core/aurora/profile.py"', installer)
+
+
+    def test_readme_sparse_checkout_instructions_use_canonical_shell_paths(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for path in ("apps/waybars/deblestia-nova-2", "shared/waybar",
+                     "apps/desktop-shells/nova-shell",
+                     "apps/desktop-shells/caelestia-v2", "shared/hyprland"):
+            with self.subTest(path=path):
+                self.assertIn(path, readme)
+
+
+    def test_shell_and_aurora_updater_manifest_sources_resolve(self):
+        import json
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        components = {"deblestia-shell", "deblestia-nova", "aurora-core"}
+        rules = [rule for rule in manifest["rules"] if rule.get("component") in components]
+        self.assertTrue(rules)
+        for rule in rules:
+            source = rule["source"]
+            if not any(char in source for char in "*?["):
+                with self.subTest(component=rule["component"], source=source):
+                    self.assertTrue((ROOT / source).is_file(), f"Updater source missing: {source}")
+        for patch_set in manifest.get("patch_sets", []):
+            if patch_set.get("component") == "deblestia-nova":
+                for patch in patch_set["patches"]:
+                    with self.subTest(patch=patch):
+                        self.assertTrue((ROOT / patch).is_file(), f"Updater patch missing: {patch}")
+        aurora = next(rule for rule in rules if rule.get("component") == "aurora-core")
+        self.assertEqual(aurora["link"], "repo:apps/desktop-shells/aurora/aurora")
+
+
+    def test_all_updater_manifest_sources_and_build_directories_resolve(self):
+        import json
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        matched_components = set()
+        for rule in manifest["rules"]:
+            source = rule["source"]
+            matches = [path for path in ROOT.glob(source) if path.is_file()]
+            with self.subTest(component=rule["component"], source=source):
+                self.assertTrue(matches, f"Updater source pattern matched no files: {source}")
+            matched_components.add(rule["component"])
+
+            strip = rule.get("strip")
+            if strip:
+                strip_root = ROOT / strip
+                for path in matches:
+                    with self.subTest(component=rule["component"], source=source, strip=strip):
+                        self.assertTrue(path.is_relative_to(strip_root), f"Strip prefix {strip!r} does not contain {path}")
+
+            if rule.get("build"):
+                with self.subTest(component=rule["component"], build=rule["build"]):
+                    self.assertTrue((ROOT / rule["build"] / "Cargo.toml").is_file())
+                    self.assertTrue(rule.get("binary"), "Cargo build rule is missing its binary name")
+
+            link = rule.get("link")
+            if link:
+                kind, _, target = link.partition(":")
+                with self.subTest(component=rule["component"], link=link):
+                    self.assertIn(kind, {"home", "config", "repo"}, f"Unknown link target kind: {kind}")
+                    self.assertTrue(target, f"Empty link target: {link}")
+                    if kind == "repo":
+                        self.assertTrue((ROOT / target).is_file(), f"Repository link target missing: {target}")
+
+        component_ids = {
+            line.split("\t", 1)[0]
+            for line in (ROOT / "manifests/components.tsv").read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#")
+        }
+        # Nova 2 remains a separately updatable historical component, while
+        # the setup registry intentionally exposes the newer Deblestia Nova.
+        self.assertEqual(matched_components - component_ids, {"nova2"})
+        self.assertTrue(component_ids <= matched_components)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("### Deblestia Nova 2 (compatibilité)", readme)
+
+        for patch_set in manifest.get("patch_sets", []):
+            for patch in patch_set["patches"]:
+                with self.subTest(component=patch_set["component"], patch=patch):
+                    self.assertTrue((ROOT / patch).is_file())
+
+    def test_waybar_updater_rules_use_variant_and_shared_canonical_sources(self):
+        import json
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        expected = {
+            "deblestia-bar": "apps/waybars/deblestia-bar/",
+            "deblestia-nova-lite": "apps/waybars/deblestia-nova-lite/",
+            "nova2": "apps/waybars/deblestia-nova-2/",
+        }
+        for component, prefix in expected.items():
+            sources = [r["source"] for r in manifest["rules"] if r.get("component") == component]
+            with self.subTest(component=component):
+                self.assertIn("shared/waybar/**/*", sources)
+                self.assertIn(prefix + "**/*", sources)
+                self.assertFalse(any(s == "config/waybar/**/*" for s in sources))
+
+
+    def test_core_system_modules_and_legacy_entry_points_are_preserved(self):
+        canonical = ROOT / "core/system"
+        for name in ("hardware.py", "compatibility.py", "i18n.sh", "setup.sh"):
+            with self.subTest(canonical=name):
+                self.assertTrue((canonical / name).is_file())
+        for name in ("hardware.py", "compatibility.py", "i18n.sh", "setup.sh"):
+            with self.subTest(legacy=name):
+                self.assertTrue((ROOT / "core" / name).is_file())
+        setup = (canonical / "setup.sh").read_text(encoding="utf-8")
+        self.assertIn('$(dirname "${BASH_SOURCE[0]}")/../..', setup)
+        self.assertIn('core/system/i18n.sh', setup)
+        self.assertIn('core/system/compatibility.py', setup)
+        self.assertNotIn('core/compatibility.py', setup)
+        self.assertNotIn('core/i18n.sh', setup)
+        for name in ("hardware.py", "compatibility.py"):
+            wrapper = (ROOT / "core" / name).read_text(encoding="utf-8")
+            self.assertIn('system', wrapper)
+            self.assertIn('importlib.util.spec_from_file_location', wrapper)
+
+
+    def test_updater_and_transactions_have_canonical_modules_and_legacy_symlinks(self):
+        updater = ROOT / "core/updater"
+        for name in ("main.py", "files.py", "install_state.py", "manager_backend.py",
+                     "patches.py", "record.sh", "transaction.py"):
+            with self.subTest(canonical=name):
+                self.assertTrue((updater / name).exists())
+        self.assertTrue((ROOT / "core/transactions/transaction.py").is_file())
+        for name in ("main.py", "files.py", "install_state.py", "manager_backend.py",
+                     "patches.py", "record.sh", "transaction.py"):
+            with self.subTest(legacy=name):
+                self.assertTrue((ROOT / "core/update" / name).is_symlink())
+        update_cli = (ROOT / "update.sh").read_text(encoding="utf-8")
+        self.assertIn("core/updater/main.py", update_cli)
+        self.assertIn("core/transactions/transaction.py", update_cli)
+        recorder = (updater / "record.sh").read_text(encoding="utf-8")
+        self.assertIn("core/updater/main.py", recorder)
+
+    def test_updater_docs_expand_legacy_sparse_checkouts_to_canonical_paths(self):
+        docs = (ROOT / "docs/UPDATER.md").read_text(encoding="utf-8")
+        self.assertIn("git sparse-checkout add core/updater core/transactions manifests", docs)
+
+    def test_legacy_sparse_checkout_symlinks_recover_after_adding_targets(self):
+        import subprocess
+        import sys
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="legacy-updater-sparse-") as temp_dir:
+            checkout = Path(temp_dir) / "checkout"
+            subprocess.run(
+                ["git", "clone", "--quiet", "--shared", "--no-checkout", str(ROOT), str(checkout)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(checkout), "checkout", "--quiet", "--detach", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(checkout), "sparse-checkout", "init", "--cone"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(checkout), "sparse-checkout", "set", "core/update", "manifests"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            legacy_entry = checkout / "core/update/main.py"
+            canonical_target = checkout / "core/updater/main.py"
+            self.assertTrue(legacy_entry.is_symlink())
+            self.assertFalse(canonical_target.exists())
+
+            subprocess.run(
+                ["git", "-C", str(checkout), "sparse-checkout", "add", "core/updater", "core/transactions"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertTrue(canonical_target.is_file())
+            subprocess.run(
+                [sys.executable, str(legacy_entry), "--help"],
+                cwd=temp_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+
+    def test_migration_plan_documents_compatibility_requirements(self):
+        plan = ROOT / "docs" / "ARCHITECTURE-MIGRATION.md"
+        self.assertTrue(plan.is_file(), "Migration plan is missing")
+        content = plan.read_text(encoding="utf-8")
+        for phrase in (
+            "compatibility wrappers",
+            "sparse-checkout",
+            "Updater and rollback behavior",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase.lower(), content.lower())
+
+    def test_canonical_mirrorbridge_manifest_exists(self):
+        self.assertTrue((ROOT / "apps/system-apps/mirrorbridge/Cargo.toml").is_file())
+        self.assertTrue((ROOT / "apps/system-apps/mirrorbridge/src/main.rs").is_file())
+
+    def test_readme_uses_canonical_mirrorbridge_sparse_checkout_path(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("git sparse-checkout set apps/system-apps/mirrorbridge core/updater core/transactions manifests", readme)
+        self.assertIn("sources canoniques sous `apps/`", readme)
+
+    def test_readme_documents_canonical_periphx_manifest_and_legacy_path(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/periphx/components.tsv", readme)
+        self.assertIn("config/v3/components.tsv` reste disponible comme compatibilité", readme)
+
+    def test_mirrorbridge_installer_and_updater_prefer_canonical_app(self):
+        import json
+        installer = (ROOT / "install-mirrorbridge.sh").read_text(encoding="utf-8")
+        self.assertIn("apps/system-apps/mirrorbridge", installer)
+        self.assertIn("config/mirrorbridge", installer)
+        manifest = json.loads((ROOT / "manifests/update-files.json").read_text(encoding="utf-8"))
+        rules = [rule for rule in manifest["rules"] if rule.get("component") == "mirrorbridge"]
+        self.assertTrue(rules)
+        self.assertTrue(all(rule["source"].startswith("apps/system-apps/mirrorbridge/") for rule in rules))
+        cargo_rule = next(rule for rule in rules if rule["source"].endswith("Cargo.toml"))
+        self.assertEqual(cargo_rule["build"], "apps/system-apps/mirrorbridge")
+
+    def test_primary_installers_reference_existing_source_paths(self):
+        checks = {
+            "install-mirrorbridge.sh": ("apps/system-apps/mirrorbridge", "config/mirrorbridge"),
+            "install-mpvpaper-engine.sh": ("apps/system-apps/mpvpaper-engine", "config/mpvpaper-engine"),
+            "install-v3.sh": ("apps/system-apps/periphx", "config/v3"),
+            "install-v2.sh": ("apps/desktop-shells/caelestia-v2", "config/caelestia"),
+            "install-nova-shell.sh": ("apps/desktop-shells/nova-shell", "config/nova-shell"),
+            "install-aurora.sh": ("apps/desktop-shells/aurora", "core/aurora"),
+        }
+        for installer, source_paths in checks.items():
+            with self.subTest(installer=installer):
+                content = (ROOT / installer).read_text(encoding="utf-8")
+                for source_path in source_paths:
+                    with self.subTest(source=source_path):
+                        self.assertIn(source_path, content)
+                        self.assertTrue((ROOT / source_path).is_dir())
+
+    def test_custom_manager_canonical_tree_and_legacy_compatibility(self):
+        app = ROOT / "apps/system-tools/custom-manager"
+        for relative in (
+            "Makefile", "VERSION", "data/components.ini",
+            "data/debian-custom-manager.desktop", "src/main.c",
+            "src/paths.c", "scripts/install.sh",
+            "scripts/update-wrapper.sh", "tests/test-cli.c",
+        ):
+            with self.subTest(path=relative):
+                self.assertTrue((app / relative).is_file())
+        self.assertTrue((ROOT / "manager/Makefile").is_file())
+        installer = (app / "scripts/install.sh").read_text(encoding="utf-8")
+        wrapper = (app / "scripts/update-wrapper.sh").read_text(encoding="utf-8")
+        paths = (app / "src/paths.c").read_text(encoding="utf-8")
+        cli = (app / "src/cli.c").read_text(encoding="utf-8")
+        self.assertIn('MANAGER_DIR/../../..', installer)
+        self.assertIn('MANAGER_DIR/../../..', wrapper)
+        self.assertIn('"apps", "system-tools", "custom-manager", "data"', paths)
+        self.assertIn('"manager", "data"', paths)
+        self.assertIn('apps/system-tools/custom-manager/scripts/update-wrapper.sh', cli)
+        self.assertNotIn('custom-apps/system-tools', paths + cli)
+
+
+if __name__ == "__main__":
+    unittest.main()

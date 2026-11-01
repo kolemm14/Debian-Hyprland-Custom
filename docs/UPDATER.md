@@ -23,10 +23,10 @@ accélération graphique n’est nécessaire pour l’updater.
 | `--rollback` | Restaure la dernière transaction réussie, si aucun fichier concerné n’a été modifié depuis |
 | `--yes` | Autorise les nouveaux paquets Debian affichés ; ne supprime aucun paquet |
 
-Les clones partiels doivent inclure `core/update` et `manifests` :
+Les clones partiels doivent inclure `core/updater`, `core/transactions` et `manifests`. L'ancien chemin `core/update` reste disponible sous forme de liens symboliques de compatibilité :
 
 ```bash
-git sparse-checkout add core/update manifests
+git sparse-checkout add core/updater core/transactions manifests
 ```
 
 Les origins officiels historiques HTTPS, SSH SCP et SSH URI sont reconnus par
@@ -89,7 +89,7 @@ compilés enregistrent aussi l’empreinte de leurs sources. Le manifest et la
 version ne changent qu’après vérification complète d’une mise à jour. Une
 installation initiale réussie enregistre séparément ses fichiers réels.
 
-Les installateurs appellent `core/update/record.sh` après leur réussite. Les
+Les installateurs appellent `core/updater/record.sh` après leur réussite. `core/update/record.sh` reste un alias historique. Les
 restaurations/désinstallations disponibles retirent le composant du suivi et
 l’excluent des détections historiques jusqu’à sa réinstallation. Les composants
 non choisis ne sont jamais installés par le simple ajout d’un mapping.
@@ -195,8 +195,8 @@ Les patches et opérations système nécessitant root restent des actions distin
 bash -n update.sh
 bash -n install.sh
 ./contribute.sh test
-python3 -m unittest discover -s config/mpvpaper-engine/tests -v
-python3 -m unittest discover -s config/v3/tests -v
+python3 -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -v
+python3 -m unittest discover -s apps/system-apps/periphx/tests -v
 ```
 
 Les tests updater utilisent de vrais dépôts Git temporaires et un HOME isolé.

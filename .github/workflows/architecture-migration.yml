@@ -1,0 +1,83 @@
+name: Architecture migration checks
+
+concurrency:
+  group: architecture-migration-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - refactor/architecture-migration
+      - refactor/repository-reorganization
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  path-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check patch whitespace against main
+        run: git diff --check origin/main...HEAD
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Verify migration path compatibility
+        run: python -m unittest discover -s tests -p 'test_architecture_migration_paths.py' -v
+
+      - name: Run MPVpaper Engine path tests
+        run: python -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -p 'test_paths.py' -v
+      - name: Compile MPVpaper Python sources
+        run: python -m compileall -q apps/system-apps/mpvpaper-engine
+      - name: Validate installer and core shell syntax
+        run: bash -n update.sh core/setup.sh core/i18n.sh core/system/setup.sh core/system/i18n.sh core/updater/record.sh core/update/record.sh install-mpvpaper-engine.sh install-mpvpaper-engine-easy.sh install-nova2.sh install-deblestia-bar.sh install-deblestia-nova-lite.sh install-deblestia-nova2.sh install-v2.sh install-nova-shell.sh install-aurora.sh contribute.sh apps/system-tools/custom-manager/scripts/install.sh apps/system-tools/custom-manager/scripts/uninstall.sh apps/system-tools/custom-manager/scripts/update-wrapper.sh
+      - name: Validate updater manifest JSON
+        run: python -m json.tool manifests/update-files.json > /dev/null
+      - name: Compile canonical core and desktop shell Python sources
+        run: python -m compileall -q core/system core/updater core/transactions apps/desktop-shells
+      - name: Exercise canonical and legacy core CLI entry points
+        run: |
+          python core/system/hardware.py --help >/dev/null
+          python core/hardware.py --help >/dev/null
+          python core/system/compatibility.py --help >/dev/null
+          python core/compatibility.py --help >/dev/null
+          python core/updater/main.py --help >/dev/null
+          python core/update/main.py --help >/dev/null
+      - name: Run repository-level regression suite
+        run: python -m unittest discover -s tests -v
+      - name: Run Aurora profile regression tests
+        run: python -m unittest discover -s tests/aurora -v
+
+
+      - name: Install MPVpaper test runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-webkit-6.0 yt-dlp cargo libudev-dev libgtk-3-dev libgtk-4-dev
+
+
+      - name: Test MirrorBridge Rust application
+        run: cargo test --manifest-path apps/system-apps/mirrorbridge/Cargo.toml --locked
+      - name: Run PeriphX Python tests
+        run: /usr/bin/python3 -m unittest discover -s apps/system-apps/periphx/tests -v
+      - name: Compile PeriphX Python sources
+        run: /usr/bin/python3 -m compileall -q apps/system-apps/periphx
+      - name: Validate PeriphX installer shell syntax
+        run: bash -n install-v3.sh install-periphx.sh
+      - name: Test PeriphX Rust daemon
+        run: cargo test --manifest-path apps/system-apps/periphx/pericored/Cargo.toml --locked
+
+      - name: Build and test Custom Manager
+        run: make -C apps/system-tools/custom-manager clean all test
+      - name: Provide a harmless mpvpaper executable for service unit tests
+        run: |
+          mkdir -p "$RUNNER_TEMP/mpvpaper-test-bin"
+          printf '#!/bin/sh\nexit 0\n' > "$RUNNER_TEMP/mpvpaper-test-bin/mpvpaper"
+          chmod 0755 "$RUNNER_TEMP/mpvpaper-test-bin/mpvpaper"
+          echo "$RUNNER_TEMP/mpvpaper-test-bin" >> "$GITHUB_PATH"
+      - name: Run MPVpaper Engine unit test suite
+        run: /usr/bin/python3 -m unittest discover -s apps/system-apps/mpvpaper-engine/tests -v

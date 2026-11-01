@@ -66,7 +66,7 @@ automatic() {
     local compatibility profile dependency_mode=automatic choice
     compatibility="$(deblestia_compatibility)"
     profile="${DEBLESTIA_PROFILE:-$(deblestia_profile)}"
-    if [ "$compatibility" = UNSUPPORTED ]; then
+    if [ "$compatibility" = UNSUPPORTED ] && [ "${DEBLESTIA_PLAN_ONLY:-0}" != 1 ]; then
         printf '\n' >&2; deblestia_t automatic_refused >&2; printf '\n' >&2
         return 1
     fi
@@ -89,6 +89,7 @@ automatic() {
         deblestia_t components_deferred; printf '\n'
         return 0
     fi
+    # shellcheck disable=SC2154 # Initialized by the sourced core/setup.sh.
     mkdir -p "$deblestia_state_dir"
     printf '%s\n' "$profile" >"$deblestia_state_dir/profile"
     if [ -f "$repo_dir/profiles/$profile.conf" ]; then

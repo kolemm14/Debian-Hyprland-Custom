@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 
 ROOT = Path(__file__).parents[1]
-sys.path.insert(0, str(ROOT / 'core/update'))
+sys.path.insert(0, str(ROOT / 'core/updater'))
 from files import Locations, UpdateError, fingerprint, json_write, snapshot
 from transaction import Lock, Services, apply, recover, rollback
 
@@ -36,7 +36,8 @@ class UpdateSystemTests(unittest.TestCase):
         self.git('config', 'user.name', 'Test')
         self.git('config', 'user.email', 'test@example.invalid')
         shutil.copy2(ROOT / 'update.sh', self.repo / 'update.sh')
-        shutil.copytree(ROOT / 'core/update', self.repo / 'core/update', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/updater', self.repo / 'core/updater', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT / 'core/transactions', self.repo / 'core/transactions', ignore=shutil.ignore_patterns('__pycache__'))
         (self.repo / 'manifests').mkdir()
         self.rules = [
             {'component': 'sample', 'source': 'config/sample/*.py', 'destination': 'home:.local/lib/sample/{name}', 'policy': 'managed', 'mode': '0755'},
@@ -294,10 +295,10 @@ class UpdateSystemTests(unittest.TestCase):
         mapping = {'schema': 1, 'rules': self.rules + [r for r in production['rules'] if r['component'] == 'mpvpaper-engine'],
                    'services': {'mpvpaper-engine': ['mpvpaper-engine.service']}, 'packages': {}}
         self.write(self.upstream, 'manifests/update-files.json', json.dumps(mapping))
-        self.write(self.upstream, 'config/mpvpaper-engine/mpvpaper-engine.py', 'print("engine v2")\n')
-        self.write(self.upstream, 'config/mpvpaper-engine/mpvpaper_engine/module.py', 'VALUE = 2\n')
-        self.write(self.upstream, 'config/mpvpaper-engine/tests/test_engine.py', 'VALUE = 2\n')
-        self.write(self.upstream, 'config/mpvpaper-engine/mpvpaper-engine.service', '[Service]\nExecStart=/bin/true\n')
+        self.write(self.upstream, 'apps/system-apps/mpvpaper-engine/mpvpaper-engine.py', 'print("engine v2")\n')
+        self.write(self.upstream, 'apps/system-apps/mpvpaper-engine/mpvpaper_engine/module.py', 'VALUE = 2\n')
+        self.write(self.upstream, 'apps/system-apps/mpvpaper-engine/tests/test_engine.py', 'VALUE = 2\n')
+        self.write(self.upstream, 'apps/system-apps/mpvpaper-engine/mpvpaper-engine.service', '[Service]\nExecStart=/bin/true\n')
         self.write(self.home, '.local/lib/mpvpaper-engine/mpvpaper-engine.py', 'print("engine v2")\n', 0o755)
         self.write(self.home, '.local/bin/mpvpaper-engine', '#!/bin/sh\n', 0o755)
         state = self.write(self.home, '.config/mpvpaper-engine/config.json', '{"outputs":{"DP-1":{"wallpaper":"personal.mp4"}}}')
@@ -320,7 +321,7 @@ class UpdateSystemTests(unittest.TestCase):
         trace = self.fake_systemd()
         production = json.loads((ROOT / 'manifests/update-files.json').read_text())
         self.write(self.upstream, 'manifests/update-files.json', json.dumps(production))
-        self.write(self.upstream, 'config/mpvpaper-engine/mpvpaper-engine.py', 'print("engine")\n')
+        self.write(self.upstream, 'apps/system-apps/mpvpaper-engine/mpvpaper-engine.py', 'print("engine")\n')
         self.publish()
         self.update()
         self.assertFalse((self.home / '.local/lib/mpvpaper-engine').exists())

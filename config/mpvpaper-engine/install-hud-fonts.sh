@@ -40,7 +40,7 @@ if [ "${1:-install}" = check ]; then
         printf 'OK       polices HUD Rain Clock (Mond, Summit et Meenimal)\n'
         exit 0
     fi
-    printf 'MANQUANT polices HUD Rain Clock; relancer l’installation\n'
+    printf "MANQUANT polices HUD Rain Clock; relancer l'installation\n"
     exit 1
 fi
 

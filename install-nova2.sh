@@ -19,6 +19,14 @@ timestamp="$(date +%Y%m%d-%H%M%S)"
 backup_dir="$config_home/debian-hyprland-custom-backup-$timestamp"
 ui_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/deblestia"
 ui_state_file="$ui_state_dir/ui-mode"
+source_or_legacy() {
+    local canonical="$1" legacy="$2"
+    if [ -f "$repo_dir/$canonical" ]; then
+        printf '%s\n' "$repo_dir/$canonical"
+    else
+        printf '%s\n' "$repo_dir/$legacy"
+    fi
+}
 
 check_dependencies() {
     local variant="${1:-nova2}"
@@ -53,18 +61,21 @@ action="${1:-install}"
 variant="${2:-nova2}"
 case "$variant" in
     bar)
+        waybar_app_dir="$repo_dir/apps/waybars/deblestia-bar"
         mode='bar'
         config_name='[Deblestia] Bar'
         style_name='[Deblestia] Bar.css'
         product_name='Deblestia Bar'
         ;;
     nova|nova-lite)
+        waybar_app_dir="$repo_dir/apps/waybars/deblestia-nova-lite"
         mode='nova-lite'
         config_name='[Deblestia] Nova'
         style_name='[Deblestia] Nova.css'
         product_name='Deblestia Nova Lite'
         ;;
     nova2)
+        waybar_app_dir="$repo_dir/apps/waybars/deblestia-nova-2"
         variant='nova2'
         mode='nova2'
         config_name='[Deblestia] Nova 2'
@@ -115,7 +126,17 @@ for path in "$hypr_main" "$input_include" "$workspace_include" "$ui_include"; do
     fi
 done
 
-cp -a "$repo_dir/config/waybar/." "$waybar_dir/"
+waybar_shared_dir="$repo_dir/shared/waybar"
+if [ ! -d "$waybar_shared_dir" ]; then
+    waybar_shared_dir="$repo_dir/config/waybar"
+fi
+if [ ! -d "$waybar_app_dir/configs" ] || [ ! -d "$waybar_app_dir/styles" ]; then
+    printf 'Fichiers de la variante Waybar introuvables : %s\\n' "$waybar_app_dir" >&2
+    exit 1
+fi
+cp -a "$waybar_shared_dir/." "$waybar_dir/"
+install -m 0644 "$waybar_app_dir/configs/$config_name" "$waybar_dir/configs/$config_name"
+install -m 0644 "$waybar_app_dir/styles/$style_name" "$waybar_dir/styles/$style_name"
 rm -f \
     "$waybar_dir/configs/[CUSTOM] Debian Glass" \
     "$waybar_dir/styles/[CUSTOM] Debian Glass.css" \
@@ -123,17 +144,17 @@ rm -f \
     "$waybar_dir/deblestia-bar-stats.sh" \
     "$waybar_dir/workspace-label.sh"
 cp -a "$repo_dir/config/hypr/scripts/." "$hypr_scripts_dir/"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/WaybarWallpaperSync.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/WaybarWallpaperSync.sh config/hypr/UserScripts/WaybarWallpaperSync.sh)" \
     "$hypr_user_scripts_dir/WaybarWallpaperSync.sh"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/MinimizeWindow.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/MinimizeWindow.sh config/hypr/UserScripts/MinimizeWindow.sh)" \
     "$hypr_user_scripts_dir/MinimizeWindow.sh"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/RestoreMinimizedWindow.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/RestoreMinimizedWindow.sh config/hypr/UserScripts/RestoreMinimizedWindow.sh)" \
     "$hypr_user_scripts_dir/RestoreMinimizedWindow.sh"
-install -m 0755 "$repo_dir/config/hypr/UserScripts/DeblestiaSystemThemeSync.sh" \
+install -m 0755 "$(source_or_legacy shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh config/hypr/UserScripts/DeblestiaSystemThemeSync.sh)" \
     "$hypr_user_scripts_dir/DeblestiaSystemThemeSync.sh"
-install -m 0644 "$repo_dir/config/hypr/deblestia-input.conf" "$input_include"
-install -m 0644 "$repo_dir/config/hypr/deblestia-workspaces.conf" "$workspace_include"
-install -m 0644 "$repo_dir/config/hypr/deblestia-ui.conf" "$ui_include"
+install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-input.conf config/hypr/deblestia-input.conf)" "$input_include"
+install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-workspaces.conf config/hypr/deblestia-workspaces.conf)" "$workspace_include"
+install -m 0644 "$(source_or_legacy shared/hyprland/deblestia-ui.conf config/hypr/deblestia-ui.conf)" "$ui_include"
 if [ ! -f "$hypr_main" ]; then
     printf '%s\n%s\n%s\n' "$ui_source" "$workspace_source" "$input_source" >"$hypr_main"
 else
@@ -188,7 +209,7 @@ fi
 printf '%s installé. Sauvegarde : %s\n' "$product_name" "$backup_dir"
 
 # Record exact ownership for subsequent incremental updates.
-source "$repo_dir/core/update/record.sh"
+source "$repo_dir/core/updater/record.sh"
 case "$variant" in
     bar) update_component=deblestia-bar ;;
     nova|nova-lite) update_component=deblestia-nova-lite ;;

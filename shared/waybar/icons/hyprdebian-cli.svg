@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="100%" height="100%">
+  <defs>
+    <linearGradient id="hyprdebian-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE" />
+      <stop offset="45%" stop-color="#8A2BE2" />
+      <stop offset="85%" stop-color="#E6004C" />
+    </linearGradient>
+
+    <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1000" height="1000" fill="#0b0e14" />
+
+  <g filter="url(#neon-glow)">
+    <path fill="url(#hyprdebian-gradient)" d="
+      M 480,100
+      L 450,100
+      C 300,250 150,450 150,600
+      C 150,780 300,920 500,920
+      C 700,920 850,780 850,600
+      C 850,420 720,280 560,280
+      C 420,280 320,380 320,500
+      C 320,600 400,680 500,680
+      C 580,680 640,620 640,550
+      C 640,490 590,450 530,450
+      C 480,450 450,480 450,520
+      C 450,550 470,570 500,570
+      C 510,570 520,560 520,550
+      C 520,530 500,520 490,530
+      C 510,380 680,400 680,550
+      C 680,670 580,750 480,750
+      C 350,750 250,640 250,500
+      C 250,340 380,210 540,210
+      C 740,210 920,380 920,600
+      C 920,820 730,980 500,980
+      C 240,980 80,800 80,600
+      C 80,420 220,200 420,100
+      Z
+      M 520,100
+      L 550,100
+      L 520,160
+      Z" />
+  </g>
+</svg>

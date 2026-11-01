@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Debian Custom Manager
+Comment=Gérer Debian-Hyprland-Custom et ses composants
+Exec=debian-custom-manager
+Icon=preferences-system
+Terminal=false
+Categories=Settings;System;
+Keywords=Hyprland;Debian;Manager;Update;
+StartupNotify=true

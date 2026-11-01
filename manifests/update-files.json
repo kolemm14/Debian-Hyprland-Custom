@@ -3,145 +3,145 @@
   "rules": [
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.py",
+      "source": "apps/system-apps/mpvpaper-engine/*.py",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-launcher",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-launcher",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-toggle",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-toggle",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-quick-menu",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-quick-menu",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/install-sddm-background.sh",
+      "source": "apps/system-apps/mpvpaper-engine/install-sddm-background.sh",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/install-hud-fonts.sh",
+      "source": "apps/system-apps/mpvpaper-engine/install-hud-fonts.sh",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0755"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/sddm-background.patch",
+      "source": "apps/system-apps/mpvpaper-engine/sddm-background.patch",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper_engine/**/*.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper_engine/**/*.py",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/tests/**/*.py",
+      "source": "apps/system-apps/mpvpaper-engine/tests/**/*.py",
       "destination": "home:.local/lib/mpvpaper-engine/{relative}",
       "policy": "managed",
-      "strip": "config/mpvpaper-engine/",
+      "strip": "apps/system-apps/mpvpaper-engine/",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-launcher",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-launcher",
       "destination": "home:.local/bin/mpvpaper-engine",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-launcher"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-enginectl.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-enginectl.py",
       "destination": "home:.local/bin/mpvpaper-enginectl",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-enginectl.py"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper_download.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper_download.py",
       "destination": "home:.local/bin/mpvpaper-workshop",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper_download.py"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-toggle",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-toggle",
       "destination": "home:.local/bin/mpvpaper-engine-toggle",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-toggle"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-waybar.py",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-waybar.py",
       "destination": "home:.local/bin/mpvpaper-engine-waybar",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-waybar.py"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/mpvpaper-engine-quick-menu",
+      "source": "apps/system-apps/mpvpaper-engine/mpvpaper-engine-quick-menu",
       "destination": "home:.local/bin/mpvpaper-engine-quick-menu",
       "policy": "managed",
       "link": "home:.local/lib/mpvpaper-engine/mpvpaper-engine-quick-menu"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.service",
+      "source": "apps/system-apps/mpvpaper-engine/*.service",
       "destination": "home:.config/systemd/user/{name}",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.timer",
+      "source": "apps/system-apps/mpvpaper-engine/*.timer",
       "destination": "home:.config/systemd/user/{name}",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "mpvpaper-engine",
-      "source": "config/mpvpaper-engine/*.desktop",
+      "source": "apps/system-apps/mpvpaper-engine/*.desktop",
       "destination": "home:.local/share/applications/{name}",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/waybar/**/*",
+      "source": "shared/waybar/**/*",
       "destination": "config:waybar/{relative}",
       "policy": "config",
-      "strip": "config/waybar/",
+      "strip": "shared/waybar/",
       "exclude": [
         "configs/[CUSTOM] Debian Glass",
         "styles/[CUSTOM] Debian Glass.css",
@@ -153,66 +153,81 @@
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/scripts/*",
+      "source": "apps/waybars/deblestia-bar/**/*",
+      "destination": "config:waybar/{relative}",
+      "policy": "config",
+      "strip": "apps/waybars/deblestia-bar/",
+      "exclude": [
+        "configs/[CUSTOM] Debian Glass",
+        "styles/[CUSTOM] Debian Glass.css",
+        "debian-glass-spotify.css",
+        "deblestia-bar-stats.sh",
+        "workspace-label.sh"
+      ],
+      "script_mode": true
+    },
+    {
+      "component": "deblestia-bar",
+      "source": "shared/hyprland/scripts/*",
       "destination": "config:hypr/scripts/{name}",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/MinimizeWindow.sh",
+      "source": "shared/hyprland/UserScripts/MinimizeWindow.sh",
       "destination": "config:hypr/UserScripts/MinimizeWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/RestoreMinimizedWindow.sh",
+      "source": "shared/hyprland/UserScripts/RestoreMinimizedWindow.sh",
       "destination": "config:hypr/UserScripts/RestoreMinimizedWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/UserScripts/DeblestiaSystemThemeSync.sh",
+      "source": "shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh",
       "destination": "config:hypr/UserScripts/DeblestiaSystemThemeSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-bar",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/waybar/**/*",
+      "source": "shared/waybar/**/*",
       "destination": "config:waybar/{relative}",
       "policy": "config",
-      "strip": "config/waybar/",
+      "strip": "shared/waybar/",
       "exclude": [
         "configs/[CUSTOM] Debian Glass",
         "styles/[CUSTOM] Debian Glass.css",
@@ -224,66 +239,81 @@
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/scripts/*",
+      "source": "apps/waybars/deblestia-nova-lite/**/*",
+      "destination": "config:waybar/{relative}",
+      "policy": "config",
+      "strip": "apps/waybars/deblestia-nova-lite/",
+      "exclude": [
+        "configs/[CUSTOM] Debian Glass",
+        "styles/[CUSTOM] Debian Glass.css",
+        "debian-glass-spotify.css",
+        "deblestia-bar-stats.sh",
+        "workspace-label.sh"
+      ],
+      "script_mode": true
+    },
+    {
+      "component": "deblestia-nova-lite",
+      "source": "shared/hyprland/scripts/*",
       "destination": "config:hypr/scripts/{name}",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/MinimizeWindow.sh",
+      "source": "shared/hyprland/UserScripts/MinimizeWindow.sh",
       "destination": "config:hypr/UserScripts/MinimizeWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/RestoreMinimizedWindow.sh",
+      "source": "shared/hyprland/UserScripts/RestoreMinimizedWindow.sh",
       "destination": "config:hypr/UserScripts/RestoreMinimizedWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/UserScripts/DeblestiaSystemThemeSync.sh",
+      "source": "shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh",
       "destination": "config:hypr/UserScripts/DeblestiaSystemThemeSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova-lite",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "nova2",
-      "source": "config/waybar/**/*",
+      "source": "shared/waybar/**/*",
       "destination": "config:waybar/{relative}",
       "policy": "config",
-      "strip": "config/waybar/",
+      "strip": "shared/waybar/",
       "exclude": [
         "configs/[CUSTOM] Debian Glass",
         "styles/[CUSTOM] Debian Glass.css",
@@ -295,224 +325,239 @@
     },
     {
       "component": "nova2",
-      "source": "config/hypr/scripts/*",
+      "source": "apps/waybars/deblestia-nova-2/**/*",
+      "destination": "config:waybar/{relative}",
+      "policy": "config",
+      "strip": "apps/waybars/deblestia-nova-2/",
+      "exclude": [
+        "configs/[CUSTOM] Debian Glass",
+        "styles/[CUSTOM] Debian Glass.css",
+        "debian-glass-spotify.css",
+        "deblestia-bar-stats.sh",
+        "workspace-label.sh"
+      ],
+      "script_mode": true
+    },
+    {
+      "component": "nova2",
+      "source": "shared/hyprland/scripts/*",
       "destination": "config:hypr/scripts/{name}",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/MinimizeWindow.sh",
+      "source": "shared/hyprland/UserScripts/MinimizeWindow.sh",
       "destination": "config:hypr/UserScripts/MinimizeWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/RestoreMinimizedWindow.sh",
+      "source": "shared/hyprland/UserScripts/RestoreMinimizedWindow.sh",
       "destination": "config:hypr/UserScripts/RestoreMinimizedWindow.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/UserScripts/DeblestiaSystemThemeSync.sh",
+      "source": "shared/hyprland/UserScripts/DeblestiaSystemThemeSync.sh",
       "destination": "config:hypr/UserScripts/DeblestiaSystemThemeSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "nova2",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/caelestia/shell.json",
+      "source": "apps/desktop-shells/caelestia-v2/shell.json",
       "destination": "config:caelestia/shell.json",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/caelestia-v2.conf",
+      "source": "apps/desktop-shells/caelestia-v2/hyprland/caelestia-v2.conf",
       "destination": "config:hypr/caelestia-v2.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/caelestia-v2-launch.sh",
+      "source": "apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-launch.sh",
       "destination": "config:hypr/scripts/caelestia-v2-launch.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/caelestia-v2-lock.sh",
+      "source": "apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-lock.sh",
       "destination": "config:hypr/scripts/caelestia-v2-lock.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/caelestia-v2-display-profile.sh",
+      "source": "apps/desktop-shells/caelestia-v2/scripts/caelestia-v2-display-profile.sh",
       "destination": "config:hypr/scripts/caelestia-v2-display-profile.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-shell",
-      "source": "config/hypr/scripts/desktop-shell-mode.sh",
+      "source": "shared/hyprland/scripts/desktop-shell-mode.sh",
       "destination": "config:hypr/scripts/desktop-shell-mode.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-nova-shell.conf",
+      "source": "apps/desktop-shells/nova-shell/hyprland/deblestia-nova-shell.conf",
       "destination": "config:hypr/deblestia-nova-shell.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-input.conf",
+      "source": "shared/hyprland/deblestia-input.conf",
       "destination": "config:hypr/deblestia-input.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-workspaces.conf",
+      "source": "shared/hyprland/deblestia-workspaces.conf",
       "destination": "config:hypr/deblestia-workspaces.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/deblestia-ui.conf",
+      "source": "shared/hyprland/deblestia-ui.conf",
       "destination": "config:hypr/deblestia-ui.conf",
       "policy": "config",
       "mode": "0644"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/scripts/deblestia-nova-shell-launch.sh",
+      "source": "apps/desktop-shells/nova-shell/scripts/deblestia-nova-shell-launch.sh",
       "destination": "config:hypr/scripts/deblestia-nova-shell-launch.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/scripts/desktop-shell-mode.sh",
+      "source": "shared/hyprland/scripts/desktop-shell-mode.sh",
       "destination": "config:hypr/scripts/desktop-shell-mode.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/scripts/deblestia-nova-lock.sh",
+      "source": "apps/desktop-shells/nova-shell/scripts/deblestia-nova-lock.sh",
       "destination": "config:hypr/scripts/deblestia-nova-lock.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/hypr/UserScripts/WaybarWallpaperSync.sh",
+      "source": "shared/hyprland/UserScripts/WaybarWallpaperSync.sh",
       "destination": "config:hypr/UserScripts/WaybarWallpaperSync.sh",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "periphx",
-      "source": "config/v3/device-center.py",
+      "source": "apps/system-apps/periphx/device-center.py",
       "destination": "home:.local/lib/debian-next-v3/device-center.py",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/lib/debian-next-v3/periphx.py",
       "policy": "managed",
       "mode": "0755"
     },
     {
       "component": "periphx",
-      "source": "config/v3/io.github.kebemouhamet08.DebianNextV3Devices.desktop",
+      "source": "apps/system-apps/periphx/io.github.kebemouhamet08.DebianNextV3Devices.desktop",
       "destination": "home:.local/share/applications/io.github.kebemouhamet08.PeriphX.desktop",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "periphx",
-      "source": "config/v3/pericored/pericored.service",
+      "source": "apps/system-apps/periphx/pericored/pericored.service",
       "destination": "config:systemd/user/pericored.service",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/periphx",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/periphx-launcher"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/debian-next-v3-devices",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/periphx-launcher"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/periphx-cli",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/periphx.py"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/bin/pericored",
       "policy": "managed",
       "link": "home:.local/lib/debian-next-v3/pericored"
     },
     {
       "component": "periphx",
-      "source": "config/v3/periphx.py",
+      "source": "apps/system-apps/periphx/periphx.py",
       "destination": "home:.local/lib/debian-next-v3/periphx-launcher",
       "policy": "managed",
       "generate": "periphx-launcher",
@@ -520,39 +565,39 @@
     },
     {
       "component": "periphx",
-      "source": "config/v3/pericored/Cargo.toml",
+      "source": "apps/system-apps/periphx/pericored/Cargo.toml",
       "destination": "home:.local/lib/debian-next-v3/pericored",
       "policy": "managed",
-      "build": "config/v3/pericored",
+      "build": "apps/system-apps/periphx/pericored",
       "binary": "pericored",
       "mode": "0755"
     },
     {
       "component": "mirrorbridge",
-      "source": "config/mirrorbridge/Cargo.toml",
+      "source": "apps/system-apps/mirrorbridge/Cargo.toml",
       "destination": "home:.local/bin/mirrorbridge",
       "policy": "managed",
-      "build": "config/mirrorbridge",
+      "build": "apps/system-apps/mirrorbridge",
       "binary": "mirrorbridge",
       "mode": "0755"
     },
     {
       "component": "mirrorbridge",
-      "source": "config/mirrorbridge/*.desktop",
+      "source": "apps/system-apps/mirrorbridge/*.desktop",
       "destination": "home:.local/share/applications/{name}",
       "policy": "managed",
       "mode": "0644"
     },
     {
       "component": "aurora-core",
-      "source": "bin/aurora",
+      "source": "apps/desktop-shells/aurora/aurora",
       "destination": "home:.local/bin/aurora",
       "policy": "managed",
-      "link": "repo:bin/aurora"
+      "link": "repo:apps/desktop-shells/aurora/aurora"
     },
     {
       "component": "deblestia-nova",
-      "source": "config/nova-shell/debian-config.json",
+      "source": "apps/desktop-shells/nova-shell/config/debian-config.json",
       "destination": "config:illogical-impulse/config.json",
       "policy": "config",
       "mode": "0644"
@@ -574,9 +619,9 @@
       "component": "deblestia-nova",
       "destination": "config:quickshell/deblestia-nova",
       "patches": [
-        "config/nova-shell/qt68-compat.patch",
-        "config/nova-shell/mpvpaper-integration.patch",
-        "config/nova-shell/hyprland-ipc-compat.patch"
+        "apps/desktop-shells/nova-shell/patches/qt68-compat.patch",
+        "apps/desktop-shells/nova-shell/patches/mpvpaper-integration.patch",
+        "apps/desktop-shells/nova-shell/patches/hyprland-ipc-compat.patch"
       ]
     }
   ]

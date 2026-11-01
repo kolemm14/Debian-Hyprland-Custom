@@ -1,9 +1,9 @@
-mod state;
 mod app;
+mod state;
 
-use std::sync::{Arc, Mutex};
-use state::InstallerState;
 use app::InstallerApp;
+use state::InstallerState;
+use std::sync::{Arc, Mutex};
 
 fn main() {
     tracing_subscriber::fmt::init();
@@ -29,11 +29,11 @@ fn main() {
     initial_state.language = language;
 
     let state = Arc::new(Mutex::new(initial_state));
-    
+
     // Create and run the application
     let app = InstallerApp::new("org.deblestia.installer", state);
     app.setup_actions();
     app.build_ui();
-    
+
     app.run();
 }

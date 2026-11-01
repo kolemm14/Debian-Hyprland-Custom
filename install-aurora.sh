@@ -3,6 +3,10 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=core/setup.sh
 source "$repo_dir/core/setup.sh"
+aurora_cli="$repo_dir/apps/desktop-shells/aurora/aurora"
+aurora_profile="$repo_dir/apps/desktop-shells/aurora/profile.py"
+[ -x "$aurora_cli" ] || aurora_cli="$repo_dir/bin/aurora"
+[ -f "$aurora_profile" ] || aurora_profile="$repo_dir/core/aurora/profile.py"
 
 case "${1:-install}" in
     check)
@@ -12,7 +16,7 @@ case "${1:-install}" in
     install)
         # Link CLI
         mkdir -p "$HOME/.local/bin"
-        ln -sf "$repo_dir/bin/aurora" "$HOME/.local/bin/aurora"
+        ln -sf "$aurora_cli" "$HOME/.local/bin/aurora"
         
         # Setup config dir
         aurora_dir="$HOME/.config/aurora"
@@ -22,6 +26,7 @@ case "${1:-install}" in
         
         # Init profile matching system (lite, balanced, ultra)
         target_profile="balanced"
+        # shellcheck disable=SC2154 # Initialized by the sourced core/setup.sh.
         if [ -n "${DEBLESTIA_PROFILE:-}" ]; then
             case "${DEBLESTIA_PROFILE,,}" in
                 lite|legacy) target_profile="lite" ;;
@@ -36,7 +41,7 @@ case "${1:-install}" in
                 *) target_profile="balanced" ;;
             esac
         fi
-        python3 "$repo_dir/core/aurora/profile.py" set "$target_profile"
+        python3 "$aurora_profile" set "$target_profile"
         
         # Create the main aurora.conf file to be sourced
         cat > "$aurora_dir/hypr/aurora.conf" << 'EOL'
@@ -51,19 +56,19 @@ EOL
         echo "source = ~/.config/aurora/hypr/aurora.conf"
         
         deblestia_record_component aurora-core
-        source "$repo_dir/core/update/record.sh"
+        source "$repo_dir/core/updater/record.sh"
         deblestia_update_record aurora-core
         ;;
     launch)
         ;;
     status)
-        "$repo_dir/bin/aurora" status
+        "$aurora_cli" status
         ;;
     restore)
         # Remove symlink and config
         rm -f "$HOME/.local/bin/aurora"
         rm -rf "$HOME/.config/aurora"
-        source "$repo_dir/core/update/record.sh"
+        source "$repo_dir/core/updater/record.sh"
         deblestia_update_record aurora-core forget
         ;;
     *)

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=MPVpaper Engine
+Comment=Gérer des fonds d'écran vidéo sous Hyprland
+Exec=mpvpaper-engine
+Icon=video-display
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=wallpaper;video;mpv;hyprland;fond;écran;couleur;gamma;luminosité;contraste;
+StartupNotify=true
+StartupWMClass=io.github.kebemouhamet08.MPVpaperEngine
+Actions=Colors;
+
+[Desktop Action Colors]
+Name=Couleurs du fond vidéo
+Exec=mpvpaper-engine --colors

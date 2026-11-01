@@ -1,0 +1,965 @@
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::env;
+use std::fs;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::fs::PermissionsExt;
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+use udev::{Device, Enumerator, EventType, MonitorBuilder};
+
+mod drivers;
+mod hid;
+mod input;
+mod monitor;
+
+const MAX_IPC_REQUEST_BYTES: u64 = 256 * 1024;
+const IPC_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum DeviceClass {
+    Keyboard,
+    Mouse,
+    Touchpad,
+    Gamepad,
+    Monitor,
+    Gpu,
+    Hid,
+    Unknown,
+}
+
+#[derive(Debug, Serialize, Clone)]
+struct BatteryState {
+    percent: Option<u8>,
+    charging: Option<bool>,
+    low: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+struct DeviceRecord {
+    id: String,
+    class: DeviceClass,
+    classes: Vec<DeviceClass>,
+    name: String,
+    manufacturer: Option<String>,
+    vendor_id: Option<String>,
+    product_id: Option<String>,
+    serial: Option<String>,
+    connected: bool,
+    nodes: Vec<String>,
+    syspath: String,
+    connection: String,
+    external: bool,
+    driver: String,
+    capabilities: Vec<String>,
+    battery: BatteryState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hid: Option<hid::HidDescriptor>,
+    #[serde(skip)]
+    hid_interfaces: Vec<hid::HidInterface>,
+}
+
+#[derive(Default)]
+struct DeviceRegistry {
+    devices: BTreeMap<String, DeviceRecord>,
+    nodes: BTreeMap<String, String>,
+    driver_registry: drivers::DriverRegistry,
+}
+
+#[derive(Debug, Deserialize)]
+struct Request {
+    method: String,
+    request_id: Option<String>,
+    params: Option<serde_json::Value>,
+}
+
+type SharedRegistry = Arc<Mutex<DeviceRegistry>>;
+type InputSessions = Arc<Mutex<BTreeMap<String, Arc<AtomicBool>>>>;
+
+fn value(device: &Device, key: &str) -> Option<String> {
+    device
+        .property_value(key)
+        .or_else(|| device.attribute_value(key))
+        .map(|value| value.to_string_lossy().into_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn inherited_value(device: &Device, key: &str) -> Option<String> {
+    let mut current = Some(device.clone());
+    while let Some(item) = current {
+        if let Some(found) = value(&item, key) {
+            return Some(found);
+        }
+        current = item.parent();
+    }
+    None
+}
+
+fn devnode(device: &Device) -> Option<String> {
+    device
+        .devnode()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+fn physical_syspath(device: &Device) -> PathBuf {
+    if let Some(anchor) = device
+        .parent_with_subsystem_devtype("usb", "usb_device")
+        .ok()
+        .flatten()
+        .or_else(|| device.parent_with_subsystem("hid").ok().flatten())
+    {
+        return anchor.syspath().to_path_buf();
+    }
+    if device.subsystem().and_then(|value| value.to_str()) == Some("input") {
+        for path in device.syspath().ancestors() {
+            let is_input_root = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.strip_prefix("input"))
+                .is_some_and(|suffix| {
+                    !suffix.is_empty() && suffix.chars().all(|item| item.is_ascii_digit())
+                });
+            if is_input_root {
+                return path.to_path_buf();
+            }
+        }
+    }
+    device.syspath().to_path_buf()
+}
+
+fn stable_id(device: &Device, vendor: &Option<String>, product: &Option<String>) -> String {
+    let anchor = physical_syspath(device);
+    let vendor = vendor.as_deref().unwrap_or("unknown");
+    let product = product.as_deref().unwrap_or("unknown");
+    if let Some(serial) =
+        inherited_value(device, "ID_SERIAL_SHORT").or_else(|| inherited_value(device, "serial"))
+    {
+        return format!("usb:{vendor}:{product}:{serial}");
+    }
+    format!("sys:{vendor}:{product}:{}", anchor.to_string_lossy())
+}
+
+fn classify(device: &Device) -> DeviceClass {
+    if inherited_value(device, "ID_INPUT_KEYBOARD").as_deref() == Some("1") {
+        return DeviceClass::Keyboard;
+    }
+    if inherited_value(device, "ID_INPUT_TOUCHPAD").as_deref() == Some("1") {
+        return DeviceClass::Touchpad;
+    }
+    if inherited_value(device, "ID_INPUT_MOUSE").as_deref() == Some("1") {
+        return DeviceClass::Mouse;
+    }
+    if inherited_value(device, "ID_INPUT_JOYSTICK").as_deref() == Some("1")
+        || inherited_value(device, "ID_INPUT_GAMEPAD").as_deref() == Some("1")
+    {
+        return DeviceClass::Gamepad;
+    }
+    match device.subsystem().and_then(|value| value.to_str()) {
+        Some("drm") => DeviceClass::Monitor,
+        Some("pci") if value(device, "PCI_CLASS").as_deref() == Some("0x030000") => {
+            DeviceClass::Gpu
+        }
+        Some("hidraw") => DeviceClass::Hid,
+        _ => DeviceClass::Unknown,
+    }
+}
+
+fn connection(device: &Device) -> String {
+    inherited_value(device, "ID_BUS")
+        .or_else(|| inherited_value(device, "DEVTYPE"))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn is_external(device: &Device) -> bool {
+    let identity = [
+        inherited_value(device, "ID_BUS"),
+        inherited_value(device, "ID_PATH"),
+        inherited_value(device, "HID_UNIQ"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join(" ")
+    .to_ascii_lowercase();
+    ["usb", "bluetooth"]
+        .iter()
+        .any(|marker| identity.contains(marker))
+}
+
+fn record_from_device(device: &Device) -> Option<DeviceRecord> {
+    let subsystem = device.subsystem().and_then(|value| value.to_str())?;
+    if !matches!(subsystem, "input" | "hidraw" | "drm" | "pci") {
+        return None;
+    }
+    let vendor_id =
+        inherited_value(device, "ID_VENDOR_ID").or_else(|| inherited_value(device, "idVendor"));
+    let product_id =
+        inherited_value(device, "ID_MODEL_ID").or_else(|| inherited_value(device, "idProduct"));
+    let id = stable_id(device, &vendor_id, &product_id);
+    let class = classify(device);
+    if subsystem == "pci" && class == DeviceClass::Unknown {
+        return None;
+    }
+    let name = inherited_value(device, "NAME")
+        .or_else(|| inherited_value(device, "ID_MODEL_FROM_DATABASE"))
+        .or_else(|| inherited_value(device, "ID_MODEL"))
+        .unwrap_or_else(|| subsystem.to_string())
+        .trim_matches('"')
+        .to_string();
+    let syspath = physical_syspath(device).to_string_lossy().into_owned();
+    let node = devnode(device).unwrap_or_else(|| device.syspath().to_string_lossy().into_owned());
+    let hid = if subsystem == "hidraw" {
+        hid::read_descriptor(device.syspath())
+    } else {
+        None
+    };
+    let hid_interfaces = hid
+        .as_ref()
+        .map(|descriptor| {
+            let candidate = descriptor.usage_pages.iter().any(|page| page.id >= 0xff00);
+            let role = if candidate {
+                "vendor-defined"
+            } else if descriptor
+                .collections
+                .iter()
+                .any(|collection| collection.usage.is_some_and(|usage| usage.page == 0x0d))
+            {
+                "digitizer"
+            } else if descriptor.collections.iter().any(|collection| {
+                collection
+                    .usage
+                    .is_some_and(|usage| usage.page == 0x01 && usage.id == 0x06)
+            }) {
+                "keyboard"
+            } else if descriptor.collections.iter().any(|collection| {
+                collection
+                    .usage
+                    .is_some_and(|usage| usage.page == 0x01 && usage.id == 0x02)
+            }) {
+                "mouse"
+            } else {
+                "standard"
+            };
+            let kernel_name = device
+                .parent_with_subsystem("hid")
+                .ok()
+                .flatten()
+                .and_then(|parent| parent.sysname().to_str().map(str::to_string))
+                .unwrap_or_else(|| device.sysname().to_string_lossy().into_owned());
+            let interface_path = inherited_value(device, "ID_PATH")
+                .unwrap_or_else(|| device.syspath().to_string_lossy().into_owned());
+            hid::HidInterface {
+                id: format!(
+                    "path:{}:{}:{interface_path}",
+                    vendor_id.as_deref().unwrap_or("unknown"),
+                    product_id.as_deref().unwrap_or("unknown")
+                ),
+                name: kernel_name.clone(),
+                kernel_name,
+                interface_number: inherited_value(device, "ID_USB_INTERFACE_NUM"),
+                vendor_id: vendor_id.clone(),
+                product_id: product_id.clone(),
+                nodes: vec![node.clone()],
+                role: role.to_string(),
+                risk: if candidate {
+                    "proprietary-candidate".to_string()
+                } else {
+                    "standard-read-only".to_string()
+                },
+                candidate,
+                descriptor_size: descriptor.size,
+                descriptor_sha256: descriptor.descriptor_sha256.clone(),
+                usage_pages: descriptor.usage_pages.clone(),
+                collections: descriptor.collections.clone(),
+                reports: descriptor.reports.clone(),
+            }
+        })
+        .into_iter()
+        .collect();
+    Some(DeviceRecord {
+        id,
+        class: class.clone(),
+        classes: vec![class.clone()],
+        name,
+        manufacturer: inherited_value(device, "ID_VENDOR_FROM_DATABASE")
+            .or_else(|| inherited_value(device, "ID_VENDOR")),
+        vendor_id,
+        product_id,
+        serial: inherited_value(device, "ID_SERIAL_SHORT")
+            .or_else(|| inherited_value(device, "serial")),
+        connected: true,
+        nodes: vec![node],
+        syspath,
+        connection: connection(device),
+        external: is_external(device),
+        driver: String::new(),
+        capabilities: Vec::new(),
+        battery: BatteryState {
+            percent: None,
+            charging: None,
+            low: None,
+        },
+        hid,
+        hid_interfaces,
+    })
+}
+
+fn class_priority(class: &DeviceClass) -> u8 {
+    match class {
+        DeviceClass::Touchpad => 5,
+        DeviceClass::Gamepad => 4,
+        DeviceClass::Keyboard => 3,
+        DeviceClass::Mouse => 2,
+        DeviceClass::Monitor | DeviceClass::Gpu => 2,
+        DeviceClass::Hid => 1,
+        DeviceClass::Unknown => 0,
+    }
+}
+
+fn useful_name(name: &str) -> bool {
+    !matches!(name, "input" | "hidraw" | "drm" | "pci" | "unknown")
+}
+
+fn merge_record(existing: &mut DeviceRecord, incoming: DeviceRecord) {
+    existing.connected = true;
+    if class_priority(&incoming.class) > class_priority(&existing.class) {
+        existing.class = incoming.class.clone();
+        if useful_name(&incoming.name) {
+            existing.name = incoming.name.clone();
+        }
+    }
+    for class in incoming.classes {
+        if !existing.classes.contains(&class) {
+            existing.classes.push(class);
+        }
+    }
+    if useful_name(&incoming.name) && !useful_name(&existing.name) {
+        existing.name = incoming.name;
+    }
+    if existing.manufacturer.is_none() {
+        existing.manufacturer = incoming.manufacturer;
+    }
+    if existing.vendor_id.is_none() {
+        existing.vendor_id = incoming.vendor_id;
+    }
+    if existing.product_id.is_none() {
+        existing.product_id = incoming.product_id;
+    }
+    if existing.serial.is_none() {
+        existing.serial = incoming.serial;
+    }
+    if existing.connection == "unknown" {
+        existing.connection = incoming.connection;
+    }
+    existing.external |= incoming.external;
+    if existing.hid.is_none() {
+        existing.hid = incoming.hid;
+    }
+    for interface in incoming.hid_interfaces {
+        if !existing
+            .hid_interfaces
+            .iter()
+            .any(|item| item.id == interface.id)
+        {
+            existing.hid_interfaces.push(interface);
+        }
+    }
+    for node in incoming.nodes {
+        if !existing.nodes.contains(&node) {
+            existing.nodes.push(node);
+        }
+    }
+    existing.nodes.sort();
+}
+
+impl DeviceRegistry {
+    fn apply_driver(&self, record: &mut DeviceRecord) {
+        let driver = self.driver_registry.select(record);
+        record.driver = driver.name().to_string();
+        record.capabilities = driver
+            .capabilities(record)
+            .into_iter()
+            .map(|capability| {
+                if capability.writable {
+                    format!("{}.write", capability.name)
+                } else {
+                    capability.name
+                }
+            })
+            .collect();
+    }
+
+    fn add(&mut self, record: DeviceRecord) {
+        let id = record.id.clone();
+        let mut merged = if let Some(mut existing) = self.devices.remove(&id) {
+            merge_record(&mut existing, record);
+            existing
+        } else {
+            record
+        };
+        self.apply_driver(&mut merged);
+        for node in &merged.nodes {
+            self.nodes.insert(node.clone(), id.clone());
+        }
+        self.devices.insert(id, merged);
+    }
+
+    fn remove(&mut self, device: &Device) {
+        let node =
+            devnode(device).unwrap_or_else(|| device.syspath().to_string_lossy().into_owned());
+        if let Some(id) = self.nodes.remove(&node) {
+            if let Some(record) = self.devices.get_mut(&id) {
+                record.nodes.retain(|item| item != &node);
+                record.connected = !record.nodes.is_empty();
+            }
+        }
+    }
+
+    fn inventory_json(&self, reason: &str) -> serde_json::Value {
+        let devices: Vec<_> = self
+            .devices
+            .values()
+            .filter(|item| item.connected)
+            .collect();
+        serde_json::json!({
+            "event": "inventory",
+            "reason": reason,
+            "devices": devices,
+        })
+    }
+
+    fn device(&self, id: &str) -> Option<&DeviceRecord> {
+        self.devices.get(id).filter(|device| device.connected)
+    }
+
+    fn reload_drivers(&mut self) {
+        self.driver_registry = drivers::DriverRegistry::default();
+        let ids: Vec<_> = self.devices.keys().cloned().collect();
+        for id in ids {
+            if let Some(mut device) = self.devices.remove(&id) {
+                self.apply_driver(&mut device);
+                self.devices.insert(id, device);
+            }
+        }
+    }
+}
+
+fn socket_path() -> PathBuf {
+    env::var_os("PERIPHX_SOCKET")
+        .map(PathBuf::from)
+        .or_else(|| {
+            env::var_os("XDG_RUNTIME_DIR")
+                .map(|dir| PathBuf::from(dir).join("periphx/pericored.sock"))
+        })
+        .unwrap_or_else(|| PathBuf::from("/tmp/periphx-pericored.sock"))
+}
+
+fn response(request_id: Option<String>, result: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({"ok": true, "request_id": request_id, "result": result, "error": null})
+}
+
+fn error_response(request_id: Option<String>, code: &str, message: &str) -> serde_json::Value {
+    serde_json::json!({
+        "ok": false,
+        "request_id": request_id,
+        "result": null,
+        "error": {"code": code, "message": message}
+    })
+}
+
+fn read_ipc_line<R: BufRead>(reader: &mut R) -> std::io::Result<Option<Vec<u8>>> {
+    let mut line = Vec::new();
+    let bytes_read = reader
+        .by_ref()
+        .take(MAX_IPC_REQUEST_BYTES + 1)
+        .read_until(b'\n', &mut line)?;
+    Ok((bytes_read != 0).then_some(line))
+}
+
+fn handle_request(
+    request: Request,
+    registry: &SharedRegistry,
+    sessions: &InputSessions,
+) -> serde_json::Value {
+    if matches!(
+        request.method.as_str(),
+        "MonitorHid" | "monitor_hid" | "MonitorHidAll" | "monitor_hid_all"
+    ) {
+        return handle_monitor_request(request, registry);
+    }
+    let mut guard = match registry.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return error_response(
+                request.request_id,
+                "registry_unavailable",
+                "registry unavailable",
+            )
+        }
+    };
+    match request.method.as_str() {
+        "Ping" | "ping" => response(request.request_id, serde_json::json!({"pong": true})),
+        "Version" | "version" => response(
+            request.request_id,
+            serde_json::json!({"api": "0.2", "daemon": "0.1.0"}),
+        ),
+        "ListDevices" | "list_devices" | "inventory" => {
+            response(request.request_id, guard.inventory_json("ipc"))
+        }
+        "GetDevice" | "get_device" => {
+            let device_id = request
+                .params
+                .as_ref()
+                .and_then(|params| params.get("id"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            match guard.device(device_id) {
+                Some(device) => response(request.request_id, serde_json::json!(device)),
+                None => error_response(request.request_id, "not_found", "device not found"),
+            }
+        }
+        "GetCapabilities" | "get_capabilities" => response(
+            request.request_id,
+            serde_json::json!({
+                "device_count": guard.devices.values().filter(|device| device.connected).count(),
+                "supported": ["ping", "version", "list_devices", "get_device", "get_capabilities", "get_state", "inspect", "get_hid_interfaces", "monitor_hid", "monitor_hid_all", "get_input_capabilities", "start_input_test", "stop_input_test", "reload_drivers", "set_property", "apply_profile"],
+                "drivers": guard.driver_registry.names(),
+            }),
+        ),
+        "GetState" | "get_state" => {
+            let device_id = request
+                .params
+                .as_ref()
+                .and_then(|params| params.get("id"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            match guard.device(device_id) {
+                Some(device) => response(
+                    request.request_id,
+                    serde_json::json!({"connection": device.connection, "battery": device.battery, "capabilities": device.capabilities}),
+                ),
+                None => error_response(request.request_id, "not_found", "device not found"),
+            }
+        }
+        "GetHidInterfaces" | "get_hid_interfaces" => {
+            let device_id = request
+                .params
+                .as_ref()
+                .and_then(|params| params.get("id"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            match guard.device(device_id) {
+                Some(device) => response(
+                    request.request_id,
+                    serde_json::json!({"interfaces": device.hid_interfaces, "safety": "read-only"}),
+                ),
+                None => error_response(request.request_id, "not_found", "device not found"),
+            }
+        }
+        "GetInputCapabilities" | "get_input_capabilities" => {
+            let device_id = request
+                .params
+                .as_ref()
+                .and_then(|params| params.get("id").or_else(|| params.get("device_id")))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            match guard.device(device_id) {
+                Some(device) => response(request.request_id, input::capabilities(device)),
+                None => error_response(request.request_id, "not_found", "device not found"),
+            }
+        }
+        "StopInputTest" | "stop_input_test" => {
+            let session_id = request
+                .params
+                .as_ref()
+                .and_then(|params| params.get("session_id"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            let stopped = sessions
+                .lock()
+                .ok()
+                .and_then(|mut active| active.remove(session_id))
+                .map(|flag| {
+                    flag.store(true, Ordering::Relaxed);
+                    true
+                })
+                .unwrap_or(false);
+            response(
+                request.request_id,
+                serde_json::json!({
+                    "session_id": session_id,
+                    "stopped": stopped,
+                }),
+            )
+        }
+        "ReloadDrivers" | "reload_drivers" => {
+            guard.reload_drivers();
+            response(
+                request.request_id,
+                serde_json::json!({"drivers": guard.driver_registry.names()}),
+            )
+        }
+        "Inspect" | "inspect" => {
+            let device_id = request
+                .params
+                .as_ref()
+                .and_then(|params| params.get("id"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            match guard.device(device_id) {
+                Some(device) => {
+                    let usage = device
+                        .hid
+                        .as_ref()
+                        .and_then(|descriptor| descriptor.collections.first())
+                        .and_then(|collection| collection.usage);
+                    let fingerprint = serde_json::json!({
+                        "descriptor_sha256": device.hid.as_ref().map(|item| &item.descriptor_sha256),
+                        "interface": device.hid_interfaces.first().and_then(|item| item.interface_number.as_ref()),
+                        "pid": device.product_id,
+                        "serial": device.serial,
+                        "usage": usage.map(|item| format!("0x{:04x}", item.id)),
+                        "usage_page": usage.map(|item| format!("0x{:04x}", item.page)),
+                        "vid": device.vendor_id,
+                    });
+                    response(
+                        request.request_id,
+                        serde_json::json!({
+                            "device": device,
+                            "hid": {
+                                "descriptor": device.hid,
+                                "fingerprint": fingerprint,
+                                "nodes": device.nodes,
+                                "writable_protocol": "unknown",
+                            },
+                            "safety": "read-only",
+                        }),
+                    )
+                }
+                None => error_response(request.request_id, "not_found", "device not found"),
+            }
+        }
+        "SetProperty" | "set_property" | "ApplyProfile" | "apply_profile" => error_response(
+            request.request_id,
+            "unsupported_capability",
+            "no writable driver is registered for this device",
+        ),
+        _ => error_response(request.request_id, "unknown_method", "unknown method"),
+    }
+}
+
+fn handle_monitor_request(request: Request, registry: &SharedRegistry) -> serde_json::Value {
+    let device_id = request
+        .params
+        .as_ref()
+        .and_then(|params| params.get("id"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let device = match registry.lock() {
+        Ok(guard) => guard.device(device_id).cloned(),
+        Err(_) => {
+            return error_response(
+                request.request_id,
+                "registry_unavailable",
+                "registry unavailable",
+            )
+        }
+    };
+    let Some(device) = device else {
+        return error_response(request.request_id, "not_found", "device not found");
+    };
+    let all = matches!(request.method.as_str(), "MonitorHidAll" | "monitor_hid_all");
+    match monitor::capture(&device, request.params.as_ref(), all) {
+        Ok(result) => response(request.request_id, result),
+        Err(error) => error_response(request.request_id, "hid_unavailable", &error),
+    }
+}
+
+fn serve_client(
+    mut stream: UnixStream,
+    registry: SharedRegistry,
+    sessions: InputSessions,
+) -> Result<()> {
+    configure_client_stream(&stream)?;
+    let mut reader = BufReader::new(stream.try_clone()?);
+    while let Some(line) = read_ipc_line(&mut reader)? {
+        if line.len() as u64 > MAX_IPC_REQUEST_BYTES {
+            let result = error_response(None, "request_too_large", "IPC request exceeds 256 KiB");
+            writeln!(stream, "{}", serde_json::to_string(&result)?)?;
+            stream.flush()?;
+            break;
+        }
+        let request = match serde_json::from_slice::<Request>(&line) {
+            Ok(request) => request,
+            Err(error) => {
+                let result = error_response(
+                    None,
+                    "invalid_request",
+                    &format!("invalid request: {error}"),
+                );
+                writeln!(stream, "{}", serde_json::to_string(&result)?)?;
+                stream.flush()?;
+                continue;
+            }
+        };
+        let Request {
+            method,
+            request_id,
+            params,
+        } = &request;
+        if matches!(method.as_str(), "StartInputTest" | "start_input_test") {
+            let device_id = params
+                .as_ref()
+                .and_then(|value| value.get("id").or_else(|| value.get("device_id")))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            let device = registry
+                .lock()
+                .ok()
+                .and_then(|guard| guard.device(device_id).cloned());
+            let Some(device) = device else {
+                let result = error_response(request_id.clone(), "not_found", "device not found");
+                writeln!(stream, "{}", serde_json::to_string(&result)?)?;
+                stream.flush()?;
+                continue;
+            };
+            if !device.external {
+                let result = error_response(
+                    request_id.clone(),
+                    "not_external",
+                    "input tests are restricted to external peripherals",
+                );
+                writeln!(stream, "{}", serde_json::to_string(&result)?)?;
+                stream.flush()?;
+                continue;
+            }
+            let session_id = request_id
+                .clone()
+                .unwrap_or_else(|| format!("input-{}", std::process::id()));
+            let stop = Arc::new(AtomicBool::new(false));
+            if let Ok(mut active) = sessions.lock() {
+                if let Some(previous) = active.insert(session_id.clone(), Arc::clone(&stop)) {
+                    previous.store(true, Ordering::Relaxed);
+                }
+            }
+            let result = response(
+                request_id.clone(),
+                serde_json::json!({
+                    "session_id": session_id,
+                    "capabilities": input::capabilities(&device),
+                    "safety": "read-only",
+                }),
+            );
+            writeln!(stream, "{}", serde_json::to_string(&result)?)?;
+            stream.flush()?;
+            let stream_result = input::stream_events(&device, &mut stream, &stop);
+            if let Ok(mut active) = sessions.lock() {
+                active.remove(&session_id);
+            }
+            stream_result?;
+            break;
+        }
+        let result = handle_request(request, &registry, &sessions);
+        writeln!(stream, "{}", serde_json::to_string(&result)?)?;
+        stream.flush()?;
+    }
+    Ok(())
+}
+
+fn configure_client_stream(stream: &UnixStream) -> std::io::Result<()> {
+    stream.set_read_timeout(Some(IPC_IDLE_TIMEOUT))?;
+    stream.set_write_timeout(Some(IPC_IDLE_TIMEOUT))
+}
+
+fn start_ipc_server(registry: SharedRegistry) -> Result<()> {
+    let path = socket_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let _ = fs::remove_file(&path);
+    let listener = UnixListener::bind(&path)?;
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+    eprintln!("pericored IPC: {}", path.display());
+    let sessions: InputSessions = Arc::new(Mutex::new(BTreeMap::new()));
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    let registry = Arc::clone(&registry);
+                    let sessions = Arc::clone(&sessions);
+                    thread::spawn(move || {
+                        let _ = serve_client(stream, registry, sessions);
+                    });
+                }
+                Err(error) => eprintln!("pericored IPC error: {error}"),
+            }
+        }
+    });
+    Ok(())
+}
+
+fn initial_scan(registry: &mut DeviceRegistry) -> Result<()> {
+    for subsystem in ["input", "hidraw", "drm", "pci"] {
+        let mut enumerator = Enumerator::new()?;
+        enumerator.match_subsystem(subsystem)?;
+        for device in enumerator.scan_devices()? {
+            if let Some(record) = record_from_device(&device) {
+                registry.add(record);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let mut initial_registry = DeviceRegistry::default();
+    let mut monitor_builder = MonitorBuilder::new()?;
+    for subsystem in ["input", "hidraw", "drm", "pci"] {
+        monitor_builder = monitor_builder.match_subsystem(subsystem)?;
+    }
+    let monitor = monitor_builder.listen()?;
+    initial_scan(&mut initial_registry)?;
+    let registry = Arc::new(Mutex::new(initial_registry));
+    start_ipc_server(Arc::clone(&registry))?;
+    if let Ok(registry) = registry.lock() {
+        println!(
+            "{}",
+            serde_json::json!({
+                "event": "daemon-started",
+                "device_count": registry.devices.values().filter(|device| device.connected).count(),
+                "drivers": registry.driver_registry.names(),
+            })
+        );
+    }
+
+    loop {
+        let mut received_event = false;
+        for event in monitor.iter() {
+            received_event = true;
+            let action = event
+                .action()
+                .and_then(|value| value.to_str())
+                .unwrap_or("change");
+            match event.event_type() {
+                EventType::Add | EventType::Bind | EventType::Change => {
+                    if let Some(record) = record_from_device(&event) {
+                        if let Ok(mut registry) = registry.lock() {
+                            registry.add(record);
+                        }
+                    }
+                }
+                EventType::Remove | EventType::Unbind => {
+                    if let Ok(mut registry) = registry.lock() {
+                        registry.remove(&event);
+                    }
+                }
+                _ => {}
+            }
+            println!(
+                "{}",
+                serde_json::json!({
+                    "event": "device-change",
+                    "action": action,
+                    "syspath": event.syspath().to_string_lossy(),
+                })
+            );
+        }
+        if !received_event {
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record(class: DeviceClass, name: &str, node: &str) -> DeviceRecord {
+        DeviceRecord {
+            id: "usb:1234:5678:serial".to_string(),
+            class: class.clone(),
+            classes: vec![class],
+            name: name.to_string(),
+            manufacturer: None,
+            vendor_id: Some("1234".to_string()),
+            product_id: Some("5678".to_string()),
+            serial: Some("serial".to_string()),
+            connected: true,
+            nodes: vec![node.to_string()],
+            syspath: "/sys/test/device".to_string(),
+            connection: "usb".to_string(),
+            external: true,
+            driver: String::new(),
+            capabilities: Vec::new(),
+            battery: BatteryState {
+                percent: None,
+                charging: None,
+                low: None,
+            },
+            hid: None,
+            hid_interfaces: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn physical_nodes_merge_without_losing_specific_class() {
+        let mut registry = DeviceRegistry::default();
+        registry.add(record(
+            DeviceClass::Keyboard,
+            "External Keyboard",
+            "/dev/input/event9",
+        ));
+        registry.add(record(DeviceClass::Hid, "hidraw", "/dev/hidraw4"));
+
+        let device = registry.devices.values().next().unwrap();
+        assert_eq!(registry.devices.len(), 1);
+        assert_eq!(device.class, DeviceClass::Keyboard);
+        assert_eq!(device.name, "External Keyboard");
+        assert_eq!(device.driver, "generic-hid");
+        assert_eq!(device.nodes, vec!["/dev/hidraw4", "/dev/input/event9"]);
+        assert!(device
+            .capabilities
+            .contains(&"keyboard.buttons".to_string()));
+        assert!(!device
+            .capabilities
+            .iter()
+            .any(|item| item.ends_with(".write")));
+    }
+
+    #[test]
+    fn touchpad_interface_promotes_mouse_identity() {
+        let mut existing = record(DeviceClass::Mouse, "Composite Mouse", "/dev/input/event1");
+        let incoming = record(
+            DeviceClass::Touchpad,
+            "Composite Touchpad",
+            "/dev/input/event2",
+        );
+        merge_record(&mut existing, incoming);
+        assert_eq!(existing.class, DeviceClass::Touchpad);
+        assert_eq!(existing.name, "Composite Touchpad");
+        assert!(existing.classes.contains(&DeviceClass::Mouse));
+        assert!(existing.classes.contains(&DeviceClass::Touchpad));
+    }
+
+    #[test]
+    fn ipc_reader_never_buffers_more_than_the_limit() {
+        let source = vec![b'a'; MAX_IPC_REQUEST_BYTES as usize + 10_000];
+        let mut reader = std::io::Cursor::new(source);
+        let line = read_ipc_line(&mut reader).unwrap().unwrap();
+        assert_eq!(line.len() as u64, MAX_IPC_REQUEST_BYTES + 1);
+    }
+
+    #[test]
+    fn ipc_clients_have_bounded_idle_time() {
+        let (stream, _peer) = UnixStream::pair().unwrap();
+        configure_client_stream(&stream).unwrap();
+        assert_eq!(stream.read_timeout().unwrap(), Some(IPC_IDLE_TIMEOUT));
+        assert_eq!(stream.write_timeout().unwrap(), Some(IPC_IDLE_TIMEOUT));
+    }
+}

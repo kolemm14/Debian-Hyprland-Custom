@@ -82,12 +82,24 @@ class _MediaLinks(HTMLParser):
     def __init__(self):
         super().__init__()
         self.links: list[str] = []
+        self.preferred_links: list[str] = []
 
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
         candidates = []
+        preferred = False
         if tag == "a":
             candidates.append(values.get("href", ""))
+        elif tag == "meta":
+            key = (values.get("property") or values.get("name") or "").casefold()
+            if key in {"og:image", "og:image:url", "twitter:image", "twitter:image:src"}:
+                candidates.append(values.get("content", ""))
+                preferred = True
+        elif tag == "link":
+            rel = {item.casefold() for item in values.get("rel", "").split()}
+            if "preload" in rel and values.get("as", "").casefold() == "image":
+                candidates.append(values.get("href", ""))
+                preferred = True
         elif tag in {"img", "source", "video"}:
             candidates.extend((values.get("src", ""), values.get("data-src", "")))
             candidates.extend(
@@ -97,7 +109,7 @@ class _MediaLinks(HTMLParser):
         for value in candidates:
             path = urlparse(value).path.casefold()
             if "/dl/" in path or Path(path).suffix in MEDIA_EXTENSIONS:
-                self.links.append(value)
+                (self.preferred_links if preferred else self.links).append(value)
 
 
 class DiscoveryDownloader:
@@ -184,7 +196,8 @@ class DiscoveryDownloader:
                 return uri
             parser = _MediaLinks()
             parser.feed(contents.decode("utf-8", "replace"))
-            links = {urljoin(uri, link) for link in parser.links}
+            candidates = parser.preferred_links or parser.links
+            links = {urljoin(uri, link) for link in candidates}
             if links:
                 return max(links, key=lambda link: self._link_rank(link, target_height))
         except (OSError, ValueError):

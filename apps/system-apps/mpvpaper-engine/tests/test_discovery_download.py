@@ -13,6 +13,25 @@ from mpvpaper_engine.discovery_download import DownloadCancelled, DiscoveryDownl
 
 
 class DiscoveryDownloadTests(unittest.TestCase):
+    def test_wallpapercave_wallpaper_page_resolves_og_image_and_preload(self):
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return b'''<html><head>
+                  <meta property="og:image" content="https://wallpapercave.com/wp/wp11941670.jpg">
+                  <link rel="preload" as="image" href="/wp/wp11941670.jpg">
+                </head><body><img src="/w200/wp7310062.png"></body></html>'''
+
+        downloader = DiscoveryDownloader(Path("/tmp/mpvpaper-discovery-test"))
+        with mock.patch("mpvpaper_engine.discovery_download.urlopen", return_value=Response()):
+            media_uri = downloader._page_media("https://wallpapercave.com/w/wp11941670", 1080)
+        self.assertEqual(media_uri, "https://wallpapercave.com/wp/wp11941670.jpg")
+
     def test_direct_download_cancellation_removes_partial_file(self):
         class Response:
             headers = {"Content-Length": "8"}

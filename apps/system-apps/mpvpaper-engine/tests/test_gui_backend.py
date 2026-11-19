@@ -105,6 +105,47 @@ class GuiBackendTests(unittest.TestCase):
         )
         self.assertTrue(saved["outputs"]["DP-1"]["autostart"])
 
+    def test_theme_sync_failure_does_not_reverse_successful_apply(self):
+        self.client.play.return_value = {"strategy": "loadfile"}
+        self.theme_sync.apply.side_effect = RuntimeError("palette tool failed")
+
+        result = self.backend.apply(self.wallpaper.id, "DP-1")
+
+        self.assertEqual(result["strategy"], "loadfile")
+        self.assertEqual(result["theme_sync"], "Theme sync failed: palette tool failed")
+        self.assertEqual(self.backend.history.list(output="DP-1")[0].wallpaper_id,
+                         self.wallpaper.id)
+
+    def test_failed_apply_is_not_saved_or_reported_as_success(self):
+        self.backend.monitor_detector = lambda: [MonitorInfo("DP-1")]
+        self.client.play.return_value = {"persisted": True, "outputs": {"DP-1": {"ok": False, "error": "blocked"}}}
+        with self.assertRaisesRegex(RuntimeError, "Aucun fond appliqué.*blocked"):
+            self.backend.apply(self.wallpaper.id, "*")
+        self.assertFalse(self.backend.history.list(output="DP-1"))
+        saved = json.loads(self.paths.config_file.read_text())
+        self.assertNotIn("*", saved["outputs"])
+        self.theme_sync.apply.assert_not_called()
+
+    def test_apply_without_hyprland_outputs_fails_before_saving(self):
+        self.backend.monitor_detector = lambda: []
+        with self.assertRaisesRegex(ValueError, "session Hyprland"):
+            self.backend.apply(self.wallpaper.id, "*")
+        self.assertFalse(self.paths.config_file.exists())
+        self.client.play.assert_not_called()
+        self.theme_sync.apply.assert_not_called()
+
+    def test_outputs_preserve_monitor_detection_diagnostic(self):
+        from mpvpaper_engine.monitors import MonitorError
+        self.backend.monitor_detector = mock.Mock(side_effect=MonitorError("Hyprland not running"))
+        self.assertEqual(self.backend.outputs(), [])
+        self.assertEqual(self.backend.monitor_error, "Hyprland not running")
+
+    def test_successful_monitor_detection_clears_old_diagnostic(self):
+        self.backend.monitor_error = "old detection failure"
+        self.backend.monitor_detector = lambda: [MonitorInfo("DP-1", width=1920, height=1080)]
+        self.assertEqual([monitor.name for monitor in self.backend.outputs()], ["DP-1"])
+        self.assertIsNone(self.backend.monitor_error)
+
     def test_individual_apply_removes_stale_wildcard(self):
         self.backend.monitor_detector = lambda: [MonitorInfo("DP-1"), MonitorInfo("DP-2")]
         self.client.play.return_value = {}
@@ -120,6 +161,39 @@ class GuiBackendTests(unittest.TestCase):
         self.backend.playback("profile", "DP-1", "eco")
         self.client.set_volume.assert_called_once_with("DP-1", 33)
         self.client.set_performance_profile.assert_called_once_with("DP-1", "eco")
+
+    def test_all_outputs_controls_report_partial_errors(self):
+        self.backend.monitor_detector = lambda: [MonitorInfo("DP-1"), MonitorInfo("DP-2")]
+        self.client.pause.side_effect = [RuntimeError("scene unsupported"), {"paused": True}]
+        result = self.backend.playback("pause", "*")
+        self.assertFalse(result["outputs"]["DP-1"]["ok"])
+        self.assertTrue(result["outputs"]["DP-2"]["ok"])
+        self.assertEqual(self.client.pause.call_args_list, [mock.call("DP-1"), mock.call("DP-2")])
+
+    def test_shared_legacy_player_keeps_wildcard_controls(self):
+        with mock.patch("mpvpaper_engine.playback.mpv_socket_candidates", return_value=[mock.Mock()]), \
+             mock.patch("mpvpaper_engine.playback.MpvClient") as mpv:
+            mpv.return_value.get_property.return_value = "/live.mp4"
+            self.backend.playback("pause", "*")
+        self.client.pause.assert_called_once_with("*")
+
+    def test_control_matrix(self):
+        controls = [("pause", "pause", None), ("resume", "resume", None),
+                    ("stop", "stop", None), ("restart", "restart", None),
+                    ("speed", "set_speed", 1.25), ("volume", "set_volume", 40),
+                    ("mute", "set_mute", False), ("loop", "set_loop", False),
+                    ("profile", "set_performance_profile", "quality"),
+                    ("fit", "set_fit", "cover"), ("color", "set_color", {"saturation": 20})]
+        for action, method, value in controls:
+            with self.subTest(action=action):
+                self.client.reset_mock()
+                self.backend.playback(action, "DP-1", value)
+                getattr(self.client, method).assert_called_once_with(*(["DP-1"] if value is None else ["DP-1", value]))
+
+    def test_save_uses_service_for_memory_and_disk_consistency(self):
+        self.backend.playback("save", "DP-1", {"speed": 1.25})
+        self.client.request.assert_called_once_with("save_playback_settings",
+            {"output": "DP-1", "settings": {"speed": 1.25}})
 
     def test_hud_settings_are_saved_and_sent_to_engine(self):
         settings = {
@@ -251,8 +325,50 @@ class GuiBackendTests(unittest.TestCase):
 
         downloader.download.assert_called_once_with(
             "https://www.youtube.com/watch?v=example", "wallpaper", 1080,
-            firefox=False,
+            firefox=False, preferred_codecs=(),
         )
+
+    def test_external_download_indexes_only_the_downloaded_file(self):
+        from mpvpaper_download import DownloadOutcome
+        downloaded = self.root / "external.jpg"
+        downloaded.write_bytes(b"image")
+        self.backend.downloader = mock.Mock()
+        self.backend.downloader.download.return_value = DownloadOutcome(
+            downloaded, "ok", "direct"
+        )
+        with mock.patch.object(self.library, "scan") as scan, \
+                mock.patch.object(self.library, "import_file") as import_file:
+            result = self.backend.download_discovery_page(
+                "https://wallpapercave.com/categories/anime-manga", "Anime", 1080
+            )
+        self.assertEqual(result.path, downloaded)
+        scan.assert_not_called()
+        import_file.assert_called_once_with(
+            downloaded, source="discovery",
+            source_url="https://wallpapercave.com/categories/anime-manga",
+        )
+
+    def test_cancelled_download_removes_result_without_importing(self):
+        import threading
+        from mpvpaper_download import DownloadOutcome
+        downloaded = self.root / "cancelled.jpg"
+        downloaded.write_bytes(b"image")
+        event = threading.Event()
+        self.backend.downloader = mock.Mock()
+
+        def finish_then_cancel(*_args, **_kwargs):
+            event.set()
+            return DownloadOutcome(downloaded, "ok", "direct")
+
+        self.backend.downloader.download.side_effect = finish_then_cancel
+        with mock.patch.object(self.library, "import_file") as import_file:
+            result = self.backend.download_discovery_page(
+                "https://wallpapercave.com/categories/anime-manga", "Anime", 1080,
+                cancel_event=event,
+            )
+        self.assertEqual(result.source, "cancelled")
+        self.assertFalse(downloaded.exists())
+        import_file.assert_not_called()
 
     def test_playlist_next_is_functional(self):
         playlist = self.backend.create_playlist("Night")

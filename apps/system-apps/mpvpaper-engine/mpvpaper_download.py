@@ -95,7 +95,7 @@ def _memory_kib():
 
 def choose_hardware_profile(heights, memory_kib, gpu_text):
     display_height = max([int(value) for value in heights if int(value) > 0] or [1080])
-    memory_gib = max(1, round(memory_kib / 1024 / 1024))
+    memory_gib = max(1, memory_kib // 1024 // 1024)
     gpu = (gpu_text or "GPU non détecté").strip()
     lowered = gpu.casefold()
     discrete = any(name in lowered for name in ("nvidia", "geforce", "radeon", "amd"))
@@ -105,16 +105,18 @@ def choose_hardware_profile(heights, memory_kib, gpu_text):
         display_target = 1080
     elif display_height <= 1440:
         display_target = 1440
-    elif display_height <= 2160:
-        display_target = 2160
     else:
-        display_target = 4320
+        display_target = 2160
 
-    if memory_gib >= 24 and discrete:
-        hardware_cap = 4320
-    elif memory_gib >= 12 and (discrete or modern_integrated):
+    if memory_gib < 4:
+        hardware_cap = 720
+    elif memory_gib <= 8:
+        hardware_cap = 720
+    elif memory_gib < 16:
+        hardware_cap = 1080
+    elif discrete:
         hardware_cap = 2160
-    elif memory_gib >= 8:
+    elif modern_integrated:
         hardware_cap = 1440
     else:
         hardware_cap = 1080
@@ -147,23 +149,51 @@ def ytdlp_command_prefix():
     return [executable] if executable else []
 
 
-def youtube_download_command(uri, output_template, height, *, firefox=False):
+def javascript_runtime():
+    """Return an explicitly configured yt-dlp JS runtime, preferring Deno."""
+    if LOCAL_DENO.is_file():
+        return "deno", str(LOCAL_DENO)
+    node = shutil.which("node")
+    if not node:
+        versions = Path.home() / ".nvm" / "versions" / "node"
+        candidates = list(versions.glob("*/bin/node")) if versions.is_dir() else []
+        def version_key(path):
+            match = re.search(r"v?(\d+(?:\.\d+)+)", path.parents[1].name)
+            return tuple(int(part) for part in match.group(1).split(".")) if match else ()
+        node = str(max(candidates, key=version_key)) if candidates else None
+    return ("node", node) if node else (None, None)
+
+
+def youtube_download_command(uri, output_template, height, *, firefox=False,
+                             preferred_codecs=()):
     prefix = ytdlp_command_prefix()
     if not prefix:
         raise FileNotFoundError("yt-dlp est introuvable")
+    maximum_height = int(height)
+    fallback_format = (
+        f"bv*[height<={maximum_height}]+ba/"
+        f"b[height<={maximum_height}]"
+    )
+    preferred_formats = [
+        f"bv*[height<={maximum_height}][vcodec^={codec}]+ba/"
+        f"b[height<={maximum_height}][vcodec^={codec}]"
+        for codec in preferred_codecs if codec in {"avc1", "av01", "hev1", "hvc1"}
+    ]
+    format_selector = "/".join([*preferred_formats, fallback_format])
     command = [
         *prefix, "--no-playlist", "--no-progress", "--continue",
+        "--concurrent-fragments", "8", "--buffer-size", "1M",
         "--retries", "10", "--fragment-retries", "10",
         "--file-access-retries", "5",
         "--retry-sleep", "http:exp=1:20",
         "--retry-sleep", "fragment:exp=1:20",
-        "-f", f"bv*[height<={int(height)}]+ba/b[height<={int(height)}]",
+        "-f", format_selector,
         "--merge-output-format", "mp4", "--remux-video", "mp4",
         "--print", "after_move:filepath", "-o", str(output_template),
     ]
-    deno = LOCAL_DENO if LOCAL_DENO.is_file() else None
-    if deno is not None:
-        command.extend(["--js-runtimes", f"deno:{deno}"])
+    runtime, runtime_path = javascript_runtime()
+    if runtime and runtime_path:
+        command.extend(["--js-runtimes", f"{runtime}:{runtime_path}"])
     if firefox:
         command.extend(["--cookies-from-browser", "firefox"])
     command.append(uri)
@@ -173,16 +203,20 @@ def youtube_download_command(uri, output_template, height, *, firefox=False):
 def downloader_diagnostics():
     prefix = ytdlp_command_prefix()
     version = _command_text([*prefix, "--version"], timeout=8) if prefix else ""
-    deno_version = _command_text([str(LOCAL_DENO), "--version"], timeout=5) \
-        if LOCAL_DENO.is_file() else ""
+    runtime, runtime_path = javascript_runtime()
+    runtime_version = _command_text([runtime_path, "--version"], timeout=5) \
+        if runtime_path else ""
     ffmpeg = shutil.which("ffmpeg")
     firefox_profiles = Path.home() / ".mozilla" / "firefox"
     return {
         "yt_dlp": bool(prefix and version),
         "yt_dlp_version": version.splitlines()[0] if version else "indisponible",
         "private_environment": bool(PRIVATE_PYTHON.is_file()),
-        "deno": bool(deno_version),
-        "deno_version": deno_version.splitlines()[0] if deno_version else "indisponible",
+        "deno": runtime == "deno",
+        "deno_version": runtime_version.splitlines()[0] if runtime == "deno" and runtime_version else "indisponible",
+        "javascript_runtime": bool(runtime and runtime_version),
+        "javascript_runtime_name": runtime or "indisponible",
+        "javascript_runtime_version": runtime_version.splitlines()[0] if runtime_version else "indisponible",
         "ffmpeg": bool(ffmpeg),
         "firefox_session": firefox_profiles.is_dir(),
     }
@@ -294,6 +328,48 @@ def adapt_image_to_height(path, target_height, runner=subprocess.run):
         capture_output=True, text=True, timeout=600, check=False,
     )
     return destination if result.returncode == 0 and destination.is_file() else path
+
+
+def adapt_video_to_height(path, target_height, runner=subprocess.run):
+    """Transcode an over-height download atomically, preserving it on failure."""
+    path = Path(path)
+    if path.suffix.casefold() not in VIDEO_EXTENSIONS or target_height <= 0:
+        return path
+    _width, height = media_dimensions(path, runner=runner)
+    if height <= target_height:
+        return path
+
+    output = path if path.suffix.casefold() == ".mp4" else path.with_suffix(".mp4")
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=path.parent, prefix=f".{path.stem}-{target_height}p-",
+            suffix=".mp4", delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+        result = runner(
+            ["ffmpeg", "-nostdin", "-y", "-i", str(path), "-map", "0:v:0",
+             "-map", "0:a:0?", "-vf", f"scale=-2:{target_height}",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
+             str(temporary)],
+            capture_output=True, text=True, timeout=1800, check=False,
+        )
+        if result.returncode != 0 or not temporary.is_file():
+            return path
+        _output_width, output_height = media_dimensions(temporary, runner=runner)
+        if not output_height or output_height > target_height:
+            return path
+        os.replace(temporary, output)
+        temporary = None
+        if output != path:
+            path.unlink(missing_ok=True)
+        return output
+    except (OSError, subprocess.TimeoutExpired):
+        return path
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def media_dimensions(path, runner=subprocess.run):

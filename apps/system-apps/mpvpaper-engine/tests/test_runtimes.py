@@ -111,6 +111,23 @@ class RuntimeTests(unittest.TestCase):
             self.manager.apply('HDMI-A-1', self.project)
         self.systemd._run.assert_not_called()
 
+    def test_all_screen_apply_migrates_shared_surface_after_validation(self):
+        active = {'shared': True}
+        self.systemd.unit_status.side_effect = lambda output: 'active' if output == '*' and active['shared'] else 'inactive'
+        self.systemd.stop_checked.side_effect = lambda output: active.update(shared=False) if output == '*' else None
+        media = self.root/'new.mp4'; media.touch()
+        result = self.manager.apply('*', media)
+        self.assertTrue(all(value['ok'] for value in result.values()))
+        self.assertEqual(self.systemd.stop_checked.call_args_list[0].args, ('*',))
+        self.assertEqual(self.mpv.start.call_count, 2)
+
+    def test_invalid_all_screen_replacement_keeps_shared_surface(self):
+        self.systemd.unit_status.return_value = 'active'
+        with self.assertRaises((ValueError, OSError)):
+            self.manager.apply('*', self.root/'missing.mp4')
+        self.systemd.stop_checked.assert_not_called()
+        self.mpv.start.assert_not_called()
+
     def test_replacement_stops_only_selected_output(self):
         self.systemd.unit_status.side_effect = lambda output: 'active' if output=='HDMI-A-1' else 'inactive'
         self.manager.apply('HDMI-A-1', self.project)

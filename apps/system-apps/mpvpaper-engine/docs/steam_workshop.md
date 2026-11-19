@@ -6,7 +6,7 @@ MPVpaper Engine resolves Steam Workshop items (Wallpaper Engine) into playable
 media using `SteamWorkshopResolver`, a dedicated module at:
 
 ```
-config/mpvpaper-engine/mpvpaper_engine/steam_workshop.py
+apps/system-apps/mpvpaper-engine/mpvpaper_engine/steam_workshop.py
 ```
 
 The resolver handles discovery, type detection, compatibility reporting, and
@@ -250,7 +250,7 @@ print(result.to_dict())      # JSON-ready dict
 Run from the repository root inside Hyprland:
 
 ```sh
-python3 config/mpvpaper-engine/tools/validate_workshop_session.py \
+python3 apps/system-apps/mpvpaper-engine/tools/validate_workshop_session.py \
   --fixtures --report /tmp/workshop-session-report.json
 ```
 

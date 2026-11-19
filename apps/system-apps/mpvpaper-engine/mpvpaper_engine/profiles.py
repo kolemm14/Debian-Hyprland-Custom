@@ -48,8 +48,16 @@ PROFILES = {
         True, True, True, AnimatedPreview.OFF, 2, "ECO selected",
     ),
     PerformanceMode.BALANCED: EffectivePerformanceSettings(
-        PerformanceMode.BALANCED, PerformanceMode.BALANCED, "auto-safe", 30, 1080,
+        PerformanceMode.BALANCED, PerformanceMode.BALANCED, "auto-safe", 30, 720,
         True, True, True, AnimatedPreview.SELECTION, 4, "BALANCED selected",
+    ),
+    PerformanceMode.PERFORMANCE: EffectivePerformanceSettings(
+        PerformanceMode.PERFORMANCE, PerformanceMode.PERFORMANCE, "auto-safe", 60, 1440,
+        True, True, True, AnimatedPreview.SELECTION, 4, "PERFORMANCE selected",
+    ),
+    PerformanceMode.ULTRA: EffectivePerformanceSettings(
+        PerformanceMode.ULTRA, PerformanceMode.ULTRA, "auto-safe", None, None,
+        False, True, True, AnimatedPreview.SELECTION, 4, "ULTRA selected",
     ),
     PerformanceMode.QUALITY: EffectivePerformanceSettings(
         PerformanceMode.QUALITY, PerformanceMode.QUALITY, "auto-safe", None, None,
@@ -134,15 +142,19 @@ def select_auto(context: HardwareContext) -> tuple[PerformanceMode, str]:
         return PerformanceMode.ECO, "virtual machine or LITE profile active"
     if context.cpu_count <= 2 or context.ram_gib < 4:
         return PerformanceMode.ECO, "limited CPU or RAM"
+    if context.ram_gib <= 8:
+        return PerformanceMode.BALANCED, "4–8 GiB RAM profile"
     if context.gpu_class == "integrated" and context.total_output_pixels > 4_000_000:
-        return PerformanceMode.ECO, "integrated GPU driving a high pixel count"
+        return PerformanceMode.BALANCED, "integrated GPU driving a high pixel count"
     if (
         context.gpu_class == "discrete"
         and context.cpu_count >= 6
-        and context.ram_gib >= 12
+        and context.ram_gib >= 16
         and bool(context.available_hwdec)
     ):
-        return PerformanceMode.QUALITY, "discrete GPU and sufficient system resources"
+        return PerformanceMode.ULTRA, "16+ GiB RAM, discrete GPU and hardware decoding available"
+    if context.ram_gib >= 8:
+        return PerformanceMode.PERFORMANCE, "8–16 GiB RAM performance profile"
     return PerformanceMode.BALANCED, "balanced default for detected resources"
 
 

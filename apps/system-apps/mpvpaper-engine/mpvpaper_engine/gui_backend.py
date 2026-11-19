@@ -13,6 +13,7 @@ import subprocess
 from typing import Iterable
 
 from .discovery_download import DiscoveryDownloader
+from mpvpaper_download import DownloadOutcome
 from .config import load_config, save_config
 from .history import HistoryManager
 from .ipc import EngineClient, EngineIPCError, EngineUnavailableError
@@ -61,6 +62,7 @@ class GuiBackend:
         self.playlists = PlaylistManager(self.library)
         self.history = HistoryManager(self.library)
         self.monitor_detector = monitor_detector
+        self.monitor_error: str | None = None
         self.layer_detector = layer_detector
         self.theme_sync = theme_sync or ThemeSync(self.paths)
         self.recommendations = recommendations or RecommendationEngine(self.paths)
@@ -210,6 +212,11 @@ class GuiBackend:
             "fonts": fonts,
         }
 
+    def hub_url(self) -> str:
+        """Read the summary only when the user clicks Hub with my tastes."""
+        from .hub_profile import build_profile, hub_url
+        return hub_url(build_profile(self.paths))
+
     def recommendation_data(self) -> dict:
         """Return one coherent snapshot for the Discover suggestions page."""
         settings = self.recommendations.settings()
@@ -240,12 +247,26 @@ class GuiBackend:
         return self.downloader.diagnostics()
 
     def download_discovery_page(self, uri: str, title: str, height: int = 0,
-                                *, firefox=False):
-        result = self.downloader.download(
-            uri, title, height, firefox=firefox
-        )
+                                *, firefox=False, preferred_codecs=(), cancel_event=None,
+                                progress_callback=None, phase_callback=None,
+                                cancel_callback=None):
+        options = {"firefox": firefox, "preferred_codecs": tuple(preferred_codecs)}
+        hooks = {
+            "cancel_event": cancel_event,
+            "progress_callback": progress_callback,
+            "phase_callback": phase_callback,
+            "cancel_callback": cancel_callback,
+        }
+        options.update({key: value for key, value in hooks.items() if value is not None})
+        result = self.downloader.download(uri, title, height, **options)
+        if cancel_event is not None and cancel_event.is_set():
+            if result.path is not None:
+                Path(result.path).unlink(missing_ok=True)
+            return DownloadOutcome(None, "Téléchargement annulé", "cancelled")
         if result.path is not None and result.path.is_file():
-            self.library.scan(self.library_roots)
+            if phase_callback:
+                phase_callback("Ajout à la bibliothèque Engine…")
+            self.library.import_file(result.path, source="discovery", source_url=uri)
         return result
 
     def import_steam_local(self, uri):
@@ -277,9 +298,12 @@ class GuiBackend:
 
     def outputs(self) -> list[MonitorInfo]:
         try:
-            return self.monitor_detector()
-        except MonitorError:
+            monitors = self.monitor_detector()
+        except MonitorError as error:
+            self.monitor_error = str(error)
             return []
+        self.monitor_error = None
+        return monitors
 
     def import_project(self, path):
         return self.library.import_project(Path(path))
@@ -297,21 +321,31 @@ class GuiBackend:
         if output == "*":
             targets = [item.name for item in self.outputs()]
             if not targets:
-                raise ValueError("aucun écran connecté")
+                raise ValueError("Aucun écran compatible détecté. Vérifiez qu’une session Hyprland est active et que hyprctl peut lister les moniteurs.")
         candidate = load_config(self.paths)
         candidate.theme_sync["mode"] = theme_mode
         save_config(candidate, self.paths)
+        def play_selected():
+            if wallpaper.media_type in {MediaType.IMAGE, MediaType.VIDEO}:
+                for target in targets:
+                    self.client.request("save_playback_settings", {"output": target,
+                        "settings": {"performance_profile": performance_profile}})
+            return self.client.play(output, str(wallpaper.path))
         try:
-            result = self.client.play(output, str(wallpaper.path))
+            result = play_selected()
         except EngineUnavailableError:
             subprocess.run(
                 ["systemctl", "--user", "start", "mpvpaper-engine.service"],
                 check=True,
             )
-            result = self.client.play(output, str(wallpaper.path))
+            result = play_selected()
         successful = result.get("outputs")
         if isinstance(successful, dict):
             targets = [target for target in targets if successful.get(target, {}).get("ok")]
+            if not targets:
+                errors = " · ".join(f"{screen}: {value.get('error', 'échec')}"
+                                    for screen, value in successful.items() if not value.get("ok"))
+                raise RuntimeError("Aucun fond appliqué" + (f" — {errors}" if errors else " : aucun écran disponible"))
         if result.get("persisted") is True:
             self.config = load_config(self.paths)
             for target in targets:
@@ -322,8 +356,13 @@ class GuiBackend:
             self.history.start(wallpaper.id, target, "manual")
         theme_reason = "Theme sync unavailable for project wallpapers"
         if wallpaper.media_type in {MediaType.IMAGE, MediaType.VIDEO} and targets and not result.get("theme_sync_managed"):
-            theme_reason = self.theme_sync.apply(
-                wallpaper.path, mode=theme_mode, profile=performance_profile).reason
+            try:
+                theme_reason = self.theme_sync.apply(
+                    wallpaper.path, mode=theme_mode, profile=performance_profile).reason
+            except Exception as error:
+                # Playback has already succeeded; a palette integration must
+                # not turn that success into an apparent apply failure.
+                theme_reason = f"Theme sync failed: {error}"
         try:
             for target in targets:
                 self.client.refresh_hud(target)
@@ -338,6 +377,7 @@ class GuiBackend:
             "wallpaper": str(wallpaper),
             "performance_profile": performance_profile,
             "autostart": True,
+            "enabled": True,
         }
         self.config.outputs[output] = {
             **self.config.outputs.get(output, {}),
@@ -392,7 +432,30 @@ class GuiBackend:
                                      protected_paths=protected)
 
     def playback(self, action: str, output: str, value=None) -> dict:
+        wildcard_active = False
+        if output == "*" and action != "save":
+            from .playback import MpvClient, mpv_socket_candidates
+            for path in mpv_socket_candidates(self.paths, "*"):
+                if path.is_socket():
+                    try:
+                        wildcard_active = bool(MpvClient(path, timeout=1).get_property("path"))
+                    except (OSError, RuntimeError, TimeoutError):
+                        continue
+                    if wildcard_active:
+                        break
+        if output == "*" and action not in {"stop", "restart"} and not wildcard_active:
+            targets = [monitor.name for monitor in self.outputs()]
+            if not targets:
+                raise ValueError("Aucun écran compatible détecté. Vérifiez qu’une session Hyprland est active et que hyprctl peut lister les moniteurs.")
+            results = {}
+            for target in targets:
+                try:
+                    results[target] = {"ok": True, "result": self.playback(action, target, value)}
+                except (EngineIPCError, OSError, ValueError, RuntimeError) as error:
+                    results[target] = {"ok": False, "error": str(error)}
+            return {"outputs": results}
         operations = {
+            "save": lambda: self.client.request("save_playback_settings", {"output": output, "settings": dict(value)}),
             "stop": lambda: self.client.stop(output),
             "pause": lambda: self.client.pause(output),
             "resume": lambda: self.client.resume(output),

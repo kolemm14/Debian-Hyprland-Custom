@@ -45,7 +45,7 @@ class ServiceTests(unittest.TestCase):
             "volume": 12,
             "assignments": {
                 "eDP-1": {"wallpaper": "/wallpapers/laptop.mp4", "volume": 12},
-                "HDMI-A-1": {"wallpaper": "/wallpapers/external.png", "volume": 34},
+                "HDMI-A-1": {"wallpaper": "/wallpapers/external.png", "volume": 34, "loop": False},
             },
         }), encoding="utf-8")
         self.service = EngineService(self.paths)
@@ -58,6 +58,26 @@ class ServiceTests(unittest.TestCase):
         from mpvpaper_engine.monitors import MonitorInfo
         self.service.runtimes.monitor_detector = lambda: [MonitorInfo("eDP-1")]
         self.service._monitor_events = lambda: None
+
+    def test_save_playback_settings_preserves_wallpaper_and_updates_runtime_config(self):
+        from mpvpaper_engine.config import load_config
+        settings = {"speed": 1.5, "volume": 30, "muted": False,
+                    "loop": False, "performance_profile": "quality"}
+        self.service._save_playback_settings({"output": "eDP-1", "settings": settings})
+        saved = load_config(self.paths).outputs["eDP-1"]
+        self.assertEqual(saved["wallpaper"], "/wallpapers/laptop.mp4")
+        for key, value in settings.items():
+            self.assertEqual(saved[key], value)
+            self.assertEqual(self.service.playback.config.outputs["eDP-1"][key], value)
+
+    def test_save_rejects_invalid_values_without_changing_disk(self):
+        from mpvpaper_engine.ipc import RPCError
+        before = self.paths.config_file.read_bytes()
+        for settings in ({"speed": float("nan")}, {"speed": 99}, {"muted": "false"},
+                         {"wallpaper": "/other"}, {"performance_profile": "invalid"}):
+            with self.assertRaises(RPCError):
+                self.service._save_playback_settings({"output": "eDP-1", "settings": settings})
+        self.assertEqual(before, self.paths.config_file.read_bytes())
 
     def tearDown(self):
         self.service.shutdown()
@@ -111,6 +131,14 @@ class ServiceTests(unittest.TestCase):
         output = EngineClient(self.paths).get_output_state("HDMI-A-1")
         self.assertEqual(output["path"], "/wallpapers/external.png")
         self.assertEqual(output["volume"], 34)
+        self.assertFalse(output["loop"])
+
+    def test_loop_control_updates_inspector_state(self):
+        self.service._require_mpv = mock.Mock()
+        self.service.playback.set_loop = mock.Mock()
+        result = self.service._set_loop({"output": "eDP-1", "enabled": False})
+        self.assertEqual(result, {"loop": False})
+        self.assertFalse(self.service._get_output_state({"output": "eDP-1"})["loop"])
 
     def test_unknown_output_returns_error(self):
         self.service.start()

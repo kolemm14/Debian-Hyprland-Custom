@@ -42,6 +42,17 @@ class FakeSocket:
 
 
 class ColorEngineTests(unittest.TestCase):
+    def test_sync_wallpaper_theme_forces_engine_palette_pipeline(self):
+        expected = mock.Mock(applied=True, integrations={"waybar": "updated; ok"})
+        theme_sync = mock.Mock()
+        theme_sync.apply.return_value = expected
+        wallpaper = Path("/tmp/selected-wallpaper.mp4")
+        with mock.patch("mpvpaper_engine.theme_sync.ThemeSync", return_value=theme_sync):
+            result = CONTROLLER.sync_wallpaper_theme(wallpaper)
+
+        self.assertIs(result, expected)
+        theme_sync.apply.assert_called_once_with(wallpaper, mode="always", force=True)
+
     def test_malformed_config_is_normalized_without_crashing(self):
         malformed = {
             "wallpaper": ["not-a-path"],

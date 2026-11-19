@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -29,17 +30,17 @@ class DownloadPolicyTests(unittest.TestCase):
         self.assertEqual(profile.target_height, 1080)
         self.assertEqual(profile.display_height, 1080)
 
-    def test_powerful_8k_machine_can_select_8k(self):
+    def test_powerful_machine_caps_download_at_4k(self):
         profile = DOWNLOADS.choose_hardware_profile(
             [4320], 32 * 1024 * 1024, "NVIDIA GeForce RTX 4090"
         )
-        self.assertEqual(profile.target_height, 4320)
+        self.assertEqual(profile.target_height, 2160)
 
     def test_4k_integrated_machine_is_capped(self):
         profile = DOWNLOADS.choose_hardware_profile(
             [2160], 8 * 1024 * 1024, "Intel UHD Graphics 620"
         )
-        self.assertEqual(profile.target_height, 1440)
+        self.assertEqual(profile.target_height, 720)
 
     def test_workshop_id_validation(self):
         self.assertEqual(
@@ -58,9 +59,70 @@ class DownloadPolicyTests(unittest.TestCase):
                 "https://youtube.test/watch?v=1", "/tmp/video.%(ext)s", 1080
             )
         self.assertIn("--continue", command)
+        self.assertEqual(command[command.index("--concurrent-fragments") + 1], "8")
+        self.assertEqual(command[command.index("--buffer-size") + 1], "1M")
         self.assertEqual(command[command.index("--retries") + 1], "10")
         self.assertEqual(command[command.index("--fragment-retries") + 1], "10")
         self.assertNotIn("--cookies-from-browser", command)
+
+    def test_download_profile_prefers_codec_before_source_fallback(self):
+        with mock.patch.object(DOWNLOADS, "PRIVATE_PYTHON", Path("/missing")), \
+                mock.patch.object(DOWNLOADS, "LOCAL_YTDLP", Path("/bin/yt-dlp")), \
+                mock.patch.object(DOWNLOADS, "LOCAL_DENO", Path("/missing-deno")):
+            command = DOWNLOADS.youtube_download_command(
+                "https://youtube.test/watch?v=1", "/tmp/video.%(ext)s", 2160,
+                preferred_codecs=("av01", "hev1", "not-allowed"),
+            )
+        selector = command[command.index("-f") + 1]
+        self.assertLess(selector.index("vcodec^=av01"), selector.index("vcodec^=hev1"))
+        self.assertNotIn("not-allowed", selector)
+        self.assertTrue(selector.endswith("b[height<=2160]"))
+
+    def test_youtube_command_enables_available_node_js_runtime(self):
+        with mock.patch.object(DOWNLOADS, "PRIVATE_PYTHON", Path("/missing")), \
+                mock.patch.object(DOWNLOADS, "LOCAL_YTDLP", Path("/bin/yt-dlp")), \
+                mock.patch.object(DOWNLOADS, "LOCAL_DENO", Path("/missing-deno")), \
+                mock.patch.object(DOWNLOADS.shutil, "which", return_value="/usr/bin/node"):
+            command = DOWNLOADS.youtube_download_command(
+                "https://youtube.test/watch?v=1", "/tmp/video.%(ext)s", 360
+            )
+        index = command.index("--js-runtimes")
+        self.assertEqual(command[index + 1], "node:/usr/bin/node")
+
+    def test_video_height_adaptation_replaces_source_only_after_verified_transcode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "wallpaper.mp4"
+            source.write_bytes(b"original")
+
+            def runner(command, **_kwargs):
+                if command[0] == "ffprobe":
+                    height = 1080 if command[-1] == str(source) else 360
+                    payload = json.dumps({"streams": [{"width": 640, "height": height}]})
+                    return subprocess.CompletedProcess(command, 0, payload, "")
+                Path(command[-1]).write_bytes(b"transcoded")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            result = DOWNLOADS.adapt_video_to_height(source, 360, runner=runner)
+
+            self.assertEqual(result, source)
+            self.assertEqual(source.read_bytes(), b"transcoded")
+
+    def test_video_height_adaptation_keeps_source_when_transcode_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "wallpaper.mp4"
+            source.write_bytes(b"original")
+
+            def runner(command, **_kwargs):
+                if command[0] == "ffprobe":
+                    return subprocess.CompletedProcess(
+                        command, 0, '{"streams":[{"width":1920,"height":1080}]}', ""
+                    )
+                return subprocess.CompletedProcess(command, 1, "", "ffmpeg failed")
+
+            result = DOWNLOADS.adapt_video_to_height(source, 360, runner=runner)
+
+            self.assertEqual(result, source)
+            self.assertEqual(source.read_bytes(), b"original")
 
     def test_firefox_cookies_are_explicit_fallback_only(self):
         with mock.patch.object(DOWNLOADS, "PRIVATE_PYTHON", Path("/missing")), \

@@ -427,6 +427,21 @@ def adapt_desktop_theme(output, config, wallpaper=None):
     return frame, integrations
 
 
+def sync_wallpaper_theme(wallpaper):
+    """Force MPVpaper Engine's palette pipeline for a selected local wallpaper."""
+    if not wallpaper:
+        raise ValueError("un fond d’écran est requis")
+    from mpvpaper_engine.theme_sync import ThemeSync
+
+    result = ThemeSync().apply(Path(wallpaper), mode="always", force=True)
+    if not result.applied:
+        raise RuntimeError(result.reason)
+    waybar = result.integrations.get("waybar", "unavailable")
+    if "failed:" in waybar:
+        raise RuntimeError(f"adaptation Waybar impossible : {waybar}")
+    return result
+
+
 def stop(output=None):
     if output is not None:
         run(["systemctl", "--user", "stop", unit_for_output(output)])
@@ -553,10 +568,13 @@ def main():
     parser = argparse.ArgumentParser(description="Contrôleur de MPVpaper Engine")
     parser.add_argument("action", choices=(
         "play", "random", "stop", "restore", "status", "apply-colors", "preview-colors",
+        "sync-theme",
         "capture", "adapt-theme", "engine-ping", "current", "pause", "resume",
         "toggle", "seek", "restart", "outputs",
-        "list", "profile",
+        "list", "profile", "hub",
+        "hub-download", "hub-open",
     ))
+    parser.add_argument("value", nargs="?", help="lien mpvp:// reçu depuis MPVpaper Hub")
     parser.add_argument("--output", default=None, help="écran ciblé pour les couleurs")
     parser.add_argument("--settings", default=None, help="réglages couleur JSON à prévisualiser")
     parser.add_argument("--wallpaper", default=None, help="fond vidéo choisi pour la palette")
@@ -564,8 +582,67 @@ def main():
     parser.add_argument("--seconds", type=float, default=None, help="position absolue en secondes")
     parser.add_argument("--profile", default=None, help="profil auto, eco, balanced ou quality")
     args = parser.parse_args()
+    if args.action == "sync-theme":
+        try:
+            result = sync_wallpaper_theme(args.wallpaper)
+            print(f"Palette Waybar appliquée : {result.integrations.get('waybar', 'ok')}")
+            return 0
+        except (OSError, RuntimeError, ValueError) as error:
+            print(f"mpvpaper-engine: {error}", file=sys.stderr)
+            return 1
     if args.action in {"engine-ping", "current", "status"}:
         return engine_readonly_action(args.action, args.output, args.json)
+    if args.action == "hub":
+        from mpvpaper_engine.hub_profile import build_profile, hub_url
+        try:
+            profile = build_profile()
+            if args.json:
+                print(json.dumps(profile, ensure_ascii=False))
+                return 0
+            import webbrowser
+            if not webbrowser.open(hub_url(profile)):
+                print("Aucun navigateur disponible. Exportez le profil avec hub --json.", file=sys.stderr)
+                return 1
+            return 0
+        except (OSError, ValueError) as error:
+            print(f"Connexion Hub impossible : {error}", file=sys.stderr)
+            return 1
+    if args.action == "hub-download":
+        if not args.value:
+            print("Lien MPVpaper Hub manquant.", file=sys.stderr)
+            return 2
+        try:
+            from mpvpaper_engine.hub_import import import_hub_wallpaper
+            outcome = import_hub_wallpaper(args.value)
+            if outcome.path is None:
+                raise RuntimeError(outcome.message)
+            message = f"Fond ajouté à Engine : {outcome.path}"
+            print(message)
+            subprocess.run(["notify-send", "MPVpaper Engine", message],
+                           check=False, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+            return 0
+        except Exception as error:
+            message = f"Import Hub impossible : {error}"
+            print(message, file=sys.stderr)
+            subprocess.run(["notify-send", "MPVpaper Engine", message],
+                           check=False, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+            return 1
+    if args.action == "hub-open":
+        if not args.value:
+            print("Lien MPVpaper Hub manquant.", file=sys.stderr)
+            return 2
+        try:
+            from mpvpaper_engine.hub_import import open_hub_wallpaper
+            uri = open_hub_wallpaper(args.value)
+            import webbrowser
+            if not webbrowser.open(uri):
+                raise RuntimeError("Aucun navigateur disponible")
+            return 0
+        except Exception as error:
+            print(f"Ouverture du Hub impossible : {error}", file=sys.stderr)
+            return 1
     if args.action == "list":
         return library_list_action(args.json)
     config = load_config()

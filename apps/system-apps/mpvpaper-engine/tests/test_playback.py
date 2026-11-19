@@ -91,9 +91,23 @@ class PlaybackTests(unittest.TestCase):
             for suffix in (".png", ".jpg", ".jpeg", ".webp", ".avif", ".bmp", ".PNG"):
                 options = self.controller._mpv_options("DP-1", profile, Path("wall" + suffix))
                 self.assertNotIn("vf-add=fps=", options)
+                self.assertNotIn("vf-add=scale=", options)
                 self.assertIn("image-display-duration=inf", options)
         profile["performance_profile"] = "eco"
-        self.assertIn("vf-add=fps=", self.controller._mpv_options("DP-1", profile, self.wallpaper))
+        video_options = self.controller._mpv_options("DP-1", profile, self.wallpaper)
+        self.assertIn("vf-add=fps=", video_options)
+        self.assertIn("vf-add=scale=", video_options)
+
+    def test_default_fit_mode_scales_wallpaper_to_fill_output(self):
+        config = normalize_v2_config({"schema_version": 2})
+        controller = PlaybackController(config, self.paths, systemd=self.systemd)
+        profile = controller._profile("DP-1")
+
+        self.assertEqual(profile["fit_mode"], "cover")
+        options = controller._mpv_options("DP-1", profile, Path("wall.png"))
+        self.assertIn("video-unscaled=no", options)
+        self.assertIn("keepaspect=yes", options)
+        self.assertIn("panscan=1.0", options)
 
     def test_mpv_client_json_protocol(self):
         self.paths.runtime_home.mkdir(parents=True)

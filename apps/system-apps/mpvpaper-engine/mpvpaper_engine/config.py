@@ -118,7 +118,7 @@ def _canonical_profile(source, base=None):
     )
     if source.get("fit_mode") in {"cover", "contain", "stretch"}:
         profile["fit_mode"] = source["fit_mode"]
-    if source.get("performance_profile") in {"auto", "eco", "balanced", "quality"}:
+    if source.get("performance_profile") in {"auto", "eco", "balanced", "performance", "ultra", "quality"}:
         profile["performance_profile"] = source["performance_profile"]
     if isinstance(source.get("color_profile"), str) and source["color_profile"]:
         profile["color_profile"] = source["color_profile"]

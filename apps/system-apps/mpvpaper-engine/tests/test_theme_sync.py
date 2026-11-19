@@ -29,6 +29,9 @@ class ThemeSyncTests(unittest.TestCase):
         self.paths = paths(self.temp.name)
         self.media = Path(self.temp.name) / "wall.mp4"
         self.media.write_bytes(b"video")
+        self.manager = self.paths.config_home.parent / "waybar/deblestia-waybar-switch.sh"
+        self.manager.parent.mkdir(parents=True, exist_ok=True)
+        self.manager.touch()
 
     def tearDown(self):
         self.temp.cleanup()
@@ -94,6 +97,7 @@ class ThemeSyncTests(unittest.TestCase):
         self.assertIn("failed:", result.integrations["waybar"])
         self.assertEqual(result.integrations["nova"], "ok")
         self.assertTrue(self.paths.palette_dir.joinpath("current.json").is_file())
+        self.assertIsNone(ThemeSync(self.paths)._stored_key())
 
     def test_waybar_file_is_updated_before_reload(self):
         palette = Palette(("#204060", "#d0d0d0"), "#d0d0d0", "#101010", str(self.media), 4)
@@ -104,8 +108,30 @@ class ThemeSyncTests(unittest.TestCase):
         self.assertTrue(result.applied)
         panel = self.paths.config_home.parent / "waybar" / "panel-colors.css"
         self.assertIn("@define-color accent #204060;", panel.read_text())
+        imported = panel.parent / "styles" / "panel-colors.css"
+        self.assertTrue(imported.is_symlink())
+        self.assertEqual(imported.resolve(), panel.resolve())
         calls = [call.args[0][0] for call in runner.call_args_list]
-        self.assertEqual(calls, ["wallust", "pkill", "qs"])
+        self.assertEqual(calls, ["wallust", str(self.manager), "qs"])
+
+    def test_failed_waybar_reload_is_retried_for_same_wallpaper(self):
+        palette = Palette(("#204060",), "#eeeeee", "#101010", str(self.media), 1)
+        runner = mock.Mock(side_effect=[
+            subprocess.CompletedProcess([], 0, "", ""),
+            subprocess.CompletedProcess([], 1, "", "waybar unavailable"),
+            subprocess.CompletedProcess([], 0, "", ""),
+            subprocess.CompletedProcess([], 0, "", ""),
+            subprocess.CompletedProcess([], 0, "", ""),
+            subprocess.CompletedProcess([], 0, "", ""),
+        ])
+        sync = ThemeSync(self.paths, extractor=lambda *a, **kw: palette, runner=runner)
+
+        first = sync.apply(self.media)
+        second = sync.apply(self.media)
+
+        self.assertTrue(first.integrations["waybar"].startswith("failed:"))
+        self.assertTrue(second.applied)
+        self.assertEqual(runner.call_count, 6)
 
     def test_same_wallpaper_is_guarded_across_instances(self):
         palette = Palette(("#000000",), "#000000", "#000000", str(self.media), 2)
@@ -121,7 +147,28 @@ class ThemeSyncTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ThemeSync(self.paths).apply(self.media, mode="sometimes")
 
-    def test_desktop_sync_and_real_waybar_reload(self):
+    def test_caelestia_image_wallpaper_enables_dynamic_scheme(self):
+        image = Path(self.temp.name) / "still.png"
+        image.write_bytes(b"image")
+        runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        sync = ThemeSync(self.paths, runner=runner)
+        with mock.patch("mpvpaper_engine.theme_sync.shutil.which", return_value="/usr/bin/caelestia"):
+            result = sync._update_caelestia(image)
+        self.assertEqual(result, "updated; dynamic scheme enabled")
+        self.assertEqual([call.args[0] for call in runner.call_args_list], [
+            ["/usr/bin/caelestia", "wallpaper", "-f", str(image)],
+            ["/usr/bin/caelestia", "scheme", "set", "-n", "dynamic"],
+        ])
+
+    def test_caelestia_does_not_receive_video_files_as_still_wallpapers(self):
+        runner = mock.Mock()
+        sync = ThemeSync(self.paths, runner=runner)
+        with mock.patch("mpvpaper_engine.theme_sync.shutil.which", return_value="/usr/bin/caelestia"):
+            result = sync._update_caelestia(self.media)
+        self.assertIn("requires a still image", result)
+        runner.assert_not_called()
+
+    def test_desktop_sync_and_manager_owned_waybar_reload(self):
         script = self.paths.config_home.parent / "hypr/UserScripts/DeblestiaSystemThemeSync.sh"
         script.parent.mkdir(parents=True)
         script.write_text("#!/bin/sh\n")
@@ -130,7 +177,7 @@ class ThemeSyncTests(unittest.TestCase):
         sync = ThemeSync(self.paths, extractor=lambda *a, **kw: palette, runner=runner)
         result = sync.apply(self.media)
         commands = [call.args[0] for call in runner.call_args_list]
-        self.assertIn(["pkill", "-SIGUSR2", "-x", "waybar"], commands)
+        self.assertIn([str(self.manager), "--reload"], commands)
         self.assertIn(["bash", str(script), "--no-waybar-reload"], commands)
         self.assertEqual(result.integrations["desktop"], "ok")
         self.assertTrue(sync.apply(self.media, force=True).applied)

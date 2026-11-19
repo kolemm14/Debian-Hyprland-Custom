@@ -1,7 +1,7 @@
 # Validation Steam Workshop dans Hyprland — 2026-09-29
 
 Suite automatisée finale : **349 tests passent** (`python3 -m pytest -q
-config/mpvpaper-engine/tests --tb=short`, hors sandbox pour les sockets Unix).
+apps/system-apps/mpvpaper-engine/tests --tb=short`, hors sandbox pour les sockets Unix).
 `git diff --check` et la compilation Python des modules modifiés passent.
 
 La validation est **partielle** : la chaîne locale fonctionne dans une vraie

@@ -35,8 +35,16 @@ class ProfileTests(unittest.TestCase):
     def test_balanced_profile(self):
         profile = effective_settings("balanced")
         self.assertEqual(profile.fps_limit, 30)
-        self.assertEqual(profile.render_height, 1080)
+        self.assertEqual(profile.render_height, 720)
         self.assertEqual(profile.theme_analysis_frames, 4)
+
+    def test_performance_and_ultra_profiles(self):
+        performance = effective_settings("performance")
+        self.assertEqual((performance.fps_limit, performance.render_height), (60, 1440))
+        ultra = effective_settings("ultra")
+        self.assertIsNone(ultra.fps_limit)
+        self.assertIsNone(ultra.render_height)
+        self.assertEqual(ultra.hwdec, "auto-safe")
 
     def test_quality_profile(self):
         profile = effective_settings("quality")
@@ -70,13 +78,23 @@ class ProfileTests(unittest.TestCase):
 
     def test_auto_uses_eco_for_integrated_multi_4k(self):
         selected, _ = select_auto(self.context(total_output_pixels=16_000_000))
-        self.assertEqual(selected, PerformanceMode.ECO)
+        self.assertEqual(selected, PerformanceMode.BALANCED)
 
-    def test_auto_uses_quality_for_capable_discrete_machine(self):
+    def test_auto_uses_ultra_for_capable_discrete_machine(self):
         selected, _ = select_auto(self.context(
             cpu_count=8, ram_gib=16, gpu_class="discrete",
         ))
-        self.assertEqual(selected, PerformanceMode.QUALITY)
+        self.assertEqual(selected, PerformanceMode.ULTRA)
+
+    def test_auto_uses_performance_for_8_to_16_gib(self):
+        selected, _ = select_auto(self.context(ram_gib=12))
+        self.assertEqual(selected, PerformanceMode.PERFORMANCE)
+
+    def test_auto_does_not_choose_ultra_without_hardware_decode(self):
+        selected, _ = select_auto(self.context(
+            cpu_count=8, ram_gib=16, gpu_class="discrete", available_hwdec=(),
+        ))
+        self.assertEqual(selected, PerformanceMode.PERFORMANCE)
 
     def test_auto_defaults_to_balanced(self):
         selected, _ = select_auto(self.context())

@@ -1,0 +1,132 @@
+[
+  {
+    "source": "MotionBGS",
+    "urls": [
+      "https://motionbgs.com/page/about",
+      "https://motionbgs.com/page/privacy",
+      "https://motionbgs.com/page/dmca"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": null,
+    "downloadStatus": "Public detail pages directly offer MP4 download endpoints, verified 200 attachment.",
+    "restrictions": "Footer prohibits unauthorized use/duplication of website text and design. Standalone terms/media republication license not located. Do not infer unrestricted thumbnail/MP4 republication permission.",
+    "sourceRefs": [
+      "turn11view1",
+      "turn8search0",
+      "turn2search10"
+    ]
+  },
+  {
+    "source": "MyLiveWallpapers",
+    "urls": [
+      "https://mylivewallpapers.com/contact/",
+      "https://mylivewallpapers.com/how-to-install-mlw-app-version-2-2/"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": null,
+    "downloadStatus": "Free downloads offered; latest guide requires viewing/closing an ad before download. Do not bypass.",
+    "restrictions": "Images remain property of original owners. Site offers artist credits on request. No standalone terms/redistribution license located.",
+    "sourceRefs": [
+      "turn8search2",
+      "turn8search4"
+    ]
+  },
+  {
+    "source": "MoeWalls",
+    "urls": [
+      "https://moewalls.com/terms-of-service/",
+      "https://moewalls.com/disclaimer/"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": null,
+    "downloadStatus": "Personal non-commercial downloads allowed; current selected download anchors encoded, no decode attempted.",
+    "restrictions": "Terms allow downloads for personal non-commercial use without public reproduction. Reproduction, modification, copying or distribution except allowed limited uses is prohibited. Disclaimer requires original author permission commercially. Avoid public embedding/rehosting thumbnails absent permission.",
+    "sourceRefs": [
+      "turn3view2",
+      "turn9view2"
+    ],
+    "verification": "Primary HTML fetched and text saved moewalls-terms.txt; web cached terms 404 was inaccurate."
+  },
+  {
+    "source": "Wallsflow",
+    "urls": [
+      "https://wallsflow.com/terms-and-conditions.html"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": null,
+    "downloadStatus": "Personal non-commercial downloads allowed according to original source terms. Guest/download limits present.",
+    "restrictions": "Original creators retain rights. Commercial republication, reproduction or redistribution requires creator permission. No blanket public thumbnail sublicense.",
+    "sourceRefs": [
+      "turn5view8"
+    ]
+  },
+  {
+    "source": "Backiee",
+    "urls": [
+      "https://backiee.com/terms-and-conditions"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": null,
+    "downloadStatus": "Personal non-commercial downloads allowed unless copyright owner states otherwise.",
+    "restrictions": "Users retain ownership. Commercial use requires copyright holder permission. License to host/display/promote is granted to Backiee, not generally to third-party catalogs.",
+    "sourceRefs": [
+      "turn6view1"
+    ]
+  },
+  {
+    "source": "LivelyWallpaper.app",
+    "urls": [
+      "https://livelywallpaper.app/terms/"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": "Prohibits scraping in a manner that materially harms availability.",
+    "downloadStatus": "Public detail pages openly publish downloadable MP4 CDN URLs; HEAD verified 200 video/mp4 attachment.",
+    "restrictions": "Independent informational site, not official Lively app. Materials belong to respective owners. No blanket wallpaper republication license stated; link to source and direct downloads for personal use, preserve attribution.",
+    "sourceRefs": [
+      "turn6view3"
+    ]
+  },
+  {
+    "source": "Wallhaven",
+    "urls": [
+      "https://www.whvn.cc/help/api",
+      "https://wallhaven.cc/api/v1/search"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": "The Engine Hub uses the documented SFW JSON search API and does not scrape HTML for search results.",
+    "downloadStatus": "Engine may import the image URL returned by Wallhaven's API. Redirects remain restricted to the registered image host; the original page is retained for attribution.",
+    "restrictions": "Wallpaper files remain the property of their respective owners. API access grants no redistribution or rehosting licence.",
+    "sourceRefs": [
+      "https://www.whvn.cc/help/api"
+    ]
+  },
+  {
+    "source": "NASA Images",
+    "urls": [
+      "https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf",
+      "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": "The Engine Hub uses NASA's documented Images API and requests image media only.",
+    "downloadStatus": "Engine imports the public NASA preview image to the local library. The original detail page is retained; the preview may not be the full-resolution asset.",
+    "restrictions": "Some NASA media is third-party copyrighted and NASA insignia are protected. Check each record's credits and rights; do not imply NASA endorsement.",
+    "sourceRefs": [
+      "https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf",
+      "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    ]
+  },
+  {
+    "source": "YouTube",
+    "urls": [
+      "https://www.youtube.com/watch?v=42dBHBv1scA",
+      "https://www.youtube.com/t/terms"
+    ],
+    "explicitHotlinkRule": null,
+    "explicitAutomationRule": "La vidéo est lue uniquement dans le lecteur intégré YouTube après action explicite. Le Hub ne récupère pas le média.",
+    "downloadStatus": "Aucun téléchargement ni réhébergement proposé ; le lien renvoie à la publication source.",
+    "restrictions": "Respecter les conditions YouTube et les droits du créateur et des ayants droit. Le titre et la miniature identifient la vidéo, sans prétendre qu’elle est libre de droits.",
+    "sourceRefs": [
+      "https://www.youtube.com/t/terms"
+    ]
+  }
+]

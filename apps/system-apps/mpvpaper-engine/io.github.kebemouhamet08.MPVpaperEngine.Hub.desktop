@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MPVpaper Engine Hub
+Comment=Ouvrir une fiche ou importer un fond du MPVpaper Hub
+Exec=sh -c 'case "$1" in mpvp://download/*) exec mpvpaper-enginectl hub-download "$1" ;; mpvp://open/*) exec mpvpaper-enginectl hub-open "$1" ;; *) exit 2 ;; esac' sh %u
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/mpvp;

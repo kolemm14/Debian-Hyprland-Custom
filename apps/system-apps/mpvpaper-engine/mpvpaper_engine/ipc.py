@@ -75,6 +75,10 @@ class _RequestHandler(socketserver.StreamRequestHandler):
         except (UnicodeDecodeError, json.JSONDecodeError):
             self._send(_error(None, "invalid_json", "Invalid JSON request"))
             return
+        # The short socket timeout protects the initial line read from a client
+        # that connects and stalls. Once a complete local RPC is received, its
+        # handler may legitimately perform a download, scan, or media probe.
+        self.request.settimeout(None)
         response = self.server.engine_owner.handle_request(request)  # type: ignore[attr-defined]
         self._send(response)
 
@@ -263,6 +267,27 @@ class EngineClient:
 
     def get_version(self) -> dict[str, Any]:
         return self.request("get_version")
+
+    def engine_status(self) -> dict[str, Any]:
+        return self.request("engine.status")
+
+    def engine_capabilities(self) -> dict[str, Any]:
+        return self.request("engine.capabilities")
+
+    def media_estimate(self, params: dict[str, Any]) -> dict[str, Any]:
+        return self.request("media.estimate", params)
+
+    def media_optimize(self, params: dict[str, Any]) -> dict[str, Any]:
+        return self.request("media.optimize", params)
+
+    def task_status(self, task_id: str) -> dict[str, Any]:
+        return self.request("task.status", {"task_id": task_id})
+
+    def task_cancel(self, task_id: str) -> dict[str, Any]:
+        return self.request("task.cancel", {"task_id": task_id})
+
+    def task_list(self, limit: int = 20) -> list[dict[str, Any]]:
+        return self.request("task.list", {"limit": limit})
 
     def play(self, output: str, wallpaper: str) -> dict[str, Any]:
         return self.request("play", {"output": output, "wallpaper": wallpaper})

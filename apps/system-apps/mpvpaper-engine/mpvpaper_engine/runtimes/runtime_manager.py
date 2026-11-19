@@ -97,7 +97,7 @@ class RuntimeManager:
             if command is None and shutil.which('mpvpaper') is None:
                 raise RuntimeError('mpvpaper is not installed')
             if self.systemd.unit_status('*') in {'active', 'activating', 'deactivating'}:
-                raise RuntimeError('Stop the legacy wildcard wallpaper before using per-screen runtimes')
+                raise RuntimeError('Un ancien fond partagé (wildcard) occupe les écrans. Appliquez d’abord le fond à « Tous les écrans » pour migrer, puis personnalisez chaque écran.')
             before = self.status(output)
             same = before['state'] == 'active' and before.get('description') == runtime_description(runtime, project.path)
             if same:
@@ -127,20 +127,34 @@ class RuntimeManager:
             return strategy
 
     def apply_all(self, path=None, *, options=None, remember=True):
-        results = {}
-        for output in sorted(self.connected()):
-            intent = self._intent(output)
-            wallpaper = path or intent.get('wallpaper')
-            if not wallpaper or (path is None and not intent.get('enabled', intent.get('autostart', True))):
-                results[output] = {'ok': True, 'state': 'skipped'}
-                continue
-            try:
-                strategy = self.apply(output, wallpaper, options=options if path else intent.get('runtime_options'), remember=remember)
-                results[output] = {'ok': True, 'strategy': strategy}
-            except (RuntimeError, ValueError, OSError) as error:
-                LOGGER.warning('Runtime apply failed for %s: %s', output, error)
-                results[output] = {'ok': False, 'error': str(error)}
-        return results
+        with self._lock:
+            results = {}
+            targets = sorted(self.connected())
+            # A deliberate all-screen replacement owns the legacy shared surface.
+            # Validate the new media/runtime BEFORE stopping that surface. A single
+            # screen request still refuses to blank the other monitors implicitly.
+            if path is not None and targets and self.systemd.unit_status('*') in {'active', 'activating', 'deactivating'}:
+                project = detect_project(path)
+                if project.kind == 'web':
+                    raise ValueError('Web execution is disabled pending CEF security validation')
+                if project.kind == 'scene':
+                    self._lwe(options).command(targets[0], project, fps=(options or {}).get('fps', 30))
+                elif shutil.which('mpvpaper') is None:
+                    raise RuntimeError('mpvpaper is not installed')
+                self.systemd.stop_checked('*')
+            for output in targets:
+                intent = self._intent(output)
+                wallpaper = path or intent.get('wallpaper')
+                if not wallpaper or (path is None and not intent.get('enabled', intent.get('autostart', True))):
+                    results[output] = {'ok': True, 'state': 'skipped'}
+                    continue
+                try:
+                    strategy = self.apply(output, wallpaper, options=options if path else intent.get('runtime_options'), remember=remember)
+                    results[output] = {'ok': True, 'strategy': strategy}
+                except (RuntimeError, ValueError, OSError) as error:
+                    LOGGER.warning('Runtime apply failed for %s: %s', output, error)
+                    results[output] = {'ok': False, 'error': str(error)}
+            return results
 
     def stop(self, output, *, remember=True):
         if output == '*':

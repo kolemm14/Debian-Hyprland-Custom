@@ -135,7 +135,7 @@ existing engine service. The service must respond; the CLI does not fall back
 to an independent process manager.
 
 ```sh
-export PYTHONPATH="$PWD/config/mpvpaper-engine"
+export PYTHONPATH="$PWD/apps/system-apps/mpvpaper-engine"
 python3 -m mpvpaper_engine.runtimes diagnose /path/to/scene --assets-dir /path/to/assets
 python3 -m mpvpaper_engine.runtimes apply /path/to/video.mp4 --output eDP-1
 python3 -m mpvpaper_engine.runtimes apply /path/to/scene --output HDMI-A-1 --assets-dir /path/to/assets --fps 30
@@ -171,9 +171,9 @@ missing screens, hotplug, idempotent restore, Scene library migration and GUI IP
 Reproducible tests:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s config/mpvpaper-engine/tests
-python3 config/mpvpaper-engine/tools/validate_workshop_session.py --fixtures --report /tmp/runtime-report.json
-python3 config/mpvpaper-engine/tools/validate_runtime_gui.py /tmp/gui-report.json
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s apps/system-apps/mpvpaper-engine/tests
+python3 apps/system-apps/mpvpaper-engine/tools/validate_workshop_session.py --fixtures --report /tmp/runtime-report.json
+python3 apps/system-apps/mpvpaper-engine/tools/validate_runtime_gui.py /tmp/gui-report.json
 ```
 
 The two smoke tools are opt-in and briefly display test surfaces/windows. They

@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -198,17 +199,22 @@ class ThemeSync:
             palette = self.extractor(source, frames=frames)
             _atomic_json(self.palette_file, asdict(palette))
             wallust = self._run_wallust(source, palette)
-            waybar = self._update_waybar(palette)
+            waybar = self._update_waybar(
+                palette, force_reload=key == self._failed_waybar_key()
+            )
             integrations = {
                 "waybar": waybar,
                 "nova": self._notify_nova(),
                 "wallust": wallust,
+                "caelestia": self._update_caelestia(source),
                 "desktop": self._update_desktop(),
             }
             _atomic_json(self.state_file, {
-                "key": key, "source": str(source), "updated_monotonic": self.clock(),
+                "key": key, "source": str(source), "integrations": integrations,
+                "updated_monotonic": self.clock(),
             })
-            self._last_key = key
+            if not waybar.startswith("failed:"):
+                self._last_key = key
             return ThemeSyncResult(True, palette, integrations, "palette applied")
         finally:
             with self._lock:
@@ -224,9 +230,12 @@ class ThemeSync:
         return "ok" if result.returncode == 0 else f"failed: {(result.stderr or '').strip()}"
 
     def _signal_waybar(self):
-        return self._run(["pkill", "-SIGUSR2", "-x", "waybar"])
+        manager = self.paths.config_home.parent / "waybar/deblestia-waybar-switch.sh"
+        if not manager.is_file():
+            return "failed: Waybar manager is not installed"
+        return self._run([str(manager), "--reload"])
 
-    def _update_waybar(self, palette: Palette) -> str:
+    def _update_waybar(self, palette: Palette, *, force_reload=False) -> str:
         waybar_dir = self.paths.config_home.parent / "waybar"
         changed = write_panel_colors(
             waybar_dir,
@@ -237,14 +246,29 @@ class ThemeSync:
                 "muted": "#" + "".join(f"{round(int(palette.foreground[i:i+2], 16) * .7 + int(palette.background[i:i+2], 16) * .3):02x}" for i in (1, 3, 5)),
             },
         )
-        signal = self._signal_waybar() if changed else "unchanged"
-        return f"updated; {signal}" if changed else signal
+        if not changed and not force_reload:
+            return "unchanged"
+        signal = self._signal_waybar()
+        return "updated; reloaded" if signal == "ok" else f"failed: palette updated; {signal}"
 
     def _update_desktop(self):
         script = self.paths.config_home.parent / "hypr/UserScripts/DeblestiaSystemThemeSync.sh"
         if not script.is_file():
             return "unavailable: desktop theme sync script is missing"
         return self._run(["bash", str(script), "--no-waybar-reload"])
+
+    def _update_caelestia(self, source: Path) -> str:
+        """Apply a still image through Caelestia and let it derive its dynamic scheme."""
+        caelestia = shutil.which("caelestia")
+        if not caelestia:
+            return "unavailable: Caelestia CLI is not installed"
+        if source.suffix.casefold() not in IMAGE_EXTENSIONS:
+            return "unavailable: Caelestia wallpaper command requires a still image"
+        wallpaper = self._run([caelestia, "wallpaper", "-f", str(source)])
+        if wallpaper != "ok":
+            return f"failed: wallpaper command: {wallpaper.removeprefix('failed: ')}"
+        scheme = self._run([caelestia, "scheme", "set", "-n", "dynamic"])
+        return "updated; dynamic scheme enabled" if scheme == "ok" else f"failed: dynamic scheme: {scheme.removeprefix('failed: ')}"
 
     def _notify_nova(self):
         return self._run(["qs", "ipc", "call", "wallpaper", "paletteChanged"])
@@ -277,4 +301,21 @@ class ThemeSync:
             data = json.loads(self.state_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return None
-        return data.get("key") if isinstance(data, dict) else None
+        if not isinstance(data, dict):
+            return None
+        integrations = data.get("integrations")
+        waybar = integrations.get("waybar") if isinstance(integrations, dict) else None
+        if not isinstance(waybar, str) or waybar.startswith("failed:"):
+            return None
+        return data.get("key")
+
+    def _failed_waybar_key(self):
+        try:
+            data = json.loads(self.state_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        integrations = data.get("integrations")
+        waybar = integrations.get("waybar") if isinstance(integrations, dict) else None
+        return data.get("key") if isinstance(waybar, str) and waybar.startswith("failed:") else None

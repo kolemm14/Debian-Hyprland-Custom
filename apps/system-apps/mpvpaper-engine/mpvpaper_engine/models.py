@@ -43,6 +43,9 @@ class PerformanceMode(StringEnum):
     AUTO = "auto"
     ECO = "eco"
     BALANCED = "balanced"
+    PERFORMANCE = "performance"
+    ULTRA = "ultra"
+    # Retained for configuration compatibility with older Engine releases.
     QUALITY = "quality"
 
 

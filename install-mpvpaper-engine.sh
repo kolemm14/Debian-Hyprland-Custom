@@ -3,22 +3,14 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-canonical_source_dir="$repo_dir/apps/system-apps/mpvpaper-engine"
-legacy_source_dir="$repo_dir/config/mpvpaper-engine"
-if [ -f "$canonical_source_dir/mpvpaper-engine.py" ]; then
-    source_dir="$canonical_source_dir"
-elif [ -f "$legacy_source_dir/mpvpaper-engine.py" ]; then
-    source_dir="$legacy_source_dir"
-else
-    printf 'ERREUR : source MPVpaper Engine introuvable.\n' >&2
-    exit 1
-fi
+source_dir="$repo_dir/apps/system-apps/mpvpaper-engine"
 install_dir="$HOME/.local/lib/mpvpaper-engine"
 bin_dir="$HOME/.local/bin"
 desktop_dir="$HOME/.local/share/applications"
 systemd_dir="$HOME/.config/systemd/user"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 backup_dir="$HOME/.config/mpvpaper-engine-backup-$timestamp"
+version_file="${XDG_STATE_HOME:-$HOME/.local/state}/deblestia/apps/mpvpaper-engine.version"
 
 check_dependencies() {
     local command_name failed=0
@@ -54,6 +46,12 @@ check_dependencies() {
         printf 'MANQUANT python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1 ou gir1.2-webkit-6.0\n' >&2
         failed=1
     fi
+    if command -v node >/dev/null 2>&1 && node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 13) ? 0 : 1)' \
+        && { command -v pnpm >/dev/null 2>&1 || command -v corepack >/dev/null 2>&1; }; then
+        printf 'OK       Node.js et pnpm disponibles pour MPVpaper Hub\n'
+    else
+        printf 'OPTIONNEL MPVpaper Hub : Node.js >= 22.13 et pnpm 11.25.0; Engine reste utilisable sans le Hub web\n'
+    fi
     return "$failed"
 }
 
@@ -62,8 +60,19 @@ if [ "$action" = check ]; then
     check_dependencies
     exit
 fi
+if [ "$action" = restore ]; then
+    if [ ! -f "$repo_dir/update.sh" ]; then
+        printf 'Updater absent : restauration sûre indisponible.\n' >&2
+        exit 1
+    fi
+    bash "$repo_dir/update.sh" --restore-component mpvpaper-engine
+    rm -rf -- "$install_dir/.venv"
+    update-desktop-database "$desktop_dir" >/dev/null 2>&1 || true
+    printf 'MPVpaper Engine retiré ; fichiers personnalisés non suivis conservés.\n'
+    exit 0
+fi
 if [ "$action" != install ]; then
-    printf 'Usage : %s [check|install]\n' "$0" >&2
+    printf 'Usage : %s [check|install|restore]\n' "$0" >&2
     exit 2
 fi
 
@@ -78,6 +87,7 @@ for path in "$install_dir" "$bin_dir/mpvpaper-engine" "$bin_dir/mpvpaper-enginec
     "$bin_dir/mpvpaper-engine-quick-menu" \
     "$bin_dir/mpvpaper-workshop" \
     "$desktop_dir/io.github.kebemouhamet08.MPVpaperEngine.desktop" \
+    "$desktop_dir/io.github.kebemouhamet08.MPVpaperEngine.Hub.desktop" \
     "$systemd_dir/mpvpaper-engine-prefetch.service" \
     "$systemd_dir/mpvpaper-engine-prefetch.timer"; do
     if [ -e "$path" ] || [ -L "$path" ]; then
@@ -116,16 +126,32 @@ mkdir -p "$install_dir/mpvpaper_engine/runtimes"
 for module in "$source_dir"/mpvpaper_engine/runtimes/*.py; do
     install -m 0644 "$module" "$install_dir/mpvpaper_engine/runtimes/$(basename "$module")"
 done
+# Bundle Hub source without local dependencies and mutable build/runtime caches.
+if [ -f "$source_dir/hub/package.json" ]; then
+    mkdir -p "$install_dir/hub"
+    tar -C "$source_dir/hub" \
+        --exclude='./node_modules' --exclude='./.sites-runtime' \
+        --exclude='./.wrangler' --exclude='./.next' --exclude='./.vinext' \
+        -cf - . | tar -C "$install_dir/hub" -xf -
+fi
 install -m 0755 "$source_dir/install-sddm-background.sh" "$install_dir/install-sddm-background.sh"
 install -m 0644 "$source_dir/sddm-background.patch" "$install_dir/sddm-background.patch"
 install -m 0644 "$source_dir/io.github.kebemouhamet08.MPVpaperEngine.desktop" \
     "$desktop_dir/io.github.kebemouhamet08.MPVpaperEngine.desktop"
+sed "s|^Exec=mpvpaper-enginectl |Exec=\"$bin_dir/mpvpaper-enginectl\" |" \
+    "$source_dir/io.github.kebemouhamet08.MPVpaperEngine.Hub.desktop" \
+    > "$desktop_dir/io.github.kebemouhamet08.MPVpaperEngine.Hub.desktop"
+chmod 0644 "$desktop_dir/io.github.kebemouhamet08.MPVpaperEngine.Hub.desktop"
 install -m 0644 "$source_dir/mpvpaper-engine-prefetch.service" \
     "$systemd_dir/mpvpaper-engine-prefetch.service"
 install -m 0644 "$source_dir/mpvpaper-engine-prefetch.timer" \
     "$systemd_dir/mpvpaper-engine-prefetch.timer"
 install -m 0644 "$source_dir/mpvpaper-engine.service" \
     "$systemd_dir/mpvpaper-engine.service"
+# GTK resolves application icons from the user icon search path.
+mkdir -p "$HOME/.local/share/icons"
+install -m 0644 "$source_dir/icons/mpvpaper-engine.png" "$HOME/.local/share/icons/mpvpaper-engine.png"
+install -m 0644 "$source_dir/icons/mpvpaper-engine.png" "$HOME/.local/share/icons/io.github.kebemouhamet08.MPVpaperEngine.V2.png"
 ln -sfn "$install_dir/mpvpaper-engine-launcher" "$bin_dir/mpvpaper-engine"
 ln -sfn "$install_dir/mpvpaper-enginectl.py" "$bin_dir/mpvpaper-enginectl"
 ln -sfn "$install_dir/mpvpaper-engine-toggle" "$bin_dir/mpvpaper-engine-toggle"
@@ -145,7 +171,12 @@ fi
 
 printf 'MPVpaper Engine installé. Sauvegarde : %s\n' "$backup_dir"
 printf 'Lancez-le avec : %s\n' "$bin_dir/mpvpaper-engine"
+printf 'Pour activer le Hub web : cd %s/hub && bash scripts/install-pnpm.sh && pnpm build\n' "$install_dir"
+
+mkdir -p "$(dirname "$version_file")"
+sed -n 's/^  "version": "\([^"]*\)"[,]\?$/\1/p' "$repo_dir/apps/system-apps/mpvpaper-engine/manifest.yaml" | head -n 1 >"$version_file"
+chmod 0644 "$version_file"
 
 # Record exact ownership for subsequent incremental updates.
-source "$repo_dir/core/updater/record.sh"
+source "$repo_dir/core/update/record.sh"
 deblestia_update_record "mpvpaper-engine"

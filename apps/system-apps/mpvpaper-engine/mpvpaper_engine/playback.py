@@ -222,7 +222,7 @@ class PlaybackController:
         }
         options.extend(
             option for option in mpv_option_fragments(performance)
-            if not (is_image and option.startswith("vf-add=fps=")) and not (
+            if not (is_image and option.startswith(("vf-add=fps=", "vf-add=scale="))) and not (
                 profile.get("hardware_decode", "auto") == "disabled"
                 and option.startswith("hwdec=")
             )

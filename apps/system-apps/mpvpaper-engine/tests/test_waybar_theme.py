@@ -25,6 +25,9 @@ class WaybarThemeTests(unittest.TestCase):
             )
             self.assertTrue(changed)
             self.assertIn("@define-color accent #112233;", (waybar / "panel-colors.css").read_text())
+            imported = waybar / "styles" / "panel-colors.css"
+            self.assertTrue(imported.is_symlink())
+            self.assertEqual(imported.resolve(), (waybar / "panel-colors.css").resolve())
             self.assertEqual(overrides.read_text(), "custom-rule")
             self.assertFalse(write_panel_colors(
                 waybar,
@@ -33,6 +36,15 @@ class WaybarThemeTests(unittest.TestCase):
                     "background": "#000000", "muted": "#888888",
                 },
             ))
+            imported.unlink()
+            self.assertTrue(write_panel_colors(
+                waybar,
+                palette={
+                    "accent": "#112233", "foreground": "#eeeeee",
+                    "background": "#000000", "muted": "#888888",
+                },
+            ))
+            self.assertTrue(imported.is_symlink())
 
     def test_current_palette_wins_over_stale_wallust(self):
         with tempfile.TemporaryDirectory() as root:

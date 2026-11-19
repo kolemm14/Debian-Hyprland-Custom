@@ -1,0 +1,349 @@
+diff --git a/config/mpvpaper-engine/mpvpaper_engine/hub_profile.py b/config/mpvpaper-engine/mpvpaper_engine/hub_profile.py
+new file mode 100644
+--- /dev/null
++++ b/config/mpvpaper-engine/mpvpaper_engine/hub_profile.py
+@@ -0,0 +1,85 @@
++"""On-demand, read-only preference summary for MPVpaper Hub.
++
++No service, media scan, network request, or database write occurs here.
++Only a fixed public vocabulary and normalized weights leave the machine.
++"""
++from __future__ import annotations
++
++import json
++import math
++import re
++import sqlite3
++import unicodedata
++from urllib.parse import quote
++
++from .paths import EnginePaths
++
++HUB_URL = "https://mpvpaper-hub.kebemouhamet08.chatgpt.site"
++TOKEN_ALIASES = {
++    "anime": ("anime", "manga", "naruto", "goku", "dragon ball", "your name", "kiminonawa", "kimetsu", "demon slayer"),
++    "jeux": ("jeux", "game", "gaming", "genshin", "elden ring", "honkai", "zelda", "minecraft", "cyberpunk 2077"),
++    "nature": ("nature", "landscape", "paysage", "mountain", "mountains", "lake", "forest", "fjord", "waterfall", "beach", "river", "aurora", "northern lights", "montagne", "foret", "plage"),
++    "ville": ("ville", "city", "tokyo", "street", "urban", "ville", "cyberpunk"),
++    "espace": ("espace", "space", "galaxy", "galaxie", "nebula", "planet", "cosmos"),
++    "paysage": ("paysage", "landscape", "mountain", "mountains", "valley", "fjord", "lake", "waterfall"),
++    "calme": ("calme", "calm", "peaceful", "relax", "zen"),
++    "ciel": ("ciel", "sky", "skies", "cloud", "clouds"),
++    "your name": ("your name", "kiminonawa", "kimi no na wa"),
++    "cyberpunk": ("cyberpunk",), "pluie": ("pluie", "rain", "rainy"),
++    "foret": ("foret", "forest"), "montagne": ("montagne", "mountain", "mountains"),
++    "mer": ("mer", "sea", "ocean", "beach", "plage"),
++    "neige": ("neige", "snow", "snowy", "winter"),
++    "fantasy": ("fantasy", "fantastique", "dragon", "magic"),
++}
++
++
++def _tokens(text: str) -> set[str]:
++    plain = "".join(c for c in unicodedata.normalize("NFKD", text.casefold())
++                    if not unicodedata.combining(c))
++    plain = " " + re.sub(r"[^a-z0-9]+", " ", plain) + " "
++    return {tag for tag, aliases in TOKEN_ALIASES.items()
++            if any(" " + alias + " " in plain for alias in aliases)}
++
++
++def build_profile(paths: EnginePaths | None = None) -> dict:
++    paths = paths or EnginePaths.from_environment()
++    profile = {"version": 1, "source": "mpvpaper-engine", "preferences": []}
++    if not paths.library_db.is_file():
++        return profile
++    # mode=ro: no initialization, migration, scan, or accidental new database.
++    connection = None
++    try:
++        connection = sqlite3.connect(paths.library_db.resolve().as_uri() + "?mode=ro", uri=True, timeout=1)
++        connection.execute("PRAGMA query_only=ON")
++        rows = connection.execute("""
++            SELECT substr(w.title,1,512), w.favorite, w.usage_count,
++                   substr(group_concat(t.name,' '),1,1024)
++            FROM (SELECT id,title,favorite,usage_count FROM wallpapers
++                  WHERE missing=0 ORDER BY favorite DESC,usage_count DESC,id DESC LIMIT 1000) w
++            LEFT JOIN wallpaper_tags wt ON wt.wallpaper_id=w.id
++            LEFT JOIN tags t ON t.id=wt.tag_id
++            GROUP BY w.id
++        """).fetchall()
++    except sqlite3.Error as error:
++        raise ValueError("La bibliothèque Engine ne permet pas de lire les préférences.") from error
++    finally:
++        if connection is not None:
++            connection.close()
++    scores: dict[str, float] = {}
++    for title, favorite, usage_count, tags in rows:
++        # One library vote, favorite bonus, bounded weight for prior uses.
++        usage = max(0, min(int(usage_count or 0), 1000000))
++        weight = 1 + (4 if favorite else 0) + min(5, math.log2(1 + usage))
++        for tag in _tokens((title or "") + " " + (tags or "")):
++            scores[tag] = scores.get(tag, 0) + weight
++    maximum = max(scores.values(), default=1)
++    profile["preferences"] = [
++        {"tag": tag, "weight": max(0.01, round(score / maximum, 3))}
++        for tag, score in sorted(scores.items(), key=lambda pair: (-pair[1], pair[0]))
++    ]
++    return profile
++
++
++def hub_url(profile: dict) -> str:
++    payload = json.dumps(profile, ensure_ascii=True, separators=(",", ":"))
++    return HUB_URL + "#mpvp_profile=" + quote(payload, safe="")
+diff --git a/config/mpvpaper-engine/mpvpaper-enginectl.py b/config/mpvpaper-engine/mpvpaper-enginectl.py
+--- a/config/mpvpaper-engine/mpvpaper-enginectl.py
++++ b/config/mpvpaper-engine/mpvpaper-enginectl.py
+@@ -555,7 +555,7 @@
+         "play", "random", "stop", "restore", "status", "apply-colors", "preview-colors",
+         "capture", "adapt-theme", "engine-ping", "current", "pause", "resume",
+         "toggle", "seek", "restart", "outputs",
+-        "list", "profile",
++        "list", "profile", "hub",
+     ))
+     parser.add_argument("--output", default=None, help="écran ciblé pour les couleurs")
+     parser.add_argument("--settings", default=None, help="réglages couleur JSON à prévisualiser")
+@@ -566,6 +566,21 @@
+     args = parser.parse_args()
+     if args.action in {"engine-ping", "current", "status"}:
+         return engine_readonly_action(args.action, args.output, args.json)
++    if args.action == "hub":
++        from mpvpaper_engine.hub_profile import build_profile, hub_url
++        try:
++            profile = build_profile()
++            if args.json:
++                print(json.dumps(profile, ensure_ascii=False))
++                return 0
++            import webbrowser
++            if not webbrowser.open(hub_url(profile)):
++                print("Aucun navigateur disponible. Exportez le profil avec hub --json.", file=sys.stderr)
++                return 1
++            return 0
++        except (OSError, ValueError) as error:
++            print(f"Connexion Hub impossible : {error}", file=sys.stderr)
++            return 1
+     if args.action == "list":
+         return library_list_action(args.json)
+     config = load_config()
+diff --git a/config/mpvpaper-engine/mpvpaper_engine/gui_backend.py b/config/mpvpaper-engine/mpvpaper_engine/gui_backend.py
+--- a/config/mpvpaper-engine/mpvpaper_engine/gui_backend.py
++++ b/config/mpvpaper-engine/mpvpaper_engine/gui_backend.py
+@@ -210,6 +210,11 @@
+             "fonts": fonts,
+         }
+ 
++    def hub_url(self) -> str:
++        """Read the summary only when the user clicks Hub with my tastes."""
++        from .hub_profile import build_profile, hub_url
++        return hub_url(build_profile(self.paths))
++
+     def recommendation_data(self) -> dict:
+         """Return one coherent snapshot for the Discover suggestions page."""
+         settings = self.recommendations.settings()
+diff --git a/config/mpvpaper-engine/mpvpaper_engine/gui.py b/config/mpvpaper-engine/mpvpaper_engine/gui.py
+--- a/config/mpvpaper-engine/mpvpaper_engine/gui.py
++++ b/config/mpvpaper-engine/mpvpaper_engine/gui.py
+@@ -379,6 +379,13 @@
+         )
+         switcher = Gtk.StackSwitcher(stack=self.discover_stack)
+         heading.append(switcher)
++        self.hub_button = Gtk.Button(label="Hub avec mes goûts")
++        self.hub_button.set_tooltip_text(
++            "Ouvrir le Hub dans le navigateur et partager un résumé des thèmes de "
++            "la bibliothèque, des favoris et des fonds utilisés. Aucun chemin ni historique détaillé."
++        )
++        self.hub_button.connect("clicked", self._open_hub)
++        heading.append(self.hub_button)
+         outer.append(heading)
+         self.discover_stack.add_titled(
+             self._browser_page(), "browser", "Navigateur intégré"
+@@ -386,8 +393,30 @@
+         self.discover_stack.add_titled(
+             self._suggestions_page(), "suggestions", "Suggestions IA"
+         )
++        self.hub_status = Gtk.Label(label="", xalign=0, wrap=True)
++        outer.append(self.hub_status)
+         outer.append(self.discover_stack)
+         return outer
++
++    def _open_hub(self, _button):
++        self.hub_button.set_sensitive(False)
++        self.hub_status.set_text("Préparation du résumé de tes goûts…")
++
++        def failed(error):
++            self.hub_button.set_sensitive(True)
++            self.hub_status.set_text(f"Connexion Hub impossible : {error}")
++            return False
++
++        def ready(uri):
++            self.hub_button.set_sensitive(True)
++            try:
++                Gio.AppInfo.launch_default_for_uri(uri, None)
++                self.hub_status.set_text("Hub ouvert dans le navigateur avec tes goûts")
++            except GLib.Error as error:
++                return failed(error)
++            return False
++
++        self.tasks.run(self.backend.hub_url, ready, failed)
+ 
+     def _browser_page(self):
+         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+diff --git a/config/mpvpaper-engine/tests/test_hub_profile.py b/config/mpvpaper-engine/tests/test_hub_profile.py
+new file mode 100644
+--- /dev/null
++++ b/config/mpvpaper-engine/tests/test_hub_profile.py
+@@ -0,0 +1,117 @@
++"""Hub contract tests with the Engine's actual SQLite schema, without GTK."""
++import ast
++import json
++import os
++from pathlib import Path
++import sqlite3
++import subprocess
++import sys
++import tempfile
++import unittest
++from urllib.parse import unquote, urlsplit
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++from mpvpaper_engine.hub_profile import TOKEN_ALIASES, build_profile, hub_url
++from mpvpaper_engine.paths import EnginePaths
++
++# Reuse the production schema without importing media probing dependencies.
++tree = ast.parse((ROOT / "mpvpaper_engine/library.py").read_text())
++SCHEMA = next(ast.literal_eval(node.value) for node in tree.body
++              if isinstance(node, ast.Assign) and any(
++                  isinstance(target, ast.Name) and target.id == "SCHEMA" for target in node.targets))
++
++
++class HubProfileTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.paths = EnginePaths.from_environment({}, home=Path(self.temp.name), uid=123)
++
++    def database(self):
++        self.paths.data_home.mkdir(parents=True)
++        db = sqlite3.connect(self.paths.library_db)
++        db.executescript(SCHEMA)
++        self.addCleanup(db.close)
++        return db
++
++    def add(self, db, title, favorite=0, usage=0, missing=0):
++        row = db.execute("""INSERT INTO wallpapers
++            (path,title,type,file_size,mtime_ns,fingerprint,date_added,favorite,usage_count,missing)
++            VALUES (?,?, 'video',0,0,'fixture','2026-01-01',?,?,?)""",
++            ("/home/private-person/secret-" + title + ".mp4", title, favorite, usage, missing))
++        db.commit()
++        return row.lastrowid
++
++    def test_no_library_does_not_create_one(self):
++        self.assertEqual(build_profile(self.paths)["preferences"], [])
++        self.assertFalse(self.paths.data_home.exists())
++
++    def test_favorites_and_usage_weight_but_paths_do_not_leave(self):
++        db = self.database()
++        self.add(db, "forest")
++        self.add(db, "anime", favorite=1)
++        self.add(db, "space", usage=31)
++        before = self.paths.library_db.read_bytes()
++        profile = build_profile(self.paths)
++        weights = {p["tag"]:p["weight"] for p in profile["preferences"]}
++        self.assertGreater(weights["anime"], weights["nature"])
++        self.assertGreater(weights["espace"], weights["nature"])
++        self.assertEqual(before, self.paths.library_db.read_bytes())
++        text = json.dumps(profile)
++        for private in ["private-person", "/home", "secret-", "usage_count", "path", "title"]:
++            self.assertNotIn(private, text)
++        self.assertEqual(set(profile), {"version", "source", "preferences"})
++
++    def test_tags_are_recognized_locally_but_unknowns_and_missing_are_omitted(self):
++        db = self.database()
++        ident = self.add(db, "personal-document")
++        self.add(db, "snowy", favorite=1, missing=1)
++        db.execute("INSERT INTO tags(id,name) VALUES (1,'Nature'),(2,'private-employer')")
++        db.execute("INSERT INTO wallpaper_tags(wallpaper_id,tag_id) VALUES (?,1),(?,2)", (ident,ident))
++        db.commit()
++        self.assertEqual(build_profile(self.paths)["preferences"], [{"tag":"nature","weight":1.0}])
++
++    def test_no_known_theme_returns_general_profile(self):
++        db = self.database(); self.add(db, "my-secret-project")
++        self.assertEqual(build_profile(self.paths)["preferences"], [])
++
++    def test_bounded_vocabulary_and_weights(self):
++        db = self.database(); self.add(db, " ".join(TOKEN_ALIASES), favorite=1, usage=100000000)
++        preferences = build_profile(self.paths)["preferences"]
++        self.assertLessEqual(len(preferences), 16)
++        self.assertTrue(all(p["tag"] in TOKEN_ALIASES and 0.01 <= p["weight"] <= 1 for p in preferences))
++        self.assertLess(len(json.dumps(build_profile(self.paths))), 4096)
++
++    def test_url_profile_is_fragment_only_and_round_trips(self):
++        profile = {"version":1,"source":"mpvpaper-engine","preferences":[{"tag":"your name","weight":1}]}
++        parts = urlsplit(hub_url(profile))
++        self.assertEqual(parts.scheme, "https"); self.assertEqual(parts.query, "")
++        self.assertEqual(json.loads(unquote(parts.fragment.removeprefix("mpvp_profile="))), profile)
++
++    def test_incompatible_database_is_clear_error(self):
++        self.paths.data_home.mkdir(parents=True)
++        with sqlite3.connect(self.paths.library_db):
++            pass
++        with self.assertRaisesRegex(ValueError, "bibliothèque Engine"):
++            build_profile(self.paths)
++
++    def test_cli_exports_actual_library_without_service(self):
++        db = self.database(); self.add(db, "Mountain Lake", favorite=1, usage=31)
++        environment = {**os.environ, "XDG_DATA_HOME": str(self.paths.data_home.parent)}
++        result = subprocess.run([sys.executable, str(ROOT / "mpvpaper-enginectl.py"), "hub", "--json"],
++                                env=environment, text=True, capture_output=True, timeout=5)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertEqual(json.loads(result.stdout), build_profile(self.paths))
++
++    def test_cli_empty_profile_without_creating_library(self):
++        environment = {**os.environ, "XDG_DATA_HOME": str(self.paths.data_home.parent)}
++        result = subprocess.run([sys.executable, str(ROOT / "mpvpaper-enginectl.py"), "hub", "--json"],
++                                env=environment, text=True, capture_output=True, timeout=5)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertEqual(json.loads(result.stdout)["preferences"], [])
++        self.assertFalse(self.paths.data_home.exists())
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/config/mpvpaper-engine/docs/hub-preferences.md b/config/mpvpaper-engine/docs/hub-preferences.md
+new file mode 100644
+--- /dev/null
++++ b/config/mpvpaper-engine/docs/hub-preferences.md
+@@ -0,0 +1,35 @@
++# MPVpaper Hub : goûts locaux et découverte
++
++Dans **Découvrir**, le bouton **Hub avec mes goûts** ouvre le navigateur par défaut. Il lit un résumé local uniquement au clic, dans le pool de travail existant pour ne pas bloquer GTK. Il n'applique aucun fond et ne démarre aucun service.
++
++Le Hub doit autoriser le compte utilisé dans le navigateur ; son propriétaire gère la visibilité. Si une connexion ou redirection perd le profil, utiliser l'import JSON ci-dessous.
++
++```bash
++python3 ~/.config/mpvpaper-engine/mpvpaper-enginectl.py hub
++python3 ~/.config/mpvpaper-engine/mpvpaper-enginectl.py hub --json > mpvp-profile.json
++```
++
++Le deuxième appel n'ouvre pas de navigateur. Sur le Hub, choisir **Connecter Engine → Importer un profil JSON**. L'installation d'Engine doit inclure `mpvpaper_engine/hub_profile.py` ainsi que le contrôleur et l'interface mis à jour. Aucun paquet Python supplémentaire n'est nécessaire.
++
++Le profil version 1 est envoyé dans le fragment `#mpvp_profile=` de l'URL, jamais dans la query string. Le Hub le retire de l'adresse et le garde uniquement pour la visite actuelle. Un rechargement efface le profil ; **Déconnecter le profil Engine** l'efface immédiatement.
++
++## Préférences et confidentialité
++
++- Lecture SQLite en mode `ro` et `query_only`, sans scan, migration ni création de bibliothèque.
++- Au plus 1 000 fonds non manquants, favoris puis usages puis identifiant décroissant.
++- Titres et tags analysés uniquement localement, par rapprochement de mots-clés publics. Aucun fichier média n'est analysé.
++- Poids par fond : `1 + (4 si favori) + min(5, log2(1 + usage_count))`. Les poids cumulés par thème sont normalisés par leur maximum.
++- Seuls 16 thèmes fixes et des poids de 0,01 à 1 sont transmis. Aucun chemin, titre local, nom d'utilisateur, identifiant, date, URL personnelle ni historique détaillé ne quitte Engine.
++- Bibliothèque absente ou sans thème reconnu : profil vide, sélection générale du Hub. Base incompatible : erreur visible, sans modifier les données.
++
++Le Hub vise une moitié de correspondances locales et une moitié de découvertes parmi son catalogue existant, après application des filtres. Un nombre impair ajoute une découverte. Les correspondances manquantes sont remplacées par des découvertes ; le ratio réel est affiché. Le score communautaire reste indépendant. Le navigateur ne détecte pas seul une application installée ou ouverte.
++
++## Vérification
++
++```bash
++cd config/mpvpaper-engine
++python3 -m unittest discover -s tests -p test_hub_profile.py -v
++python3 -m compileall -q mpvpaper_engine/hub_profile.py mpvpaper_engine/gui.py mpvpaper_engine/gui_backend.py mpvpaper-enginectl.py
++```
++
++Les tests utilisent le schéma SQLite de production. Les clics GTK et l'ouverture du navigateur doivent aussi être vérifiés sur une session Linux avec GTK4/libadwaita.

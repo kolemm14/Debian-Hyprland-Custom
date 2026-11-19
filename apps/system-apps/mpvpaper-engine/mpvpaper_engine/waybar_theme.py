@@ -40,6 +40,18 @@ def _mix(base: str, tint: str, percent: int = 18) -> str:
     return ", ".join(str(value) for value in values)
 
 
+def _ensure_stylesheet_import(waybar_dir: Path) -> bool:
+    styles_dir = waybar_dir / "styles"
+    imported_colors = styles_dir / "panel-colors.css"
+    if imported_colors.is_symlink() and not imported_colors.exists():
+        imported_colors.unlink()
+    if imported_colors.exists():
+        return False
+    styles_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    imported_colors.symlink_to("../panel-colors.css")
+    return True
+
+
 def write_panel_colors(
     waybar_dir: Path,
     *,
@@ -65,9 +77,10 @@ def write_panel_colors(
         f"@define-color muted {muted};\n"
     )
     target = waybar_dir / "panel-colors.css"
+    import_created = _ensure_stylesheet_import(waybar_dir)
     try:
         if target.is_file() and target.read_text(encoding="utf-8") == content:
-            return False
+            return import_created
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8", dir=target.parent,

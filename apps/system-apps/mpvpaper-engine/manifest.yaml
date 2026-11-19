@@ -1,0 +1,49 @@
+{
+  "id": "mpvpaper-engine",
+  "name": "MPVpaper Engine",
+  "version": "2.0.0",
+  "category": "system-app",
+  "kind": "desktop-application",
+  "description": "GTK4 wallpaper manager and playback service with MPV, optional Linux Wallpaper Engine, automation, and separate Hub integrations.",
+  "app_entry": "mpvpaper-engine.py",
+  "ui_entry": "mpvpaper_engine/gui.py",
+  "runtime": "python",
+  "build": {
+    "command": "python3 -m compileall -q mpvpaper_engine",
+    "manifest": "mpvpaper_engine/__init__.py"
+  },
+  "dependencies": {
+    "build": {
+      "commands": ["python3"],
+      "pkg_config": ["gtk4", "libadwaita-1"]
+    },
+    "runtime": ["mpvpaper", "ffmpeg", "ffmpegthumbnailer", "ffprobe", "python3", "systemctl", "systemd-run", "hyprctl"]
+  },
+  "optional_dependencies": ["linux-wallpaperengine", "deno", "steamcmd", "update-desktop-database", "python3-gi", "gir1.2-gtk-4.0", "gir1.2-adw-1", "gir1.2-webkit-6.0", "gir1.2-gtklayershell-0.1", "python3-gi-cairo"],
+  "supported_debian_versions": ["13"],
+  "supported_profiles": ["BALANCED", "FULL"],
+  "installation": {
+    "command": "./install-mpvpaper-engine.sh install",
+    "compatibility_entry_point": "install-mpvpaper-engine.sh",
+    "installed_marker": "~/.local/lib/mpvpaper-engine",
+    "version_file": "${XDG_STATE_HOME}/deblestia/apps/mpvpaper-engine.version"
+  },
+  "uninstallation": {
+    "command": "./install-mpvpaper-engine.sh restore",
+    "compatibility_entry_point": "install-mpvpaper-engine.sh restore"
+  },
+  "tests": {
+    "command": "python3 -m unittest discover -s apps/system-apps/mpvpaper-engine/tests"
+  },
+  "packaging": {
+    "type": "managed-user-files",
+    "desktop_entries": ["io.github.kebemouhamet08.MPVpaperEngine.desktop", "io.github.kebemouhamet08.MPVpaperEngine.Hub.desktop"],
+    "icons": ["mpvpaper-engine.png", "io.github.kebemouhamet08.MPVpaperEngine.V2.png"],
+    "user_services": ["mpvpaper-engine.service", "mpvpaper-engine-prefetch.service", "mpvpaper-engine-prefetch.timer"]
+  },
+  "lifecycle": {
+    "independently_installable": true,
+    "manager_required": false,
+    "updater_component_id": "mpvpaper-engine"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "9a41338c-81e0-4dc1-812a-d94c239c933d",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "events": {
+      "name": "events",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "day": {
+          "name": "day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "events_item_day": {
+          "name": "events_item_day",
+          "columns": [
+            "item_id",
+            "day"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "events_user_id_item_id_kind_day_pk": {
+          "columns": [
+            "user_id",
+            "item_id",
+            "kind",
+            "day"
+          ],
+          "name": "events_user_id_item_id_kind_day_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "interactions": {
+      "name": "interactions",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "favorite": {
+          "name": "favorite",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "rating": {
+          "name": "rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "interactions_item": {
+          "name": "interactions_item",
+          "columns": [
+            "item_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "interactions_user_id_item_id_pk": {
+          "columns": [
+            "user_id",
+            "item_id"
+          ],
+          "name": "interactions_user_id_item_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

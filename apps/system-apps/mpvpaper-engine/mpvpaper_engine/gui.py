@@ -4,8 +4,15 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
+import shutil
+import signal
+import socket
+import subprocess
+import threading
 from copy import deepcopy
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import gi
 
@@ -26,12 +33,28 @@ from .hud_editor_geometry import (
 )
 from .models import Wallpaper
 from .recommendations import Recommendation
+from .hub_runtime import (
+    available_loopback_port, hub_embedded_url, locate_hub_directory,
+    production_hub_command,
+)
 
 
 APP_ID = "io.github.kebemouhamet08.MPVpaperEngine.V2"
-DOWNLOAD_QUALITIES = (
-    ("Auto", 0), ("1080p", 1080), ("1440p", 1440),
-    ("4K", 2160), ("8K", 4320),
+DOWNLOAD_PROFILES = (
+    ("Auto · matériel détecté", 0, ()),
+    ("Eco · 720p · H.264 préféré", 720, ("avc1",)),
+    ("Balanced · 720p · H.264 préféré", 720, ("avc1",)),
+    ("Performance · 1080p", 1080, ("avc1",)),
+    ("Ultra · 4K · AV1 / HEVC préférés", 2160, ("av01", "hev1", "hvc1", "avc1")),
+)
+DISCOVER_SOURCES = (
+    ("MPVpaper Hub (Local)", ""),
+    ("WallpaperCave · Anime / Manga", "https://wallpapercave.com/categories/anime-manga"),
+    ("WallpaperFlare · Personnes", "https://www.wallpaperflare.com/search?wallpaper=real+people"),
+    ("TeshiiSan · YouTube", "https://www.youtube.com/@TeshiiSan"),
+    ("Alpha Coders", "https://wall.alphacoders.com/"),
+    ("Wallpaper MOB", "https://fr.wallpaper.mob.org/pc/"),
+    ("HDQwalls", "https://hdqwalls.com/"),
 )
 AD_DOMAINS = (
     "doubleclick.net", "googlesyndication.com", "googleadservices.com",
@@ -48,6 +71,9 @@ ADBLOCK_CSS = """
 """
 PAGES = (
     ("library", "Bibliothèque", "folder-pictures-symbolic"),
+    ("live", "Live · vidéos", "video-x-generic-symbolic"),
+    ("images", "Images", "image-x-generic-symbolic"),
+    ("scenes", "Scènes · moteur externe", "applications-graphics-symbolic"),
     ("discover", "Découvrir", "system-search-symbolic"),
     ("favorites", "Favoris", "emblem-favorite-symbolic"),
     ("playlists", "Playlists", "view-list-symbolic"),
@@ -98,13 +124,16 @@ button.success-download { background: #35c98a; color: #071c13; font-weight: 800;
 button.success-like { background: #ff5277; color: #240811; font-weight: 800; }
 scale highlight { background: #ff5277; }
 .engine-scroll > scrollbar.vertical slider { min-width: 10px; min-height: 36px; }
+.download-progress { min-height: 20px; }
+.download-progress trough { min-height: 12px; border-radius: 8px; }
+.download-progress progress { min-height: 12px; border-radius: 8px; background: #ff5277; }
 switch:checked { background: #ff5277; }
 """
 
 
 class AsyncTasks:
-    def __init__(self):
-        self.pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="mpvpaper-gui")
+    def __init__(self, workers=3):
+        self.pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="mpvpaper-gui")
 
     def run(self, operation, success, failure):
         future = self.pool.submit(operation)
@@ -226,10 +255,30 @@ class EngineWindow(Adw.ApplicationWindow):
         super().__init__(application=app, title="MPVpaper Engine 2")
         self.backend = backend or GuiBackend()
         self.tasks = AsyncTasks()
+        self.download_tasks = AsyncTasks(workers=1)
+        self.commands = AsyncTasks(workers=1)
+        self.download_in_progress = False
+        self.download_progress_bars = []
+        self.download_cancel_buttons = []
+        self._download_cancel_event = threading.Event()
+        self._download_cancel_callback = None
+        self._download_is_determinate = False
+        self._download_progress_source = 0
         self.selected: Wallpaper | None = None
         self.cards: list[WallpaperCard] = []
         self.thumbnail_requests: set[int] = set()
         self.last_failed_download = None
+        self._hub_process: subprocess.Popen | None = None
+        self._hub_port: int | None = None
+        self._hub_starting = False
+        self._hub_start_timeout = 0
+        self._engine_service_process: subprocess.Popen | None = None
+        self._adblock_ready = False
+        self._pending_browser_uri: str | None = None
+        self._syncing_source_picker = False
+        self._steam_wait_token = None
+        self._steam_wait_timer = 0
+        self.discover_sources = DISCOVER_SOURCES
         self.output_names = ["*"]
         self.set_default_size(1280, 760)
         self.set_size_request(900, 580)
@@ -280,6 +329,12 @@ class EngineWindow(Adw.ApplicationWindow):
     def _build(self):
         self.pages = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
         self.library_flow = self._grid_page("library", "Votre bibliothèque")
+        self.type_flows = {
+            kind: self._grid_page(name, title)
+            for name, kind, title in (("live", "video", "Live · fonds vidéo"),
+                                      ("images", "image", "Images"),
+                                      ("scenes", "scene", "Scènes · linux-wallpaperengine requis"))
+        }
         self.favorite_flow = self._grid_page("favorites", "Vos favoris")
         self.pages.add_named(self._discover_page(), "discover")
         self.pages.add_named(self._playlists_page(), "playlists")
@@ -295,9 +350,9 @@ class EngineWindow(Adw.ApplicationWindow):
         self.search.connect("search-changed", lambda _entry: self.reload(scan=False))
         header.set_title_widget(self.search)
         self.media_filter = Gtk.DropDown.new_from_strings(
-            ["Tous les médias", "Vidéos", "Images"]
+            ["Tous les médias", "Live · vidéos", "Images", "Scènes", "Projets Web"]
         )
-        self.media_filter.set_tooltip_text("Séparer les vidéos et les images")
+        self.media_filter.set_tooltip_text("Filtrer les types de fonds et projets")
         self.media_filter.connect("notify::selected", lambda *_args: self.reload(scan=False))
         header.pack_start(self.media_filter)
         refresh = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Actualiser")
@@ -326,6 +381,31 @@ class EngineWindow(Adw.ApplicationWindow):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
                       margin_top=12, margin_bottom=12, margin_start=8, margin_end=8)
         box.add_css_class("app-sidebar")
+        # The supplied artwork includes an outer square margin. Crop that
+        # margin in the widget and clip the artwork to its rounded tile.
+        logo = Gtk.Box()
+        logo.set_size_request(64, 64)
+        logo.set_halign(Gtk.Align.START)
+        logo.set_valign(Gtk.Align.START)
+        logo.set_margin_start(8)
+        logo.set_tooltip_text("MPVpaper Engine")
+        logo.add_css_class("engine-brand-icon")
+        icon_file = Path(__file__).resolve().parents[1] / "icons/mpvpaper-engine.png"
+        if not icon_file.is_file():
+            icon_file = Path.home() / ".local/share/icons/mpvpaper-engine.png"
+        if icon_file.is_file():
+            icon_style = Gtk.CssProvider()
+            icon_style.load_from_string(
+                '.engine-brand-icon { min-width: 64px; min-height: 64px; '
+                'border-radius: 12px; border: none; box-shadow: none; '
+                'background-color: transparent; background-image: url("'
+                + icon_file.as_uri() + '"); background-size: 125% 125%; '
+                'background-position: center; background-repeat: no-repeat; }'
+            )
+            logo.get_style_context().add_provider(
+                icon_style, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
+            )
+        box.append(logo)
         title = Gtk.Label(label="MPVpaper Engine", xalign=0, margin_start=8,
                           css_classes=["title-2"])
         box.append(title)
@@ -371,8 +451,7 @@ class EngineWindow(Adw.ApplicationWindow):
                         margin_top=16, margin_bottom=16,
                         margin_start=18, margin_end=18)
         heading = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        heading.append(Gtk.Label(label="Découvrir", xalign=0, hexpand=True,
-                                 css_classes=["title-1", "page-title"]))
+        heading.set_halign(Gtk.Align.END)
         self.discover_stack = Gtk.Stack(
             transition_type=Gtk.StackTransitionType.CROSSFADE,
             vexpand=True, hexpand=True,
@@ -380,132 +459,108 @@ class EngineWindow(Adw.ApplicationWindow):
         switcher = Gtk.StackSwitcher(stack=self.discover_stack)
         heading.append(switcher)
         outer.append(heading)
+        self._browser_placeholder = Gtk.Box()
+        self.discover_stack.add_titled(self._browser_placeholder, "browser", "MPVpaper Hub")
+        self._browser_initialized = False
         self.discover_stack.add_titled(
-            self._browser_page(), "browser", "Navigateur intégré"
+            self._suggestions_page(), "suggestions", "Pour vous"
         )
-        self.discover_stack.add_titled(
-            self._suggestions_page(), "suggestions", "Suggestions IA"
-        )
+        self.discover_stack.connect("notify::visible-child-name", self._discover_tab_changed)
         outer.append(self.discover_stack)
         return outer
 
+    def _discover_tab_changed(self, stack, _property):
+        if stack.get_visible_child_name() != "browser":
+            return
+        if not self._browser_initialized:
+            stack.remove(self._browser_placeholder)
+            stack.add_titled(self._browser_page(), "browser", "MPVpaper Hub")
+            self._browser_initialized = True
+            stack.set_visible_child_name("browser")
+            self._compile_adblock_filter()
+        if not self.discover_web.get_uri() and not self._pending_browser_uri:
+            self._load_local_hub()
+
     def _browser_page(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        toolbar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6,
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6,
                           css_classes=["discover-toolbar"])
-        actions = Gtk.Box(spacing=6)
-        back = Gtk.Button(icon_name="go-previous-symbolic", tooltip_text="Précédent")
-        forward = Gtk.Button(icon_name="go-next-symbolic", tooltip_text="Suivant")
-        reload_button = Gtk.Button(icon_name="view-refresh-symbolic",
-                                   tooltip_text="Recharger")
-        back.connect("clicked", lambda _button: self.discover_web.go_back()
-                     if self.discover_web.can_go_back() else None)
-        forward.connect("clicked", lambda _button: self.discover_web.go_forward()
-                        if self.discover_web.can_go_forward() else None)
-        reload_button.connect("clicked", lambda _button: self.discover_web.reload())
-        actions.append(back)
-        actions.append(forward)
-        actions.append(reload_button)
-        self.discover_sources = (
-            ("Steam Workshop", "https://steamcommunity.com/workshop/browse?appid=431960"),
-            ("MoeWalls", "https://moewalls.com/"),
-            ("MotionBGS", "https://motionbgs.com/"),
-            ("YouTube Live 4K", "https://www.youtube.com/results?search_query=live+wallpaper+4k"),
+        for icon, label, callback in (
+            ("go-previous-symbolic", "Retour", lambda *_: self.discover_web.go_back()),
+            ("go-next-symbolic", "Avancer", lambda *_: self.discover_web.go_forward()),
+            ("view-refresh-symbolic", "Actualiser", lambda *_: self.discover_web.reload()),
+        ):
+            button = Gtk.Button(icon_name=icon, tooltip_text=label)
+            button.connect("clicked", callback)
+            toolbar.append(button)
+        self.discover_source_picker = Gtk.DropDown.new_from_strings(
+            [label for label, _uri in DISCOVER_SOURCES]
         )
-        source = Gtk.DropDown.new_from_strings([name for name, _uri in self.discover_sources])
-        source.set_tooltip_text("Sources populaires")
-        source.connect("notify::selected", self._browser_source_changed)
-        actions.append(source)
+        self.discover_source_picker.set_tooltip_text("Ouvrir une source dans le navigateur intégré")
+        self.discover_source_picker.connect("notify::selected", self._browser_source_changed)
+        self.discover_source_picker.set_hexpand(True)
+        toolbar.append(self.discover_source_picker)
+        box.append(toolbar)
+        actions = Gtk.FlowBox(
+            selection_mode=Gtk.SelectionMode.NONE, homogeneous=False,
+            column_spacing=6, row_spacing=6, min_children_per_line=1,
+            max_children_per_line=4, css_classes=["discover-toolbar"],
+        )
         self.download_quality = Gtk.DropDown.new_from_strings(
-            [label for label, _height in DOWNLOAD_QUALITIES]
+            [label for label, _height, _codecs in DOWNLOAD_PROFILES]
         )
-        self.download_quality.set_tooltip_text("Qualité du téléchargement")
+        self.download_quality.set_tooltip_text("Profil de téléchargement : résolution maximale et codecs préférés")
+        self.download_quality.connect("notify::selected", self._download_profile_changed)
+        self.download_quality.set_size_request(220, -1)
         actions.append(self.download_quality)
-        self.download_button = Gtk.Button(
-            icon_name="document-save-symbolic",
-            tooltip_text="Télécharger dans la bibliothèque",
-        )
+        self.adblock_button = Gtk.ToggleButton(label="Bloquer les pubs", active=True)
+        self.adblock_button.set_tooltip_text("Filtrer les domaines publicitaires dans le navigateur intégré")
+        self.adblock_button.connect("toggled", self._adblock_toggled)
+        actions.append(self.adblock_button)
+        self.browser_like_button = Gtk.Button(label="♥", tooltip_text="Ajouter cette page à Pour vous")
+        self.browser_like_button.connect("clicked", self._like_current_page)
+        actions.append(self.browser_like_button)
+        self.download_button = Gtk.Button(label="Télécharger dans la bibliothèque")
         self.download_button.connect("clicked", self._download_current_page)
         actions.append(self.download_button)
         self.steam_open_button = Gtk.Button(label="Ouvrir dans Steam", visible=False)
         self.steam_open_button.connect("clicked", self._open_steam_local)
         actions.append(self.steam_open_button)
-        self.steam_cancel_button = Gtk.Button(label="Annuler l’attente", visible=False)
-        self.steam_cancel_button.connect("clicked", lambda _button: self._cancel_steam_wait())
-        actions.append(self.steam_cancel_button)
-        self._steam_wait_token = None
-        self._steam_wait_timer = 0
-        like = Gtk.Button(icon_name="emblem-favorite-symbolic",
-                          tooltip_text="Aimer et améliorer les suggestions")
-        like.connect("clicked", self._like_current_page)
-        actions.append(like)
-        self.adblock_button = Gtk.ToggleButton(
-            icon_name="security-high-symbolic", active=True,
-            tooltip_text="Blocage des publicités actif",
-        )
-        self.adblock_button.connect("toggled", self._adblock_toggled)
-        actions.append(self.adblock_button)
-        toolbar.append(actions)
-        address_row = Gtk.Box(spacing=6)
-        self.discover_address = Gtk.Entry(
-            placeholder_text="Adresse ou recherche…", hexpand=True
-        )
+        self.browser_firefox_retry = Gtk.Button(label="Réessayer avec Firefox", visible=False)
+        self.browser_firefox_retry.connect("clicked", self._retry_download_with_firefox)
+        actions.append(self.browser_firefox_retry)
+        box.append(actions)
+        self.discover_address = Gtk.Entry(placeholder_text="Adresse du site ou recherche Web…", hexpand=True)
         self.discover_address.connect("activate", self._browser_address_activated)
-        address_row.append(self.discover_address)
-        download_url = Gtk.Button(
-            label="Télécharger l’URL",
-            icon_name="document-save-symbolic",
-            tooltip_text="Télécharger directement l’adresse collée",
-        )
-        download_url.connect("clicked", self._download_address)
-        address_row.append(download_url)
-        firefox = Gtk.Button(label="Ouvrir dans Firefox",
-                             icon_name="web-browser-symbolic")
-        firefox.connect("clicked", self._open_in_firefox)
-        address_row.append(firefox)
-        toolbar.append(address_row)
-        box.append(toolbar)
-        self.web_content = WebKit.UserContentManager()
-        self.adblock_style = WebKit.UserStyleSheet.new(
-            ADBLOCK_CSS, WebKit.UserContentInjectedFrames.ALL_FRAMES,
-            WebKit.UserStyleLevel.USER, None, None,
-        )
-        self.web_content.add_style_sheet(self.adblock_style)
-        self.adblock_filter = None
+        box.append(self.discover_address)
         self.discover_web = WebKit.WebView(
-            user_content_manager=self.web_content, vexpand=True, hexpand=True
+            vexpand=True, hexpand=True
         )
-        self.discover_web.connect("notify::uri", self._browser_uri_changed)
         self.discover_web.connect("load-changed", self._browser_load_changed)
+        self.discover_web.connect("load-failed", self._browser_load_failed)
         self.discover_web.connect("decide-policy", self._browser_decide_policy)
-        # Start navigation after the asynchronous content filter is ready.
+        self.discover_web.connect("notify::uri", self._browser_uri_changed)
+        self.web_content = self.discover_web.get_user_content_manager()
         box.append(self.discover_web)
-        status_row = Gtk.Box(spacing=8)
+        self.browser_download_progress = Gtk.ProgressBar(
+            show_text=True, text="Téléchargement en cours…", hexpand=True,
+            visible=False, css_classes=["download-progress"],
+        )
+        self.download_progress_bars.append(self.browser_download_progress)
+        box.append(self._download_progress_row(self.browser_download_progress))
         self.browser_status = Gtk.Label(
-            label="Navigateur isolé dans MPVpaper Engine · téléchargements contrôlés par le site",
+            label="MPVpaper Hub démarre à l’ouverture de Découvrir.",
             xalign=0, ellipsize=3, hexpand=True, css_classes=["dim-label"],
         )
-        status_row.append(self.browser_status)
-        self.browser_firefox_retry = Gtk.Button(
-            label="Réessayer avec Firefox", visible=False,
-            tooltip_text="Utiliser temporairement la session Firefox pour cette vidéo",
-        )
-        self.browser_firefox_retry.connect(
-            "clicked", self._retry_download_with_firefox
-        )
-        status_row.append(self.browser_firefox_retry)
-        box.append(status_row)
-        self._compile_adblock_filter()
-        self.tasks.run(self.backend.discovery_download_profile,
-                       self._download_profile_ready, lambda _error: False)
+        box.append(self.browser_status)
         return box
 
     def _suggestions_page(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         description = Gtk.Box(spacing=10)
-        description.append(Gtk.Label(label="IA locale", css_classes=["ai-badge"]))
+        description.append(Gtk.Label(label="Mes goûts locaux", css_classes=["ai-badge"]))
         description.append(Gtk.Label(
-            label="Classe les fonds selon leur popularité, vos goûts et plusieurs sources.",
+            label="Classe les fonds selon vos préférences locales et les sources activées.",
             xalign=0, wrap=True, hexpand=True, css_classes=["dim-label"],
         ))
         box.append(description)
@@ -518,20 +573,12 @@ class EngineWindow(Adw.ApplicationWindow):
         controls.append(self.suggestion_count)
         controls.append(Gtk.Label(label="Qualité", css_classes=["heading"]))
         self.suggestion_download_quality = Gtk.DropDown.new_from_strings(
-            [label for label, _height in DOWNLOAD_QUALITIES]
+            [label for label, _height, _codecs in DOWNLOAD_PROFILES]
         )
         self.suggestion_download_quality.set_tooltip_text(
             "Qualité utilisée par les boutons Télécharger"
         )
         controls.append(self.suggestion_download_quality)
-        self.suggestion_adblock = Gtk.ToggleButton(
-            label="🛡 Adblock", active=self.adblock_button.get_active(),
-            tooltip_text="Protection du navigateur intégré",
-        )
-        self.suggestion_adblock.connect(
-            "toggled", self._suggestion_adblock_toggled
-        )
-        controls.append(self.suggestion_adblock)
         refresh = Gtk.Button(label="Mettre à jour", icon_name="view-refresh-symbolic",
                              css_classes=["suggested-action"])
         refresh.connect("clicked", self._save_and_load_recommendations)
@@ -548,6 +595,12 @@ class EngineWindow(Adw.ApplicationWindow):
         )
         controls.append(self.suggestion_firefox_retry)
         box.append(controls)
+        self.suggestion_download_progress = Gtk.ProgressBar(
+            show_text=True, text="Téléchargement en cours…", hexpand=True,
+            visible=False, css_classes=["download-progress"],
+        )
+        self.download_progress_bars.append(self.suggestion_download_progress)
+        box.append(self._download_progress_row(self.suggestion_download_progress))
         box.append(Gtk.Label(label="Sources utilisées", xalign=0,
                              css_classes=["heading"]))
         self.source_controls = Gtk.FlowBox(
@@ -556,6 +609,18 @@ class EngineWindow(Adw.ApplicationWindow):
             max_children_per_line=5, css_classes=["source-picker"],
         )
         box.append(self.source_controls)
+        box.append(Gtk.Label(label="Sites à explorer · téléchargement depuis leur page", xalign=0,
+                             css_classes=["heading"]))
+        source_links = Gtk.FlowBox(
+            selection_mode=Gtk.SelectionMode.NONE, homogeneous=False,
+            column_spacing=8, row_spacing=6, min_children_per_line=1,
+            max_children_per_line=4, css_classes=["source-picker"],
+        )
+        for label, uri in DISCOVER_SOURCES[1:]:
+            button = Gtk.Button(label=label)
+            button.connect("clicked", lambda _button, target=uri: self._open_embedded_source(target))
+            source_links.append(button)
+        box.append(source_links)
         self.suggestion_flow = Gtk.FlowBox(
             selection_mode=Gtk.SelectionMode.NONE, homogeneous=True,
             column_spacing=14, row_spacing=14, min_children_per_line=2,
@@ -573,10 +638,143 @@ class EngineWindow(Adw.ApplicationWindow):
         self.recommendation_sources = {}
         return box
 
+    def _is_hub_server_ready(self) -> bool:
+        if self._hub_process is None or self._hub_process.poll() is not None or not self._hub_port:
+            return False
+        try:
+            with socket.create_connection(("127.0.0.1", self._hub_port), timeout=0.2):
+                return True
+        except OSError:
+            return False
+
+    def _start_hub_background_service(self):
+        if self._hub_process is not None and self._hub_process.poll() is None:
+            return True
+
+        # Start the private Engine RPC service only when the embedded module needs it.
+        try:
+            from mpvpaper_engine.paths import EnginePaths
+            socket_path = EnginePaths.from_environment().engine_socket
+            if not socket_path.exists() or not socket_path.is_socket():
+                engine_script = Path(__file__).resolve().parent.parent / "mpvpaper-engine-service.py"
+                if engine_script.exists():
+                    self._engine_service_process = subprocess.Popen(
+                        ["python3", str(engine_script)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True,
+                    )
+        except OSError:
+            self._engine_service_process = None
+
+        hub_dir = locate_hub_directory(__file__, Path.home())
+        if not hub_dir:
+            self.browser_status.set_text("Module MPVpaper Hub absent. Engine reste disponible.")
+            return False
+
+        env = dict(os.environ)
+        node_bin_dir = str(Path.home() / ".nvm" / "versions" / "node" / "v24.21.0" / "bin")
+        if os.path.isdir(node_bin_dir) and node_bin_dir not in env.get("PATH", ""):
+            env["PATH"] = f"{node_bin_dir}:{env.get('PATH', '')}"
+        node_bin = shutil.which("node", path=env.get("PATH"))
+        if not node_bin or not (hub_dir / "node_modules").is_dir():
+            self.browser_status.set_text("Node ou les dépendances du Hub sont absents. Consultez le guide d’installation.")
+            return False
+
+        state_dir = Path(env.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "mpvpaper-engine" / "hub-state"
+        try:
+            self._hub_port = available_loopback_port()
+            env["MPVPAPER_HUB_PORT"] = str(self._hub_port)
+            state_dir.mkdir(parents=True, exist_ok=True)
+            log_path = state_dir.parent / "hub.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            command = production_hub_command(hub_dir, node_bin, self._hub_port, state_dir)
+            with log_path.open("a", encoding="utf-8") as log_file:
+                self._hub_process = subprocess.Popen(
+                    command,
+                    cwd=str(hub_dir),
+                    stdout=log_file,
+                    stderr=log_file,
+                    env=env,
+                    start_new_session=True,
+                )
+            return True
+        except Exception as e:
+            self._hub_process = None
+            self._hub_port = None
+            self.browser_status.set_text(f"Démarrage de MPVpaper Hub impossible : {e}")
+            return False
+
+    def _load_local_hub(self):
+        if not self._adblock_ready:
+            return
+        if self._hub_starting:
+            return
+        if self._is_hub_server_ready():
+            self.discover_web.load_uri(hub_embedded_url(self._hub_port))
+            self.browser_status.set_text("MPVpaper Hub connecté")
+            return
+
+        self.browser_status.set_text("Démarrage local de MPVpaper Hub…")
+        if not self._start_hub_background_service():
+            return
+
+        retries = 0
+        max_retries = 40
+        self._hub_starting = True
+
+        def check_hub_ready():
+            nonlocal retries
+            retries += 1
+            if self._hub_process is None or self._hub_process.poll() is not None:
+                self._hub_starting = False
+                self._hub_start_timeout = 0
+                self.browser_status.set_text("MPVpaper Hub s’est arrêté pendant son démarrage. Consultez hub.log.")
+                return False
+            if self._is_hub_server_ready():
+                self._hub_starting = False
+                self._hub_start_timeout = 0
+                self.browser_status.set_text("MPVpaper Hub connecté")
+                self.discover_web.load_uri(hub_embedded_url(self._hub_port))
+                return False
+            if retries >= max_retries:
+                self._hub_starting = False
+                self._hub_start_timeout = 0
+                self.browser_status.set_text("Délai de démarrage du Hub dépassé. Vérifiez les dépendances Node.")
+                return False
+            dots = "." * ((retries % 4) + 1)
+            self.browser_status.set_text(f"Démarrage local de MPVpaper Hub{dots}")
+            return True
+
+        self._hub_start_timeout = GLib.timeout_add(500, check_hub_ready)
+
+    def _browser_load_failed(self, webview, load_event, failing_uri, error):
+        self.browser_status.set_text(f"MPVpaper Hub n’a pas pu charger la page : {error.message}")
+        return False
+
     def _browser_source_changed(self, dropdown, _param):
+        if self._syncing_source_picker:
+            return
         index = dropdown.get_selected()
         if index < len(self.discover_sources):
-            self.discover_web.load_uri(self.discover_sources[index][1])
+            uri = self.discover_sources[index][1]
+            if not uri:
+                self._load_local_hub()
+            else:
+                self._open_embedded_source(uri)
+
+    def _open_embedded_source(self, uri):
+        parsed = urlsplit(uri)
+        if parsed.scheme != "https" or not parsed.hostname:
+            self.browser_status.set_text("Adresse de source refusée")
+            return
+        if not self._adblock_ready:
+            self._pending_browser_uri = uri
+        self.discover_stack.set_visible_child_name("browser")
+        if not self._adblock_ready:
+            self.browser_status.set_text("Préparation du navigateur et du bloqueur…")
+        elif self.discover_web.get_uri() != uri:
+            self.discover_web.load_uri(uri)
 
     def _browser_address_activated(self, entry):
         value = entry.get_text().strip()
@@ -584,10 +782,34 @@ class EngineWindow(Adw.ApplicationWindow):
             return
         if "://" not in value:
             value = "https://www.google.com/search?q=" + GLib.uri_escape_string(value, None, True)
-        self.discover_web.load_uri(value)
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            self.browser_status.set_text("Seules les adresses HTTP(S) sont autorisées")
+            return
+        self._pending_browser_uri = value
+        self._start_browser()
 
     def _browser_uri_changed(self, webview, _param):
-        self.discover_address.set_text(webview.get_uri() or "")
+        uri = webview.get_uri() or ""
+        self.discover_address.set_text(uri)
+        parsed_uri = urlsplit(uri)
+        hostname = (parsed_uri.hostname or "").casefold()
+        source_index = next((index for index, (_label, source_uri) in enumerate(DISCOVER_SOURCES)
+                             if source_uri and (urlsplit(source_uri).hostname or "").casefold() == hostname), None)
+        if source_index is not None and self.discover_source_picker.get_selected() != source_index:
+            self._syncing_source_picker = True
+            self.discover_source_picker.set_selected(source_index)
+            self._syncing_source_picker = False
+        elif parsed_uri.scheme == "http" and hostname == "127.0.0.1":
+            self._syncing_source_picker = True
+            self.discover_source_picker.set_selected(0)
+            self._syncing_source_picker = False
+        youtube = hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname in {"youtu.be", "m.youtube.com"}
+        self.download_button.set_sensitive(not youtube)
+        self.download_button.set_tooltip_text(
+            "Téléchargement depuis YouTube désactivé ; utilise les options officielles de la plateforme."
+            if youtube else "Télécharger dans la bibliothèque"
+        )
         from mpvpaper_download import steam_workshop_id
         steam = bool(steam_workshop_id(webview.get_uri() or ""))
         self.steam_open_button.set_visible(steam)
@@ -599,11 +821,20 @@ class EngineWindow(Adw.ApplicationWindow):
             self.browser_status.set_text(webview.get_title() or "Page chargée")
 
     def _browser_decide_policy(self, _webview, decision, decision_type):
-        if decision_type != WebKit.PolicyDecisionType.NEW_WINDOW_ACTION:
+        if decision_type not in {
+            WebKit.PolicyDecisionType.NEW_WINDOW_ACTION,
+            WebKit.PolicyDecisionType.NAVIGATION_ACTION,
+        }:
             return False
         action = decision.get_navigation_action()
-        if action.is_user_gesture():
-            self.discover_web.load_uri(action.get_request().get_uri())
+        uri = action.get_request().get_uri()
+        parsed = urlsplit(uri)
+        if parsed.scheme in {"http", "https"} and parsed.hostname:
+            if decision_type == WebKit.PolicyDecisionType.NAVIGATION_ACTION:
+                return False
+            self.discover_web.load_uri(uri)
+            decision.ignore()
+            return True
         decision.ignore()
         return True
 
@@ -622,6 +853,7 @@ class EngineWindow(Adw.ApplicationWindow):
                 None, self._adblock_filter_ready,
             )
         except (OSError, GLib.Error) as error:
+            self._adblock_ready = True
             self.browser_status.set_text(f"Bloqueur réseau indisponible : {error}")
             self._start_browser()
 
@@ -629,6 +861,7 @@ class EngineWindow(Adw.ApplicationWindow):
         try:
             self.adblock_filter = store.save_finish(result)
         except GLib.Error as error:
+            self._adblock_ready = True
             self.browser_status.set_text(
                 f"Bloqueur réseau indisponible : {error.message}"
             )
@@ -636,18 +869,33 @@ class EngineWindow(Adw.ApplicationWindow):
             return
         if self.adblock_button.get_active():
             self.web_content.add_filter(self.adblock_filter)
+            self.web_content.add_style_sheet(WebKit.UserStyleSheet.new(
+                ADBLOCK_CSS, WebKit.UserContentInjectedFrames.ALL_FRAMES,
+                WebKit.UserStyleLevel.USER, None, None,
+            ))
+        self._adblock_ready = True
         self._start_browser()
 
     def _start_browser(self):
-        # Do not overwrite navigation the user started while compiling the filter.
-        if not self.discover_web.get_uri():
-            self.discover_web.load_uri(self.discover_sources[0][1])
+        if not self._adblock_ready:
+            return
+        if self._pending_browser_uri:
+            uri = self._pending_browser_uri
+            self._pending_browser_uri = None
+            self.discover_web.load_uri(uri)
+        elif not self.discover_web.get_uri():
+            self._load_local_hub()
 
     def _adblock_toggled(self, button):
+        if not hasattr(self, "web_content"):
+            return
         self.web_content.remove_all_filters()
         self.web_content.remove_all_style_sheets()
         if button.get_active():
-            self.web_content.add_style_sheet(self.adblock_style)
+            self.web_content.add_style_sheet(WebKit.UserStyleSheet.new(
+                ADBLOCK_CSS, WebKit.UserContentInjectedFrames.ALL_FRAMES,
+                WebKit.UserStyleLevel.USER, None, None,
+            ))
             if self.adblock_filter is not None:
                 self.web_content.add_filter(self.adblock_filter)
             button.set_tooltip_text("Blocage des publicités actif")
@@ -664,7 +912,8 @@ class EngineWindow(Adw.ApplicationWindow):
             self.suggestion_adblock.handler_unblock_by_func(
                 self._suggestion_adblock_toggled
             )
-        self.discover_web.reload()
+        if self.discover_web.get_uri():
+            self.discover_web.reload()
 
     def _suggestion_adblock_toggled(self, button):
         if self.adblock_button.get_active() != button.get_active():
@@ -674,16 +923,150 @@ class EngineWindow(Adw.ApplicationWindow):
 
     def _download_profile_ready(self, profile):
         self.download_quality.set_tooltip_text(
-            f"Auto : {profile.target_height}p · {profile.reason}"
+            f"Auto : {profile.target_height}p · {profile.reason}. Les téléchargements restent une action manuelle."
         )
         return False
+
+    def _download_profile_changed(self, dropdown, _param):
+        index = dropdown.get_selected()
+        if index == 0:
+            self.tasks.run(self.backend.discovery_download_profile,
+                           self._download_profile_ready,
+                           lambda error: self.browser_status.set_text(
+                               f"Détection matérielle indisponible : {error}"))
+        elif index < len(DOWNLOAD_PROFILES):
+            label, height, codecs = DOWNLOAD_PROFILES[index]
+            self.download_quality.set_tooltip_text(
+                f"{label} · plafond {height}p · codecs préférés : {', '.join(codecs) or 'source'}"
+            )
 
     def _download_current_page(self, _button):
         uri = self.discover_web.get_uri()
         if not uri:
             return
+        hostname = (urlsplit(uri).hostname or "").casefold()
+        if hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname == "youtu.be":
+            self.browser_status.set_text("Pour YouTube, utilise les options officielles de téléchargement de la plateforme.")
+            return
         title = self.discover_web.get_title() or "wallpaper"
         self._start_download(uri, title)
+
+    def _download_progress_row(self, progress):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.append(progress)
+        cancel = Gtk.Button(label="Annuler", visible=False)
+        cancel.connect("clicked", self._cancel_download)
+        row.append(cancel)
+        self.download_cancel_buttons.append(cancel)
+        return row
+
+    def _download_discovery_operation(self, uri, title, height, *, firefox=False,
+                                      preferred_codecs=()):
+        return self.backend.download_discovery_page(
+            uri, title, height, firefox=firefox,
+            preferred_codecs=preferred_codecs,
+            cancel_event=self._download_cancel_event,
+            progress_callback=lambda downloaded, total: GLib.idle_add(
+                self._set_download_bytes, downloaded, total
+            ),
+            phase_callback=lambda phase: GLib.idle_add(
+                self._set_download_phase, phase
+            ),
+            cancel_callback=self._set_download_cancel_callback,
+        )
+
+    def _set_download_cancel_callback(self, callback):
+        self._download_cancel_callback = callback
+        if self._download_cancel_event.is_set():
+            callback()
+
+    def _cancel_download(self, _button):
+        if not self.download_in_progress or self._download_cancel_event.is_set():
+            return
+        self._download_cancel_event.set()
+        callback = self._download_cancel_callback
+        if callback is not None:
+            callback()
+        for button in self.download_cancel_buttons:
+            button.set_sensitive(False)
+        for status in (self.browser_status, self.suggestion_status):
+            if status:
+                status.set_text("Annulation du téléchargement…")
+        for progress in self.download_progress_bars:
+            if progress.get_visible():
+                progress.set_text("Annulation…")
+
+    @staticmethod
+    def _size_text(size):
+        return f"{size / (1024 * 1024):.1f} MiB" if size >= 1024 * 1024 else f"{size / 1024:.0f} KiB"
+
+    def _set_download_bytes(self, downloaded, total):
+        if not self.download_in_progress:
+            return GLib.SOURCE_REMOVE
+        if total > 0:
+            self._download_is_determinate = True
+            if self._download_progress_source:
+                GLib.source_remove(self._download_progress_source)
+                self._download_progress_source = 0
+            fraction = min(1.0, max(0.0, downloaded / total))
+            text = f"Téléchargement {round(fraction * 100)} % · {self._size_text(downloaded)} / {self._size_text(total)}"
+            for progress in self.download_progress_bars:
+                if progress.get_visible():
+                    progress.set_fraction(fraction)
+                    progress.set_text(text)
+        return GLib.SOURCE_REMOVE
+
+    def _set_download_phase(self, phase):
+        if not self.download_in_progress:
+            return GLib.SOURCE_REMOVE
+        for progress in self.download_progress_bars:
+            if progress.get_visible():
+                progress.set_text(phase)
+        for status in (self.browser_status, self.suggestion_status):
+            if status:
+                status.set_text(phase)
+        if phase.startswith("Ajout à la bibliothèque"):
+            for button in self.download_cancel_buttons:
+                button.set_sensitive(False)
+        return GLib.SOURCE_REMOVE
+
+    def _begin_download_progress(self):
+        self._download_cancel_event = threading.Event()
+        self._download_cancel_callback = None
+        self._download_is_determinate = False
+        for progress in self.download_progress_bars:
+            progress.set_text("Préparation de la source…")
+            progress.set_fraction(0)
+            progress.set_visible(True)
+        for button in self.download_cancel_buttons:
+            button.set_sensitive(True)
+            button.set_visible(True)
+        if not self._download_progress_source:
+            self._download_progress_source = GLib.timeout_add(
+                100, self._pulse_download_progress
+            )
+
+    def _pulse_download_progress(self):
+        if not self.download_in_progress:
+            self._download_progress_source = 0
+            return GLib.SOURCE_REMOVE
+        if self._download_is_determinate:
+            self._download_progress_source = 0
+            return GLib.SOURCE_REMOVE
+        for progress in self.download_progress_bars:
+            if progress.get_visible():
+                progress.pulse()
+        return GLib.SOURCE_CONTINUE
+
+    def _end_download_progress(self):
+        if self._download_progress_source:
+            GLib.source_remove(self._download_progress_source)
+            self._download_progress_source = 0
+        for progress in self.download_progress_bars:
+            progress.set_visible(False)
+        for button in self.download_cancel_buttons:
+            button.set_visible(False)
+        self._download_cancel_callback = None
 
     def _download_address(self, _button):
         uri = self.discover_address.get_text().strip()
@@ -702,15 +1085,22 @@ class EngineWindow(Adw.ApplicationWindow):
         if steam_workshop_id(uri):
             self._watch_steam_local(uri)
             return
+        if self.download_in_progress:
+            self.browser_status.set_text("Un seul téléchargement à la fois ; attends la fin du téléchargement en cours.")
+            return
+        self.download_in_progress = True
+        self._begin_download_progress()
         self._cancel_steam_wait(silent=True)
-        height = DOWNLOAD_QUALITIES[self.download_quality.get_selected()][1]
+        _label, height, codecs = DOWNLOAD_PROFILES[self.download_quality.get_selected()]
         target = "automatique" if height == 0 else f"{height}p"
-        self.pending_download = (uri, title, height, "browser")
+        self.pending_download = (uri, title, height, codecs, "browser")
         self.browser_firefox_retry.set_visible(False)
         self._button_busy(self.download_button, "Téléchargement…")
         self.browser_status.set_text(f"Téléchargement en cours · qualité {target}…")
-        self.tasks.run(
-            lambda: self.backend.download_discovery_page(uri, title, height),
+        self.download_tasks.run(
+            lambda: self._download_discovery_operation(
+                uri, title, height, preferred_codecs=codecs
+            ),
             self._download_finished, self._download_failed,
         )
 
@@ -786,11 +1176,16 @@ class EngineWindow(Adw.ApplicationWindow):
         check()
 
     def _download_finished(self, outcome):
+        self.download_in_progress = False
+        self._end_download_progress()
         if outcome.path is None:
             self.download_button.set_child(None)
             self.download_button.set_icon_name("document-save-symbolic")
             self.download_button.set_sensitive(True)
-            self.browser_status.set_text(f"Téléchargement impossible : {outcome.message}")
+            if outcome.source == "cancelled":
+                self.browser_status.set_text("Téléchargement annulé. Le fichier partiel a été supprimé.")
+            else:
+                self.browser_status.set_text(f"Téléchargement impossible : {outcome.message}")
             if outcome.source == "authentication-required":
                 self.last_failed_download = self.pending_download
                 self.browser_firefox_retry.set_visible(True)
@@ -807,22 +1202,34 @@ class EngineWindow(Adw.ApplicationWindow):
         return False
 
     def _download_failed(self, error):
+        self.download_in_progress = False
+        self._end_download_progress()
         self.download_button.set_child(None)
         self.download_button.set_icon_name("document-save-symbolic")
         self.download_button.set_sensitive(True)
-        self.browser_status.set_text(f"Téléchargement impossible : {error}")
+        if self._download_cancel_event.is_set():
+            self.browser_status.set_text("Téléchargement annulé. Le fichier partiel a été supprimé.")
+        else:
+            self.browser_status.set_text(f"Téléchargement impossible : {error}")
         return False
 
     def _retry_download_with_firefox(self, button):
         if self.last_failed_download is None:
             return
-        uri, title, height, scope = self.last_failed_download
+        if self.download_in_progress:
+            self.browser_status.set_text("Un seul téléchargement à la fois ; attends la tâche en cours.")
+            return
+        self.download_in_progress = True
+        self._begin_download_progress()
+        uri, title, height, codecs, scope = self.last_failed_download
         self._button_busy(button, "Session Firefox…")
         status = (self.browser_status if scope == "browser"
                   else self.suggestion_status)
         status.set_text("Nouvel essai avec la session Firefox…")
 
         def finished(outcome):
+            self.download_in_progress = False
+            self._end_download_progress()
             self._restore_label(button, "Réessayer avec Firefox")
             if outcome.path is None:
                 status.set_text(f"Échec avec Firefox : {outcome.message}")
@@ -839,13 +1246,15 @@ class EngineWindow(Adw.ApplicationWindow):
             return False
 
         def failed(error):
+            self.download_in_progress = False
+            self._end_download_progress()
             self._restore_label(button, "Réessayer avec Firefox")
             status.set_text(f"Échec avec Firefox : {error}")
             return False
 
-        self.tasks.run(
-            lambda: self.backend.download_discovery_page(
-                uri, title, height, firefox=True
+        self.download_tasks.run(
+            lambda: self._download_discovery_operation(
+                uri, title, height, firefox=True, preferred_codecs=codecs
             ),
             finished, failed,
         )
@@ -949,8 +1358,7 @@ class EngineWindow(Adw.ApplicationWindow):
         return False
 
     def _open_recommendation(self, uri):
-        self.discover_stack.set_visible_child_name("browser")
-        self.discover_web.load_uri(uri)
+        self._open_embedded_source(uri)
 
     def _recommendation_feedback(self, uri, value, button):
         initial_label = "♥ Aimer" if value > 0 else "Moins"
@@ -980,10 +1388,21 @@ class EngineWindow(Adw.ApplicationWindow):
         self.tasks.run(update, ready, failed)
 
     def _download_recommendation(self, item, button):
+        hostname = (urlsplit(item.uri).hostname or "").casefold()
+        if hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname == "youtu.be":
+            self.suggestion_status.set_text(
+                "Le téléchargement YouTube est désactivé ; utilisez les options officielles de la plateforme."
+            )
+            return
+        if self.download_in_progress:
+            self.suggestion_status.set_text("Un seul téléchargement à la fois ; attends la fin de la tâche en cours.")
+            return
+        self.download_in_progress = True
+        self._begin_download_progress()
         self._button_busy(button, "Téléchargement…")
-        height = DOWNLOAD_QUALITIES[
+        _label, height, codecs = DOWNLOAD_PROFILES[
             self.suggestion_download_quality.get_selected()
-        ][1]
+        ]
         target = "automatique" if height == 0 else f"{height}p"
         self.suggestion_status.set_text(
             f"Téléchargement de « {item.title} » · qualité {target}…"
@@ -991,6 +1410,8 @@ class EngineWindow(Adw.ApplicationWindow):
         self.suggestion_firefox_retry.set_visible(False)
 
         def finished(outcome):
+            self.download_in_progress = False
+            self._end_download_progress()
             if outcome.path is None:
                 self._restore_label(button, "↓ Télécharger")
                 self.suggestion_status.set_text(
@@ -998,7 +1419,7 @@ class EngineWindow(Adw.ApplicationWindow):
                 )
                 if outcome.source == "authentication-required":
                     self.last_failed_download = (
-                        item.uri, item.title, height, "suggestion"
+                        item.uri, item.title, height, codecs, "suggestion"
                     )
                     self.suggestion_firefox_retry.set_visible(True)
             else:
@@ -1014,13 +1435,15 @@ class EngineWindow(Adw.ApplicationWindow):
             return False
 
         def failed(error):
+            self.download_in_progress = False
+            self._end_download_progress()
             self._restore_label(button, "↓ Télécharger")
             self.suggestion_status.set_text(f"Téléchargement impossible : {error}")
             return False
 
-        self.tasks.run(
-            lambda: self.backend.download_discovery_page(
-                item.uri, item.title, height
+        self.download_tasks.run(
+            lambda: self._download_discovery_operation(
+                item.uri, item.title, height, preferred_codecs=codecs
             ),
             finished, failed,
         )
@@ -1046,6 +1469,12 @@ class EngineWindow(Adw.ApplicationWindow):
 
     def _monitors_page(self):
         box = self._empty_page("Écrans", "Écrans Hyprland détectés, sans polling.")
+        refresh = Gtk.Button(label="Actualiser les écrans", halign=Gtk.Align.START)
+        refresh.connect("clicked", lambda _button: self.refresh_outputs())
+        box.append(refresh)
+        self.monitor_status = Gtk.Label(label="Détection des écrans…", xalign=0,
+                                        wrap=True, css_classes=["dim-label"])
+        box.append(self.monitor_status)
         self.monitor_list = Gtk.ListBox(css_classes=["boxed-list"])
         box.append(self.monitor_list)
         return scrolled_window(child=box)
@@ -1619,10 +2048,15 @@ class EngineWindow(Adw.ApplicationWindow):
         box.append(import_project)
         self.output = Gtk.DropDown.new_from_strings(["Tous les écrans (*)"])
         box.append(self._section("Écran", self.output))
+        self.output_status = Gtk.Label(label="Détection des écrans…", xalign=0,
+                                       wrap=True, css_classes=["dim-label"])
+        box.append(self.output_status)
         apply_button = Gtk.Button(label="Appliquer le fond",
                                   css_classes=["suggested-action", "pill"])
+        self.apply_button = apply_button
         apply_button.connect("clicked", self._action_clicked, "apply")
         box.append(apply_button)
+        box.append(Gtk.Label(label="Lecture du fond actif sur l’écran choisi", xalign=0, wrap=True))
         buttons = Gtk.Box(spacing=6, homogeneous=True)
         for label, action in (("Pause", "pause"), ("Reprendre", "resume"),
                               ("Relancer", "restart"), ("Arrêter", "stop")):
@@ -1651,7 +2085,15 @@ class EngineWindow(Adw.ApplicationWindow):
         self.loop.connect("notify::active", self._switch_changed, "loop")
         box.append(self._section("Muet", self.mute))
         box.append(self._section("Boucle", self.loop))
-        self.profile = Gtk.DropDown.new_from_strings(["AUTO", "ECO", "BALANCED", "QUALITY"])
+        self.profile = Gtk.DropDown.new_from_strings([
+            "AUTO · Détection matérielle", "ECO · 2–4 Gio · 480p–720p",
+            "BALANCED · 4–8 Gio · 720p", "PERFORMANCE · 8–16 Gio · 1080p–1440p",
+            "ULTRA · 16 Gio+ · 4K si décodage matériel disponible",
+        ])
+        self.profile.set_tooltip_text(
+            "Auto choisit une limite selon RAM, GPU, écrans et capacités de décodage. "
+            "AV1/HEVC dépend du fichier et du décodeur matériel disponible."
+        )
         self.profile.connect("notify::selected", self._profile_changed)
         box.append(self._section("Performance", self.profile))
         self.theme_mode = Gtk.DropDown.new_from_strings(["Désactivé", "À l’application", "Toujours"])
@@ -1661,6 +2103,10 @@ class EngineWindow(Adw.ApplicationWindow):
         self.saturation = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, -100, 100, 1)
         self.saturation.connect("change-value", self._color_changed)
         box.append(self._section("Couleurs · saturation", self.saturation))
+        save = Gtk.Button(label="Enregistrer les réglages de lecture")
+        save.set_tooltip_text("Mémoriser volume, muet, vitesse, boucle et performance pour les prochaines lectures")
+        save.connect("clicked", self._save_playback_settings)
+        box.append(save)
         self.status = Gtk.Label(label="", xalign=0, wrap=True, css_classes=["dim-label"])
         box.append(self.status)
         scroll.set_child(box)
@@ -1679,15 +2125,18 @@ class EngineWindow(Adw.ApplicationWindow):
         if row is None:
             return
         self.pages.set_visible_child_name(row.page_name)
-        self.search.set_visible(row.page_name in {"library", "favorites"})
+        self.search.set_visible(row.page_name in {"library", "favorites", "live", "images", "scenes"})
         self.media_filter.set_visible(row.page_name in {"library", "favorites"})
         self.inspector_split.set_show_sidebar(
-            row.page_name in {"library", "favorites"}
+            row.page_name in {"library", "favorites", "live", "images", "scenes"}
         )
-        if row.page_name == "favorites":
+        if row.page_name in {"library", "favorites", "live", "images", "scenes"}:
             self.reload(scan=False)
         elif row.page_name == "discover" and not self.recommendations_loaded:
             self._load_recommendations()
+            self._load_local_hub()
+        elif row.page_name == "discover":
+            self._load_local_hub()
         elif row.page_name == "playlists":
             self._refresh_playlists()
         elif row.page_name == "recent":
@@ -1701,7 +2150,7 @@ class EngineWindow(Adw.ApplicationWindow):
 
     def reload(self, *, scan):
         query = self.search.get_text() if hasattr(self, "search") else ""
-        kinds = ("all", "video", "image")
+        kinds = ("all", "video", "image", "scene", "web")
         kind = kinds[self.media_filter.get_selected()] if hasattr(self, "media_filter") else "all"
         self._busy("Chargement de la bibliothèque…")
         self.tasks.run(
@@ -1713,10 +2162,13 @@ class EngineWindow(Adw.ApplicationWindow):
         if scan:
             self.backend.refresh_library(scan=True)
         return (self.backend.search(query, kind=kind),
-                self.backend.search(query, kind=kind, favorites=True))
+                self.backend.search(query, kind=kind, favorites=True),
+                {media: self.backend.search(query, kind=media) for media in self.type_flows})
 
     def _library_loaded(self, result):
-        items, favorites = result
+        items, favorites, sections = result
+        for kind, items_by_type in sections.items():
+            self._fill_flow(self.type_flows[kind], items_by_type)
         self._fill_flow(self.library_flow, items)
         self._fill_flow(self.favorite_flow, favorites)
         self.library_count.set_text(f"{len(items)} média(s)")
@@ -1731,6 +2183,7 @@ class EngineWindow(Adw.ApplicationWindow):
 
     def select(self, item):
         self.selected = item
+        self.apply_button.set_sensitive(item.media_type.value in {"video", "image"})
         self.delete_button.set_sensitive(True)
         self.selected_label.set_text(item.title)
         self.media_details.set_text(_details(item))
@@ -1772,6 +2225,7 @@ class EngineWindow(Adw.ApplicationWindow):
     def _runtime_diagnostic_loaded(self, wallpaper_id, result):
         if self.selected is None or self.selected.id != wallpaper_id:
             return False
+        self.apply_button.set_sensitive(bool(result.get("runtime_ready")))
         self.runtime_details.set_text(
             f"Type : {result.get('type', 'unknown')}\n"
             f"Moteur : {result.get('runtime') or 'indéterminé'}\n"
@@ -1791,13 +2245,12 @@ class EngineWindow(Adw.ApplicationWindow):
     def apply_item(self, item):
         self.select(item)
         theme_modes = ("off", "on_apply", "always")
-        profiles = ("auto", "eco", "balanced", "quality")
+        profiles = ("auto", "eco", "balanced", "performance", "ultra")
+        output = self._output()
+        theme = theme_modes[self.theme_mode.get_selected()]
+        profile = profiles[self.profile.get_selected()]
         self._dispatch(
-            lambda: self.backend.apply(
-                item.id, self._output(),
-                theme_mode=theme_modes[self.theme_mode.get_selected()],
-                performance_profile=profiles[self.profile.get_selected()],
-            ),
+            lambda: self.backend.apply(item.id, output, theme_mode=theme, performance_profile=profile),
             "Demande traitée — consultez les résultats par écran",
         )
 
@@ -1847,37 +2300,46 @@ class EngineWindow(Adw.ApplicationWindow):
             if self.selected:
                 self.apply_item(self.selected)
             return
-        self._dispatch(lambda: self.backend.playback(action, self._output()), f"{action} envoyé")
+        self._playback_action(action, message=f"{action} envoyé")
 
     def _favorite_changed(self, button):
         if not self.selected:
             return
         value = button.get_active()
-        self._dispatch(lambda: self.backend.set_favorite(self.selected.id, value),
+        wallpaper_id = self.selected.id
+        self._dispatch(lambda: self.backend.set_favorite(wallpaper_id, value),
                        "Favori enregistré", refresh=True)
 
     def _scale_changed(self, _scale, _scroll, value, action):
-        self._dispatch(lambda: self.backend.playback(action, self._output(), value), "Réglage appliqué")
+        self._playback_action(action, value)
         return False
 
     def _speed_changed(self, dropdown, _param):
         values = (0.5, 0.75, 1.0, 1.25, 1.5)
-        self._dispatch(lambda: self.backend.playback("speed", self._output(), values[dropdown.get_selected()]),
-                       "Vitesse appliquée")
+        self._playback_action("speed", values[dropdown.get_selected()], "Vitesse appliquée")
 
     def _switch_changed(self, switch, _param, action):
-        self._dispatch(lambda: self.backend.playback(action, self._output(), switch.get_active()),
-                       "Réglage appliqué")
+        self._playback_action(action, switch.get_active())
 
     def _profile_changed(self, dropdown, _param):
-        values = ("auto", "eco", "balanced", "quality")
-        self._dispatch(lambda: self.backend.playback("profile", self._output(), values[dropdown.get_selected()]),
-                       "Profil appliqué")
+        values = ("auto", "eco", "balanced", "performance", "ultra")
+        self._playback_action("profile", values[dropdown.get_selected()], "Profil appliqué")
 
     def _color_changed(self, _scale, _scroll, value):
         color = {"name": "GUI", "saturation": int(value)}
-        self._dispatch(lambda: self.backend.playback("color", self._output(), color), "Couleurs appliquées")
+        self._playback_action("color", color, "Couleurs appliquées")
         return False
+
+    def _save_playback_settings(self, _button):
+        settings = {"volume": int(self.volume.get_value()), "muted": self.mute.get_active(),
+                    "speed": (0.5, 0.75, 1.0, 1.25, 1.5)[self.speed.get_selected()],
+                    "loop": self.loop.get_active(),
+                    "performance_profile": ("auto", "eco", "balanced", "performance", "ultra")[self.profile.get_selected()]}
+        self._playback_action("save", settings, "Réglages enregistrés pour les prochaines lectures")
+
+    def _playback_action(self, action, value=None, message="Réglage appliqué"):
+        output = self._output()
+        self._dispatch(lambda: self.backend.playback(action, output, value), message)
 
     def _output(self):
         index = self.output.get_selected()
@@ -1890,6 +2352,16 @@ class EngineWindow(Adw.ApplicationWindow):
         self.output_names = ["*", *(item.name for item in monitors)]
         labels = ["Tous les écrans (*)", *(item.name for item in monitors)]
         self.output.set_model(Gtk.StringList.new(labels))
+        diagnostic = getattr(self.backend, "monitor_error", None)
+        if diagnostic:
+            status = f"Détection impossible : {diagnostic}"
+        elif not monitors:
+            status = "Aucun écran Hyprland compatible détecté. Vérifiez que la session Hyprland est active."
+        else:
+            status = f"{len(monitors)} écran(s) Hyprland détecté(s)."
+        self.output_status.set_text(status)
+        if hasattr(self, "monitor_status"):
+            self.monitor_status.set_text(status)
         while child := self.monitor_list.get_first_child():
             self.monitor_list.remove(child)
         for monitor in monitors:
@@ -1990,7 +2462,8 @@ class EngineWindow(Adw.ApplicationWindow):
         self.downloader_diagnostic.set_text(
             f"yt-dlp  {mark(data['yt_dlp'])}  {data['yt_dlp_version']}\n"
             f"Environnement privé  {mark(data['private_environment'])}\n"
-            f"Deno  {mark(data['deno'])}  {data['deno_version']}\n"
+            f"Runtime JavaScript  {mark(data['javascript_runtime'])}  "
+            f"{data['javascript_runtime_name']} {data['javascript_runtime_version']}\n"
             f"FFmpeg  {mark(data['ffmpeg'])}\n"
             f"Session Firefox  {mark(data['firefox_session'])}\n"
             f"Qualité automatique  {profile.target_height}p · {profile.reason}"
@@ -2012,7 +2485,7 @@ class EngineWindow(Adw.ApplicationWindow):
                 after()
             return False
 
-        self.tasks.run(operation, done, self._failed)
+        self.commands.run(operation, done, self._failed)
 
     def _busy(self, text):
         self.status.set_text(text)
@@ -2022,7 +2495,42 @@ class EngineWindow(Adw.ApplicationWindow):
         return False
 
     def _close(self, _window):
+        self.download_in_progress = False
+        self._end_download_progress()
         self._cancel_steam_wait(silent=True)
+        if self._hub_start_timeout:
+            GLib.source_remove(self._hub_start_timeout)
+            self._hub_start_timeout = 0
+        process = self._hub_process
+        if process is not None and process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+                process.wait(timeout=3)
+            except ProcessLookupError:
+                pass
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait(timeout=1)
+                except ProcessLookupError:
+                    pass
+                except subprocess.TimeoutExpired:
+                    pass
+        self._hub_process = None
+        service = self._engine_service_process
+        if service is not None and service.poll() is None:
+            try:
+                os.killpg(service.pid, signal.SIGTERM)
+                service.wait(timeout=2)
+            except ProcessLookupError:
+                pass
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(service.pid, signal.SIGKILL)
+                    service.wait(timeout=1)
+                except (ProcessLookupError, subprocess.TimeoutExpired):
+                    pass
+        self._engine_service_process = None
         if hasattr(self, "_hud_editor_active_output"):
             if self._hud_editor_pending:
                 GLib.source_remove(self._hud_editor_pending)
@@ -2032,6 +2540,8 @@ class EngineWindow(Adw.ApplicationWindow):
                 self.backend.clear_hud_preview(self._hud_editor_active_output)
             except Exception:
                 pass
+        self.commands.close()
+        self.download_tasks.close()
         self.tasks.close()
         return False
 
@@ -2042,6 +2552,7 @@ class EngineApplication(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
+        Gtk.Window.set_default_icon_name("mpvpaper-engine")
         Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
         provider = Gtk.CssProvider()
         provider.load_from_string(STYLE)

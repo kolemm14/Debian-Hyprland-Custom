@@ -51,8 +51,9 @@ docs/
 ## Current tree decisions
 
 - The current tracked-path inventory is maintained in `MIGRATION_MAP.md`. At
-  its audit point the repository contained 602 tracked paths; the inventory
-  rules and a regression test ensure every tracked path has one disposition.
+  the previous audit contained 602 tracked paths. The current continuation
+  adds one installer CI workflow, bringing the branch to 603 tracked paths;
+  the inventory rules and a regression test ensure every tracked path has one disposition.
 - The root shell commands remain stable public entry points. Several are still
   invoked by `manifests/components.tsv`, other root scripts, README examples,
   and sparse-checkout flows. Convert them to wrappers only as an individually

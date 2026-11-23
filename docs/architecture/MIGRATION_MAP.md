@@ -3,10 +3,11 @@
 Baseline branch: `refactor/repository-reorganization`
 Baseline tree: `39188b0d538823a161667e32c8610ad74bada3e2`
 The file-by-file table below is a **historical snapshot** from the 359-file
-baseline and is not the current move checklist. The current audited revision is
-`6aa30d3dc38a770d090471b7c8596075de8b4ccc`, with 602 tracked paths and no
-untracked, non-ignored files. The current path-family disposition is summarized
-below; each tracked path is assigned by one ordered prefix/exception rule.
+baseline and is not the current move checklist. The previous audited revision
+`6aa30d3dc38a770d090471b7c8596075de8b4ccc` contained 602 tracked paths. The
+current continuation adds `.github/workflows/installer-check.yml`, bringing the
+branch inventory to 603 tracked paths. The current path-family disposition is
+summarized below; each tracked path is assigned by one ordered prefix/exception rule.
 
 ## Current inventory and disposition
 
@@ -30,12 +31,12 @@ all code has reached its final location.
 | 11 | Root `*.sh` except `scratch.sh` | 23 | Public root commands used by documentation, component dispatch, wrappers and sparse checkouts. Preserve until each caller is migrated and tested. |
 | 12 | `scratch.sh` | 1 | Existing argument-inspection helper; no in-repository consumer found, so retain pending ownership review rather than delete. |
 | 13 | `fixes/**` | 2 | Patch data consumed by `fix-sddm-session-text.sh`; current relative contract keeps the files here. |
-| 14 | `.github/**`, root metadata, `docs/**`, `manifests/**`, `profiles/**`, `tests/**` | 44 | CI, repository metadata, documentation, manifests, profiles and tests stay in their role-specific paths. |
-|  | **Total** | **602** | The ordered rules account for every tracked path exactly once. |
+| 14 | `.github/**`, root metadata, `docs/**`, `manifests/**`, `profiles/**`, `tests/**` | 45 | CI, repository metadata, documentation, manifests, profiles and tests stay in their role-specific paths. |
+|  | **Total** | **603** | The ordered rules account for every tracked path exactly once. |
 
-Top-level totals: root 29; `.github` 2; `apps` 201; `bin` 1; `config` 191;
+Top-level totals: root 29; `.github` 3; `apps` 201; `bin` 1; `config` 191;
 `core` 25; `docs` 24; `fixes` 2; `installer` 38; `manager` 43; `manifests` 2;
-`profiles` 4; `shared` 33; `tests` 7. Sum: 602. `apps` includes its five
+`profiles` 4; `shared` 33; `tests` 7. Sum: 603. `apps` includes its five
 tracked Custom Manager object files; `manager` includes its five equivalents.
 
 The tracked root commands are deliberately not moved wholesale: `manifests/components.tsv`

@@ -19,7 +19,7 @@
 
 - Created the dedicated repository-reorganization branch without changing `main`.
 - The old file-by-file table remains a 359-file historical snapshot. Added a
-	current 602-path family inventory and a regression classifier that fails if a
+	current 603-path family inventory and a regression classifier that fails if a
 	tracked path is unclassified or a family count drifts.
 - Documented architecture overview, target directory rules, high-level dependency graph and compatibility policy.
 - Confirmed critical coupling between source directories, installers, manifests, updater, sparse-checkout instructions and tests.
@@ -36,10 +36,12 @@
 The following checks were executed in the isolated worktree on the current
 continuation; they are local results, not GitHub Actions results:
 
-- Architecture migration path suite: 29 tests passed. It now classifies all 602
-	tracked paths, proves updater source globs match files, checks component-ID
-	alignment (including documented updater-only Nova 2), and exercises recovery
-	from a legacy sparse checkout whose core/update symlinks lack targets.
+- Architecture migration path suite: 29 tests passed on the preceding 602-path
+	baseline, proving updater source globs, component-ID alignment (including
+	documented updater-only Nova 2), and recovery from a legacy sparse checkout.
+	The current continuation adds one tracked CI workflow; its initial PR run
+	exposed the stale 602-path assertion. The assertion and inventory are now
+	updated to 603 paths and will be rechecked by the new PR run.
 - MPVpaper path tests: 4 passed; MPVpaper unit suite: 406 passed using the same
 	harmless `mpvpaper` test executable as CI.
 - Repository regression suite: 85 passed (including the Aurora tests); the
@@ -57,15 +59,20 @@ continuation; they are local results, not GitHub Actions results:
 - All tracked shell scripts passed `bash -n` and ShellCheck. Python compilation,
 	updater-manifest JSON validation, canonical/legacy CLI help, systemd unit
 	verification, and `git diff --check` also passed.
-- Rust formatting now passes for both installer crates. The privileged helper
-	has 6 unit tests and passes strict Clippy. `make -C installer test` passes,
-	but the GUI binary still contains zero tests. The full `make -C installer
-	check` remains **not clean** because strict Clippy reports unused installer
-	state/page models in `installer/src/state.rs`; those data structures are not
-	wired into the running GUI (which currently displays only a static welcome
-	page). This is a genuine incomplete-prototype warning, not a formatting issue;
-	it was not suppressed. Treat the GUI as experimental and do not claim a
-	production-ready installer until a tested installation flow is integrated.
+- Before this continuation, the full `make -C installer check` was not
+	clean: strict Clippy reported unused placeholder page and state models because
+	the GTK binary only displayed a static welcome page. In this continuation,
+	those unused prototype models were removed, the remaining language/dry-run
+	state was made explicit in the UI, and the UI now labels itself as
+	informational rather than a working installation flow. Five focused unit
+	tests now cover executable-relative root discovery, path traversal rejection,
+	missing scripts, unrelated directories and successful script resolution. A dedicated
+	`.github/workflows/installer-check.yml` workflow now runs formatting, strict
+	Clippy, workspace tests and release compilation on this branch and on relevant
+	pull requests. These checks have **not yet been observed passing** for the
+	current branch commit; source edits and workflow creation alone are not proof
+	of a successful build. Treat the GUI as experimental until a tested
+	installation flow is integrated and exercised.
 - ShellCheck-driven edits only clarify the best-effort command guards and
 	sourced-variable contracts; canonical and legacy Hyprland scripts remain
 	behaviorally aligned.
@@ -87,10 +94,12 @@ continuation; they are local results, not GitHub Actions results:
 - Updater manifest sources are now aligned with the staged canonical paths: MirrorBridge, PeriphX, MPVpaper, Aurora, Caelestia V2, Nova Shell, all three Waybar variants and shared Hyprland/Waybar resources. The migration test now expands every source glob, checks all Rust build manifests and Nova patch files, and verifies component IDs. Remaining updater work is limited to rules for components whose implementations and installation contracts have not yet been migrated; the already staged groups should not be reworked.
 - `core/system`, `core/updater`, `core/transactions` and the registry reader now have canonical implementations. The shell reader is `core/registry/components.sh`; registry data remains in `manifests/components.tsv`, with no separate typed registry API yet. Installer framework reorganization, service packaging and complete internal-reference migration remain outstanding. CI runs the repository-level regression suite against the canonical core packages.
 - The Rust helper's input validation and JSON action decoding now have local
-	unit coverage; the GUI installation flow remains an unintegrated prototype.
-	`make -C installer check` fails on strict dead-code diagnostics until those
-	models are either connected to a tested GUI workflow or intentionally retired
-	in a separately reviewed change.
+	unit coverage. The GTK installer remains an informational prototype, not a
+	working installation workflow. The unused placeholder page, hardware,
+	compatibility and profile state models have been retired rather than presented
+	as implemented functionality. The minimal state still consumed by the
+	prototype (language and dry-run selection) is retained and displayed. A full
+	GUI installation workflow remains a separate implementation and validation task.
 - No local Debian desktop installation, live Hyprland/Waybar runtime, end-to-end install/update/rollback or GUI integration test has been executed. GitHub Actions provides isolated source-level Python, Bash, C and Rust validation only.
 - GitHub Actions path-compatibility workflow passed on commit `e34cbb25834597b6634ecdc596b1515938591a15` (run `41242224199`). The workflow executed 6 path-compatibility tests; all 6 passed.
 
